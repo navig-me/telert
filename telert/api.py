@@ -25,12 +25,63 @@ import time
 import traceback
 import contextlib
 import functools
-from typing import Optional, Any, Callable, Union, TypeVar, cast
+import os
+from typing import Optional, Any, Callable, Union, TypeVar, cast, Dict
 
-from telert.cli import _send, _load, _human
+from telert.cli import _send, _load, _save, _human, CFG_FILE
 
 # Type variable for function return type
 T = TypeVar('T')
+
+def configure(token: str, chat_id: str) -> None:
+    """
+    Configure Telert with Telegram bot token and chat ID.
+    
+    Args:
+        token: The Telegram bot API token
+        chat_id: The chat ID to send messages to
+        
+    Examples:
+        from telert import configure
+        
+        configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
+    """
+    _save(token, chat_id)
+    
+def get_config() -> Dict[str, str]:
+    """
+    Get the current telert configuration.
+    
+    Returns:
+        A dictionary containing the token and chat_id
+        
+    Examples:
+        from telert import get_config
+        
+        config = get_config()
+        print(f"Using bot token: {config['token'][:8]}...")
+        print(f"Sending to chat ID: {config['chat_id']}")
+    """
+    try:
+        return _load()
+    except SystemExit:
+        # If _load exits due to missing config, return empty dict instead
+        return {"token": "", "chat_id": ""}
+
+def is_configured() -> bool:
+    """
+    Check if telert is configured.
+    
+    Returns:
+        True if configuration exists, False otherwise
+        
+    Examples:
+        from telert import is_configured, configure
+        
+        if not is_configured():
+            configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
+    """
+    return CFG_FILE.exists()
 
 def send(message: str) -> None:
     """
@@ -38,8 +89,30 @@ def send(message: str) -> None:
     
     Args:
         message: The message text to send
+        
+    Examples:
+        from telert import send
+        
+        send("Hello from Python!")
+        
+    Environment Variables:
+        TELERT_TOKEN: Can be used to override the bot token
+        TELERT_CHAT_ID: Can be used to override the chat ID
     """
-    _send(message)
+    # Check for environment variable overrides
+    token_override = os.environ.get("TELERT_TOKEN")
+    chat_id_override = os.environ.get("TELERT_CHAT_ID")
+    
+    if token_override and chat_id_override:
+        # Use environment variables if both are set
+        from telert.cli import requests
+        url = f"https://api.telegram.org/bot{token_override}/sendMessage"
+        r = requests.post(url, json={"chat_id": chat_id_override, "text": message})
+        if r.status_code != 200:
+            raise RuntimeError(f"Telegram API error {r.status_code}: {r.text}")
+    else:
+        # Use configured values
+        _send(message)
 
 class telert:
     """
@@ -105,7 +178,7 @@ class telert:
             else:
                 message = f"{self.label} {status} in {duration}: {exc_val}"
                 
-            _send(message)
+            send(message)  # Use send() which handles env vars
             return False  # Re-raise the exception
             
         status = "completed"
@@ -121,7 +194,7 @@ class telert:
                     result_str = result_str[:997] + "..."
                 message += f"\n\n--- result ---\n{result_str}"
                 
-            _send(message)
+            send(message)  # Use send() which handles env vars
             
         # If a callback was provided, call it with the message
         if self.callback and not self.only_fail:

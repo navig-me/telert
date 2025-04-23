@@ -1,15 +1,43 @@
 [project]
 name = "telert"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI Telegram notifier: run commands or use as pipeline"
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = ["requests>=2.25"]
+keywords = ["telegram", "notification", "cli", "terminal", "alert"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Communications",
+    "Topic :: System :: Monitoring",
+    "Topic :: Utilities"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/navig-me/telert"
+"Bug Tracker" = "https://github.com/navig-me/telert/issues"
 
 [project.scripts]
 telert = "telert.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "pytest"
+]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

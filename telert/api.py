@@ -66,16 +66,16 @@ def configure_telegram(token: str, chat_id: str, set_default: bool = True) -> No
 
 def configure_teams(webhook_url: str, set_default: bool = True) -> None:
     """
-    Configure Telert for Microsoft Teams.
+    Configure Telert for Microsoft Teams using Power Automate.
 
     Args:
-        webhook_url: The Teams incoming webhook URL
+        webhook_url: The HTTP URL from your Power Automate flow trigger
         set_default: Whether to set Teams as the default provider
 
     Examples:
         from telert import configure_teams
         
-        configure_teams("https://outlook.office.com/webhook/...")
+        configure_teams("https://prod-00.northcentralus.logic.azure.com/workflows/...")
     """
     configure_provider(Provider.TEAMS, webhook_url=webhook_url, set_default=set_default)
 

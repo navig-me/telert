@@ -1,0 +1,3 @@
+include LICENSE README.md
+recursive-include telert *
+prune packaging

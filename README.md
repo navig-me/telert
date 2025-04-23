@@ -400,5 +400,5 @@ Licensed under the MIT License – see `LICENSE`.
 ## 👏 Acknowledgements
 
 This project has been improved with help from:
-- [Claude Code](https://claude.ai/code) - AI assistant that helped enhance documentation, create the Python API, and implement environment variable support
+- [Claude Code](https://claude.ai/code) - AI assistant that helped enhance documentation and with certain features.
 - All contributors who provide feedback and feature suggestions

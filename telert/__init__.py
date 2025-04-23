@@ -3,17 +3,27 @@ __all__ = [
     "telert", 
     "send", 
     "notify", 
-    "configure", 
+    "configure",  # Legacy function for backward compatibility
+    "configure_telegram",
+    "configure_teams",
+    "configure_slack",
     "get_config", 
-    "is_configured"
+    "is_configured",
+    "set_default_provider",
+    "list_providers"
 ]
-__version__ = "0.1.4"
+__version__ = "0.1.5"  # Bump version for multi-provider support
 
 from telert.api import (
     telert, 
     send, 
     notify, 
-    configure, 
+    configure,
+    configure_telegram,
+    configure_teams,
+    configure_slack,
     get_config, 
-    is_configured
+    is_configured,
+    set_default_provider,
+    list_providers
 )

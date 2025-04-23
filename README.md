@@ -1,8 +1,8 @@
-# telert – Telegram Alerts for Your Terminal
+# telert – Alerts for Your Terminal (Telegram, Teams, Slack)
 
-**Version 0.1.4** 📱
+**Version 0.1.5** 📱
 
-Telert is a lightweight utility that sends Telegram notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 **Quick start:**
 ```bash
@@ -33,69 +33,133 @@ pip install telert
 
 ---
 
-## 🤖 Telegram Bot Setup Guide
+## 🤖 Setup Guide
 
-### Step 1: Create Your Telegram Bot
+Telert supports multiple messaging services. Choose one or more based on your needs.
+
+### Telegram Setup
+
+#### Step 1: Create Your Telegram Bot
 1. Open Telegram and search for `@BotFather`
-2. Start a chat and send the command `/newbot`
+2. Start a chat and send `/newbot`
 3. Follow the prompts to name your bot (e.g., "My Server Alerts")
-4. Choose a username for your bot (must end with "bot", e.g., "my_server_alerts_bot")
-5. **Important:** Save the API token that BotFather gives you - it looks like `123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ`
+4. Choose a username (must end with "bot", e.g., "my_server_alerts_bot")
+5. **Important:** Save the API token (looks like `123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ`)
 
-### Step 2: Initialize Chat with Your Bot
-1. Search for your new bot by the username you created
-2. Send any message to the bot (e.g., "hello")
-   - This step is crucial - you must send at least one message to the bot before it can send messages to you
+#### Step 2: Initialize Chat & Get Chat ID
+1. Send any message to your new bot (this is required before it can message you)
+2. Get your chat ID with:
+   ```bash
+   curl -s "https://api.telegram.org/bot<token>/getUpdates"
+   ```
+3. Find the `"chat":{"id":` value in the response (e.g., `123456789`)
 
-### Step 3: Get Your Chat ID
+#### Step 3: Configure Telegram in Telert
+
+**CLI Configuration:**
 ```bash
-# Replace <token> with your bot token from step 1
-curl -s "https://api.telegram.org/bot<token>/getUpdates"
+telert config telegram --token "<token>" --chat-id "<chat-id>" --set-default
+telert status --provider telegram  # Test
 ```
 
-Look for the `"chat":{"id":` value in the response. For example:
-```json
-{"update_id":123456789,"message":{"message_id":1,"from":{"id":123456789,"is_bot":false,"first_name":"Your","last_name":"Name","username":"yourname"},"chat":{"id":123456789,"first_name":"Your","last_name":"Name","username":"yourname","type":"private"},"date":1678901234,"text":"hello"}}
-```
-The number after `"chat":{"id":` is your chat ID (in this example, `123456789`).
-
-For channels, the chat ID will start with `-100`.
-
-### Step 4: Configure Telert
-
-You can configure telert using the CLI, Python API, or environment variables:
-
-#### Option 1: CLI Configuration
-```bash
-# Save your bot token and chat ID
-telert config --token "<your-bot-token>" --chat-id "<your-chat-id>"
-
-# Send a test message to verify everything works
-telert status
-```
-
-#### Option 2: Python Configuration
+**Python Configuration:**
 ```python
-from telert import configure, send
+from telert import configure_telegram, send
 
-# Configure once
-configure("<your-bot-token>", "<your-chat-id>")
-
-# Test the connection
-send("✅ Telert configured successfully from Python")
+configure_telegram("<token>", "<chat-id>")
+send("✅ Telegram test", provider="telegram")
 ```
 
-#### Option 3: Environment Variables
+**Environment Variables:**
 ```bash
-# Set in your shell or .bashrc/.zshrc
-export TELERT_TOKEN="<your-bot-token>"
-export TELERT_CHAT_ID="<your-chat-id>"
-
-# Now telert will use these environment variables automatically
-telert send "Using environment variables"
+export TELERT_TOKEN="<token>"
+export TELERT_CHAT_ID="<chat-id>"
 ```
 
-Telert securely stores credentials in `~/.config/telert/config.json` unless environment variables are used.
+### Microsoft Teams Setup
+
+#### Step 1: Create Incoming Webhook
+1. Open Teams and navigate to the channel where you want to receive alerts
+2. Click the "..." menu next to the channel name
+3. Select "Connectors"
+4. Find "Incoming Webhook" and click "Configure"
+5. Give it a name and optionally upload an icon
+6. Click "Create" and copy the webhook URL
+
+#### Step 2: Configure Teams in Telert
+
+**CLI Configuration:**
+```bash
+telert config teams --webhook-url "<webhook-url>" --set-default
+telert status --provider teams  # Test
+```
+
+**Python Configuration:**
+```python
+from telert import configure_teams, send
+
+configure_teams("<webhook-url>")
+send("✅ Teams test", provider="teams")
+```
+
+**Environment Variables:**
+```bash
+export TELERT_TEAMS_WEBHOOK="<webhook-url>"
+```
+
+### Slack Setup
+
+#### Step 1: Create Incoming Webhook
+1. Go to https://api.slack.com/apps and click "Create New App"
+2. Choose "From scratch" and fill in the app name and workspace
+3. Click "Incoming Webhooks" in the sidebar
+4. Activate incoming webhooks and click "Add New Webhook to Workspace"
+5. Choose the channel where notifications should appear
+6. Copy the webhook URL that looks like `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX`
+
+#### Step 2: Configure Slack in Telert
+
+**CLI Configuration:**
+```bash
+telert config slack --webhook-url "<webhook-url>" --set-default
+telert status --provider slack  # Test
+```
+
+**Python Configuration:**
+```python
+from telert import configure_slack, send
+
+configure_slack("<webhook-url>")
+send("✅ Slack test", provider="slack")
+```
+
+**Environment Variables:**
+```bash
+export TELERT_SLACK_WEBHOOK="<webhook-url>"
+```
+
+### Managing Multiple Providers
+
+Telert lets you configure multiple providers and set one as default:
+
+```bash
+# List configured providers
+telert status
+
+# Set a provider as default
+telert config slack --webhook-url "<url>" --set-default
+
+# Use a specific provider rather than default
+telert send --provider telegram "Via Telegram"
+
+# Python API
+from telert import set_default_provider, list_providers
+
+set_default_provider("teams")
+providers = list_providers()  # Get info about configured providers
+```
+
+Telert securely stores all configuration in `~/.config/telert/config.json` unless environment variables are used.
 
 ---
 
@@ -106,8 +170,9 @@ Telert securely stores credentials in `~/.config/telert/config.json` unless envi
 | **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" -- rsync -a /src /dst` |
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
-| **Send**       | Low-level "send arbitrary text to myself" helper. | `telert send "server rebooted"` |
+| **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
+| **Multi-provider** | Configure and use multiple messaging services (Telegram, Teams, Slack). | `telert config teams --webhook-url "..."` |
 
 ---
 
@@ -119,7 +184,7 @@ Telert securely stores credentials in `~/.config/telert/config.json` unless envi
 Wrap any command to receive a notification when it completes:
 
 ```bash
-# Basic usage - notify when command finishes
+# Basic usage - notify when command finishes (uses default provider)
 telert run -- npm run build
 
 # Add a descriptive label
@@ -127,6 +192,9 @@ telert run --label "DB Backup" -- pg_dump -U postgres mydb > backup.sql
 
 # Show notification only when a command fails
 telert run --only-fail -- rsync -av /src/ /backup/
+
+# Send to a specific provider
+telert run --provider teams --label "ML Training" -- python train_model.py
 
 # Custom notification message
 telert run --message "Training complete! 🎉" -- python train_model.py
@@ -136,28 +204,34 @@ telert run --message "Training complete! 🎉" -- python train_model.py
 Perfect for adding notifications to existing pipelines:
 
 ```bash
-# Send notification when a pipeline completes
+# Send notification when a pipeline completes (uses default provider)
 find . -name "*.log" \| xargs grep "ERROR" \| telert "Error check complete"
 
-# Process and notify
-cat large_file.csv \| awk '{print $3}' \| sort \| uniq -c \| telert "Data processing finished"
+# Process and notify with specific provider
+cat large_file.csv \| awk '{print $3}' \| sort \| uniq -c \| telert --provider=slack "Data processing finished"
 ```
 
 > **Note:** In filter mode, the exit status is not captured since commands in a pipeline run in separate processes.
 > For exit status tracking, use Run mode or add explicit status checking in your script.
 
 #### Send Mode
-Send custom messages from scripts:
+Send custom messages from scripts to any provider:
 
 ```bash
-# Simple text message
+# Simple text message (uses default provider)
 telert send "Server backup completed"
+
+# Send to a specific provider
+telert send --provider teams "Build completed"
+telert send --provider slack "Deployment started"
 
 # Send status from a script
 if [ $? -eq 0 ]; then
   telert send "✅ Deployment successful"
 else
-  telert send "❌ Deployment failed with exit code $?"
+  # Critical failures could go to multiple providers
+  telert send --provider telegram "❌ Deployment failed with exit code $?"
+  telert send --provider slack "❌ Deployment failed with exit code $?"
 fi
 ```
 
@@ -185,24 +259,43 @@ telert run --help
 
 #### Configuration
 ```python
-from telert import configure, is_configured, get_config
+from telert import (
+    configure_telegram, configure_teams, configure_slack, 
+    set_default_provider, is_configured, get_config, list_providers
+)
 
-# Check if already configured
-if not is_configured():
-    configure("<your-token>", "<your-chat-id>")
+# Configure one or more providers
+configure_telegram("<token>", "<chat-id>")
+configure_teams("<webhook-url>")
+configure_slack("<webhook-url>", set_default=True)  # Set as default
 
-# Get current configuration (useful to check if properly set up)
-config = get_config()
-print(f"Using token: {config['token'][:8]}...")
+# Check if specific provider is configured
+if not is_configured("teams"):
+    configure_teams("<webhook-url>")
+
+# Get configuration for a specific provider
+telegram_config = get_config("telegram")
+print(f"Using token: {telegram_config['token'][:8]}...")
+
+# List all providers and see which is default
+providers = list_providers()
+for p in providers:
+    print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
+
+# Change default provider
+set_default_provider("telegram")
 ```
 
 #### Simple Messaging
 ```python
 from telert import send
 
-# Send a simple notification
+# Send using default provider
 send("Script started")
-send("Processing completed with 5 records updated")
+
+# Send to specific provider regardless of default
+send("Processing completed with 5 records updated", provider="teams")
+send("Critical error detected!", provider="slack")
 ```
 
 #### Context Manager
@@ -226,6 +319,11 @@ with telert("Calculation") as t:
 with telert("Critical operation", only_fail=True):
     # This block will only send a notification if an exception occurs
     risky_function()
+    
+# Specify a provider
+with telert("Teams notification", provider="teams"):
+    # This will send to Teams regardless of the default provider
+    teams_specific_operation()
 ```
 
 #### Function Decorator
@@ -250,20 +348,27 @@ def backup_database():
 @notify("Calculation")
 def calculate_stats(data):
     return {"mean": sum(data)/len(data), "count": len(data)}
+
+# Send notification to specific provider
+@notify("Slack alert", provider="slack")
+def slack_notification_function():
+    return "This will be sent to Slack"
 ```
 
 ---
 
 ## 🌿 Environment Variables
 
-| Variable            | Effect                                      |
-|---------------------|---------------------------------------------|
-| `TELERT_TOKEN`      | Bot token (overrides config file)           |
-| `TELERT_CHAT_ID`    | Chat ID (overrides config file)             |
-| `TELERT_LONG`       | Default threshold (seconds) for `hook`      |
-| `TELERT_SILENT=1`   | Suppress stdout/stderr echo in `run`        |
+| Variable              | Effect                                      |
+|-----------------------|---------------------------------------------|
+| `TELERT_TOKEN`        | Telegram bot token                          |
+| `TELERT_CHAT_ID`      | Telegram chat ID                            |
+| `TELERT_TEAMS_WEBHOOK`| Microsoft Teams webhook URL                 |
+| `TELERT_SLACK_WEBHOOK`| Slack webhook URL                           |
+| `TELERT_LONG`         | Default threshold (seconds) for `hook`      |
+| `TELERT_SILENT=1`     | Suppress stdout/stderr echo in `run`        |
 
-Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file.
+Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack.
 
 ---
 

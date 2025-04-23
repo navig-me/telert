@@ -10,7 +10,7 @@ Telert is a lightweight utility that sends Telegram notifications when your term
 pip install telert
 
 # After quick setup (see below)
-long_running_command | telert "Command finished!"
+long_running_command \| telert "Command finished!"
 ```
 
 ✅ **Key benefits:**
@@ -104,7 +104,7 @@ Telert securely stores credentials in `~/.config/telert/config.json` unless envi
 | Mode           | What it does | Example |
 |----------------|--------------|---------|
 | **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" -- rsync -a /src /dst` |
-| **Filter**     | Reads from stdin so you can pipe command output. | `long_job | telert "compile done"` |
+| **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text to myself" helper. | `telert send "server rebooted"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
@@ -137,10 +137,10 @@ Perfect for adding notifications to existing pipelines:
 
 ```bash
 # Send notification when a pipeline completes
-find . -name "*.log" | xargs grep "ERROR" | telert "Error check complete"
+find . -name "*.log" \| xargs grep "ERROR" \| telert "Error check complete"
 
 # Process and notify
-cat large_file.csv | awk '{print $3}' | sort | uniq -c | telert "Data processing finished"
+cat large_file.csv \| awk '{print $3}' \| sort \| uniq -c \| telert "Data processing finished"
 ```
 
 > **Note:** In filter mode, the exit status is not captured since commands in a pipeline run in separate processes.
@@ -276,7 +276,7 @@ Using environment variables is especially useful in CI/CD pipelines or container
 
 ```bash
 # Alert when disk space exceeds 90%
-df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
+df -h \| grep -E '[9][0-9]%' \| telert "Disk space alert!"
 
 # Monitor a system update
 telert run --label "System update" -- apt update && apt upgrade -y

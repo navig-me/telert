@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """
-Python API for telert - Send Telegram alerts from Python code.
+Python API for telert - Send alerts from Python code to Telegram, Teams, or Slack.
 
-This module provides functions to send Telegram notifications directly from Python.
+This module provides functions to send notifications directly from Python.
 It shares the same configuration as the CLI tool.
 
 Usage:
     from telert import telert, send
-
+    
     # Send a simple notification
     send("My script finished processing")
-
+    
+    # Specify a provider
+    send("Hello Slack!", provider="slack")
+    
     # Use with a context manager to time execution
     with telert("Long computation"):
         # Your code here
         result = compute_something_expensive()
-
+    
     # The notification will be sent when the block exits,
     # including the execution time.
 """
@@ -26,17 +29,81 @@ import functools
 import os
 import time
 import traceback
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar, Union, List
 
-from telert.cli import CFG_FILE, _human, _load, _save, _send
+from telert.messaging import (
+    Provider,
+    MessagingConfig,
+    configure_provider,
+    send_message,
+    CONFIG_DIR,
+    get_provider
+)
+
+# For backward compatibility
+from telert.cli import _human
 
 # Type variable for function return type
 T = TypeVar("T")
 
 
+def configure_telegram(token: str, chat_id: str, set_default: bool = True) -> None:
+    """
+    Configure Telert for Telegram.
+
+    Args:
+        token: The Telegram bot API token
+        chat_id: The chat ID to send messages to
+        set_default: Whether to set Telegram as the default provider
+
+    Examples:
+        from telert import configure_telegram
+        
+        configure_telegram("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
+    """
+    configure_provider(Provider.TELEGRAM, token=token, chat_id=chat_id, set_default=set_default)
+
+
+def configure_teams(webhook_url: str, set_default: bool = True) -> None:
+    """
+    Configure Telert for Microsoft Teams.
+
+    Args:
+        webhook_url: The Teams incoming webhook URL
+        set_default: Whether to set Teams as the default provider
+
+    Examples:
+        from telert import configure_teams
+        
+        configure_teams("https://outlook.office.com/webhook/...")
+    """
+    configure_provider(Provider.TEAMS, webhook_url=webhook_url, set_default=set_default)
+
+
+def configure_slack(webhook_url: str, set_default: bool = True) -> None:
+    """
+    Configure Telert for Slack.
+
+    Args:
+        webhook_url: The Slack incoming webhook URL
+        set_default: Whether to set Slack as the default provider
+
+    Examples:
+        from telert import configure_slack
+        
+        configure_slack("https://hooks.slack.com/services/...")
+    """
+    configure_provider(Provider.SLACK, webhook_url=webhook_url, set_default=set_default)
+
+
+# Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """
     Configure Telert with Telegram bot token and chat ID.
+    
+    This is a legacy function maintained for backward compatibility.
+    For new code, consider using configure_telegram(), configure_teams(), 
+    or configure_slack() instead.
 
     Args:
         token: The Telegram bot API token
@@ -44,120 +111,231 @@ def configure(token: str, chat_id: str) -> None:
 
     Examples:
         from telert import configure
-
+        
         configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
-    _save(token, chat_id)
+    configure_telegram(token, chat_id, set_default=True)
 
 
-def get_config() -> Dict[str, str]:
+def get_config(provider: Optional[Union[str, Provider]] = None) -> Dict[str, Any]:
     """
-    Get the current telert configuration.
+    Get the configuration for a specific provider or all providers.
+
+    Args:
+        provider: The provider to get configuration for (optional)
+                  If not provided, returns configuration for all providers
 
     Returns:
-        A dictionary containing the token and chat_id
+        A dictionary containing the provider configuration
 
     Examples:
         from telert import get_config
-
-        config = get_config()
-        print(f"Using bot token: {config['token'][:8]}...")
-        print(f"Sending to chat ID: {config['chat_id']}")
+        
+        # Get Telegram config
+        telegram_config = get_config("telegram")
+        if telegram_config:
+            print(f"Using bot token: {telegram_config['token'][:8]}...")
+        
+        # Get all configurations
+        all_config = get_config()
     """
-    try:
-        return _load()
-    except SystemExit:
-        # If _load exits due to missing config, return empty dict instead
-        return {"token": "", "chat_id": ""}
+    config = MessagingConfig()
+    
+    if provider:
+        if isinstance(provider, str):
+            try:
+                provider = Provider.from_string(provider)
+            except ValueError:
+                return {}
+        
+        return config.get_provider_config(provider)
+    else:
+        # Return all provider configs
+        result = {}
+        for p in Provider:
+            p_config = config.get_provider_config(p)
+            if p_config:
+                result[p.value] = p_config
+                
+        # Include default provider
+        default = config.get_default_provider()
+        if default:
+            result["default"] = default.value
+            
+        return result
 
 
-def is_configured() -> bool:
+def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
     """
-    Check if telert is configured.
+    Check if a specific provider or any provider is configured.
+
+    Args:
+        provider: The provider to check (optional)
+                  If not provided, checks if any provider is configured
 
     Returns:
-        True if configuration exists, False otherwise
+        True if configured, False otherwise
 
     Examples:
-        from telert import is_configured, configure
-
-        if not is_configured():
-            configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
+        from telert import is_configured, configure_teams
+        
+        if not is_configured("teams"):
+            configure_teams("https://outlook.office.com/webhook/...")
     """
-    return CFG_FILE.exists()
+    config = MessagingConfig()
+    
+    if provider:
+        if isinstance(provider, str):
+            try:
+                provider = Provider.from_string(provider)
+            except ValueError:
+                return False
+                
+        return config.is_provider_configured(provider)
+    else:
+        # Check if any provider is configured
+        for p in Provider:
+            if config.is_provider_configured(p):
+                return True
+                
+        # Check for environment variables
+        if os.environ.get("TELERT_TOKEN") and os.environ.get("TELERT_CHAT_ID"):
+            return True
+        if os.environ.get("TELERT_TEAMS_WEBHOOK"):
+            return True
+        if os.environ.get("TELERT_SLACK_WEBHOOK"):
+            return True
+            
+        return False
 
 
-def send(message: str) -> None:
+def set_default_provider(provider: Union[str, Provider]) -> None:
     """
-    Send a Telegram message using telert configuration.
+    Set the default messaging provider.
+
+    Args:
+        provider: The provider to set as default
+
+    Examples:
+        from telert import set_default_provider
+        
+        set_default_provider("slack")
+    """
+    config = MessagingConfig()
+    
+    if isinstance(provider, str):
+        provider = Provider.from_string(provider)
+        
+    config.set_default_provider(provider)
+
+
+def list_providers() -> List[Dict[str, Any]]:
+    """
+    List all configured providers.
+
+    Returns:
+        A list of dictionaries with provider information
+
+    Examples:
+        from telert import list_providers
+        
+        providers = list_providers()
+        for p in providers:
+            print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
+    """
+    config = MessagingConfig()
+    default = config.get_default_provider()
+    result = []
+    
+    for p in Provider:
+        if config.is_provider_configured(p):
+            provider_config = config.get_provider_config(p)
+            info = {
+                "name": p.value,
+                "is_default": (default == p),
+                "config": provider_config
+            }
+            result.append(info)
+            
+    return result
+
+
+def send(message: str, provider: Optional[Union[str, Provider]] = None) -> None:
+    """
+    Send a message using configured provider.
 
     Args:
         message: The message text to send
+        provider: The provider to use (optional)
+                  If not provided, uses the default provider
 
     Examples:
         from telert import send
-
+        
+        # Use default provider
         send("Hello from Python!")
+        
+        # Specify provider
+        send("Hello Teams!", provider="teams")
 
     Environment Variables:
-        TELERT_TOKEN: Can be used to override the bot token
-        TELERT_CHAT_ID: Can be used to override the chat ID
+        TELERT_TOKEN, TELERT_CHAT_ID: Override Telegram configuration
+        TELERT_TEAMS_WEBHOOK: Override Teams configuration
+        TELERT_SLACK_WEBHOOK: Override Slack configuration
     """
-    # Check for environment variable overrides
-    token_override = os.environ.get("TELERT_TOKEN")
-    chat_id_override = os.environ.get("TELERT_CHAT_ID")
-
-    if token_override and chat_id_override:
-        # Use environment variables if both are set
-        from telert.cli import requests
-
-        url = f"https://api.telegram.org/bot{token_override}/sendMessage"
-        r = requests.post(url, json={"chat_id": chat_id_override, "text": message})
-        if r.status_code != 200:
-            raise RuntimeError(f"Telegram API error {r.status_code}: {r.text}")
-    else:
-        # Use configured values
-        _send(message)
+    try:
+        if provider is not None and isinstance(provider, str):
+            provider = Provider.from_string(provider)
+            
+        send_message(message, provider)
+    except Exception as e:
+        raise RuntimeError(f"Failed to send message: {str(e)}")
 
 
 class telert:
     """
-    Context manager for sending Telegram notifications.
-
-    When used as a context manager, it will time the code execution and
+    Context manager for sending notifications.
+    
+    When used as a context manager, it will time the code execution and 
     send a notification when the block exits, including the execution time
     and any exceptions that were raised.
-
+    
     Examples:
         # Basic usage with default message
         with telert():
             do_something_lengthy()
-
+        
         # Custom message
         with telert("Database backup"):
             backup_database()
-
+        
         # Handle return value
         with telert("Processing data") as t:
             result = process_data()
             t.result = result  # This will be included in the notification
+            
+        # Specify provider
+        with telert("Teams message", provider="teams"):
+            run_teams_task()
     """
-
+    
     def __init__(
-        self,
-        label: Optional[str] = None,
-        only_fail: bool = False,
+        self, 
+        label: Optional[str] = None, 
+        only_fail: bool = False, 
         include_traceback: bool = True,
         callback: Optional[Callable[[str], Any]] = None,
+        provider: Optional[Union[str, Provider]] = None
     ):
         """
         Initialize a telert context manager.
-
+        
         Args:
             label: Optional label to identify this operation in the notification
             only_fail: If True, only send notification on failure (exception)
             include_traceback: If True, include traceback in notification when an exception occurs
             callback: Optional callback function to run with the notification message
+            provider: Optional provider to use for notifications
         """
         self.label = label or "Python task"
         self.only_fail = only_fail
@@ -166,86 +344,102 @@ class telert:
         self.result = None
         self.start_time = None
         self.exception = None
-
+        
+        # Convert provider string to enum if needed
+        self.provider = None
+        if provider is not None:
+            if isinstance(provider, str):
+                try:
+                    self.provider = Provider.from_string(provider)
+                except ValueError:
+                    raise ValueError(f"Unknown provider: {provider}")
+            else:
+                self.provider = provider
+        
     def __enter__(self):
         self.start_time = time.time()
         return self
-
+        
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration = _human(time.time() - self.start_time)
-
+        
         if exc_type is not None:
             self.exception = exc_val
             status = "failed"
-
+            
             if self.include_traceback:
                 tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
-                message = (
-                    f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
-                )
+                message = f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
             else:
                 message = f"{self.label} {status} in {duration}: {exc_val}"
-
-            send(message)  # Use send() which handles env vars
+                
+            send(message, self.provider)
             return False  # Re-raise the exception
-
+            
         status = "completed"
-
+        
         # Only send notification on success if only_fail is False
         if not self.only_fail:
             message = f"{self.label} {status} in {duration}"
-
+            
             # Include the result if it was set
             if self.result is not None:
                 result_str = str(self.result)
                 if len(result_str) > 1000:
                     result_str = result_str[:997] + "..."
                 message += f"\n\n--- result ---\n{result_str}"
-
-            send(message)  # Use send() which handles env vars
-
+                
+            send(message, self.provider)
+            
         # If a callback was provided, call it with the message
         if self.callback and not self.only_fail:
             self.callback(message)
-
+            
         return False
 
 
 def notify(
-    label: Optional[str] = None, only_fail: bool = False, include_traceback: bool = True
+    label: Optional[str] = None, 
+    only_fail: bool = False, 
+    include_traceback: bool = True,
+    provider: Optional[Union[str, Provider]] = None
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
-    Decorator to send Telegram notifications when a function completes.
-
+    Decorator to send notifications when a function completes.
+    
     Args:
         label: Optional label to identify this operation in the notification
         only_fail: If True, only send notification on failure (exception)
         include_traceback: If True, include traceback in notification when an exception occurs
-
+        provider: Optional provider to use for notifications
+        
     Returns:
         A decorator function
-
+        
     Examples:
         @notify("Database backup")
         def backup_database():
             # Your code here
-
+            
         @notify(only_fail=True)
         def critical_operation():
             # Your code here
+            
+        @notify(provider="teams")
+        def teams_function():
+            # This will notify via Teams
     """
-
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             # Use the function name if no label is provided
             func_label = label or func.__name__
-
-            with telert(func_label, only_fail, include_traceback) as t:
+            
+            with telert(func_label, only_fail, include_traceback, provider=provider) as t:
                 result = func(*args, **kwargs)
                 t.result = result
                 return result
-
+                
         return wrapper
-
+    
     return decorator

@@ -7,57 +7,59 @@ It shares the same configuration as the CLI tool.
 
 Usage:
     from telert import telert, send
-    
+
     # Send a simple notification
     send("My script finished processing")
-    
+
     # Use with a context manager to time execution
     with telert("Long computation"):
         # Your code here
         result = compute_something_expensive()
-    
+
     # The notification will be sent when the block exits,
     # including the execution time.
 """
+
 from __future__ import annotations
 
-import time
-import traceback
-import contextlib
 import functools
 import os
-from typing import Optional, Any, Callable, Union, TypeVar, cast, Dict
+import time
+import traceback
+from typing import Any, Callable, Dict, Optional, TypeVar
 
-from telert.cli import _send, _load, _save, _human, CFG_FILE
+from telert.cli import CFG_FILE, _human, _load, _save, _send
 
 # Type variable for function return type
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 def configure(token: str, chat_id: str) -> None:
     """
     Configure Telert with Telegram bot token and chat ID.
-    
+
     Args:
         token: The Telegram bot API token
         chat_id: The chat ID to send messages to
-        
+
     Examples:
         from telert import configure
-        
+
         configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
     _save(token, chat_id)
-    
+
+
 def get_config() -> Dict[str, str]:
     """
     Get the current telert configuration.
-    
+
     Returns:
         A dictionary containing the token and chat_id
-        
+
     Examples:
         from telert import get_config
-        
+
         config = get_config()
         print(f"Using bot token: {config['token'][:8]}...")
         print(f"Sending to chat ID: {config['chat_id']}")
@@ -68,33 +70,35 @@ def get_config() -> Dict[str, str]:
         # If _load exits due to missing config, return empty dict instead
         return {"token": "", "chat_id": ""}
 
+
 def is_configured() -> bool:
     """
     Check if telert is configured.
-    
+
     Returns:
         True if configuration exists, False otherwise
-        
+
     Examples:
         from telert import is_configured, configure
-        
+
         if not is_configured():
             configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
     return CFG_FILE.exists()
 
+
 def send(message: str) -> None:
     """
     Send a Telegram message using telert configuration.
-    
+
     Args:
         message: The message text to send
-        
+
     Examples:
         from telert import send
-        
+
         send("Hello from Python!")
-        
+
     Environment Variables:
         TELERT_TOKEN: Can be used to override the bot token
         TELERT_CHAT_ID: Can be used to override the chat ID
@@ -102,10 +106,11 @@ def send(message: str) -> None:
     # Check for environment variable overrides
     token_override = os.environ.get("TELERT_TOKEN")
     chat_id_override = os.environ.get("TELERT_CHAT_ID")
-    
+
     if token_override and chat_id_override:
         # Use environment variables if both are set
         from telert.cli import requests
+
         url = f"https://api.telegram.org/bot{token_override}/sendMessage"
         r = requests.post(url, json={"chat_id": chat_id_override, "text": message})
         if r.status_code != 200:
@@ -114,39 +119,40 @@ def send(message: str) -> None:
         # Use configured values
         _send(message)
 
+
 class telert:
     """
     Context manager for sending Telegram notifications.
-    
-    When used as a context manager, it will time the code execution and 
+
+    When used as a context manager, it will time the code execution and
     send a notification when the block exits, including the execution time
     and any exceptions that were raised.
-    
+
     Examples:
         # Basic usage with default message
         with telert():
             do_something_lengthy()
-        
+
         # Custom message
         with telert("Database backup"):
             backup_database()
-        
+
         # Handle return value
         with telert("Processing data") as t:
             result = process_data()
             t.result = result  # This will be included in the notification
     """
-    
+
     def __init__(
-        self, 
-        label: Optional[str] = None, 
-        only_fail: bool = False, 
+        self,
+        label: Optional[str] = None,
+        only_fail: bool = False,
         include_traceback: bool = True,
-        callback: Optional[Callable[[str], Any]] = None
+        callback: Optional[Callable[[str], Any]] = None,
     ):
         """
         Initialize a telert context manager.
-        
+
         Args:
             label: Optional label to identify this operation in the notification
             only_fail: If True, only send notification on failure (exception)
@@ -160,85 +166,86 @@ class telert:
         self.result = None
         self.start_time = None
         self.exception = None
-        
+
     def __enter__(self):
         self.start_time = time.time()
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration = _human(time.time() - self.start_time)
-        
+
         if exc_type is not None:
             self.exception = exc_val
             status = "failed"
-            
+
             if self.include_traceback:
                 tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
-                message = f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
+                message = (
+                    f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
+                )
             else:
                 message = f"{self.label} {status} in {duration}: {exc_val}"
-                
+
             send(message)  # Use send() which handles env vars
             return False  # Re-raise the exception
-            
+
         status = "completed"
-        
+
         # Only send notification on success if only_fail is False
         if not self.only_fail:
             message = f"{self.label} {status} in {duration}"
-            
+
             # Include the result if it was set
             if self.result is not None:
                 result_str = str(self.result)
                 if len(result_str) > 1000:
                     result_str = result_str[:997] + "..."
                 message += f"\n\n--- result ---\n{result_str}"
-                
+
             send(message)  # Use send() which handles env vars
-            
+
         # If a callback was provided, call it with the message
         if self.callback and not self.only_fail:
             self.callback(message)
-            
+
         return False
-        
-        
+
+
 def notify(
-    label: Optional[str] = None,
-    only_fail: bool = False,
-    include_traceback: bool = True
+    label: Optional[str] = None, only_fail: bool = False, include_traceback: bool = True
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to send Telegram notifications when a function completes.
-    
+
     Args:
         label: Optional label to identify this operation in the notification
         only_fail: If True, only send notification on failure (exception)
         include_traceback: If True, include traceback in notification when an exception occurs
-        
+
     Returns:
         A decorator function
-        
+
     Examples:
         @notify("Database backup")
         def backup_database():
             # Your code here
-            
+
         @notify(only_fail=True)
         def critical_operation():
             # Your code here
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             # Use the function name if no label is provided
             func_label = label or func.__name__
-            
+
             with telert(func_label, only_fail, include_traceback) as t:
                 result = func(*args, **kwargs)
                 t.result = result
                 return result
-                
+
         return wrapper
-    
+
     return decorator

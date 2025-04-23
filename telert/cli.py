@@ -7,17 +7,31 @@ Supports two modes:
 
 Run `telert --help` or `telert help` for full usage.
 """
+
 from __future__ import annotations
-import argparse, json, pathlib, subprocess, sys, textwrap, time, requests, os
+
+import argparse
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import textwrap
+import time
+
+import requests
 
 CFG_DIR = pathlib.Path(os.path.expanduser("~/.config/telert"))
 CFG_FILE = CFG_DIR / "config.json"
 
 # ───────────────────────────────── helpers ──────────────────────────────────
 
+
 def _save(token: str, chat_id: str):
     CFG_DIR.mkdir(parents=True, exist_ok=True)
-    CFG_FILE.write_text(json.dumps({"token": token.strip(), "chat_id": str(chat_id).strip()}))
+    CFG_FILE.write_text(
+        json.dumps({"token": token.strip(), "chat_id": str(chat_id).strip()})
+    )
     print("✔ Configuration saved →", CFG_FILE)
 
 
@@ -39,28 +53,33 @@ def _human(sec: float) -> str:
     m, s = divmod(int(sec), 60)
     return f"{m} m {s} s" if m else f"{s} s"
 
+
 # ────────────────────────────── sub‑commands ───────────────────────────────
+
 
 def do_config(a):
     _save(a.token, a.chat_id)
 
+
 def do_status(_):
     cfg = _load()
-    print("token :", cfg['token'][:8] + "…")
-    print("chat  :", cfg['chat_id'])
+    print("token :", cfg["token"][:8] + "…")
+    print("chat  :", cfg["chat_id"])
     _send("✅ telert status OK")
     print("sent  : test message")
 
 
 def do_hook(a):
     t = a.longer_than
-    print(textwrap.dedent(f"""
+    print(
+        textwrap.dedent(f"""
         telert_preexec() {{ TELERT_CMD=\"$BASH_COMMAND\"; TELERT_START=$EPOCHSECONDS; }}
         telert_precmd()  {{ local st=$?; local d=$((EPOCHSECONDS-TELERT_START));
           if (( d >= {t} )); then telert send \"$TELERT_CMD exited $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))\"; fi; }}
         trap telert_preexec DEBUG
         PROMPT_COMMAND=telert_precmd:$PROMPT_COMMAND
-    """).strip())
+    """).strip()
+    )
 
 
 def do_send(a):
@@ -89,7 +108,9 @@ def do_run(a):
     sys.stderr.write(proc.stderr)
     sys.exit(status)
 
+
 # ───────────────────────────── pipeline filter ─────────────────────────────
+
 
 def piped_mode():
     data = sys.stdin.read()
@@ -100,7 +121,9 @@ def piped_mode():
         msg += "\n\n--- output ---\n" + "\n".join(data.splitlines()[:20])[:3900]
     _send(msg)
 
+
 # ──────────────────────────────── entrypoint ───────────────────────────────
+
 
 def main():
     if not sys.stdin.isatty():
@@ -138,8 +161,12 @@ def main():
     rn = sp.add_parser("run", help="run a command & notify when done")
     rn.add_argument("--label", "-L", help="friendly name")
     rn.add_argument("--message", "-m", help="override default text")
-    rn.add_argument("--only-fail", action="store_true", help="notify only on non‑zero exit")
-    rn.add_argument("cmd", nargs=argparse.REMAINDER, help="command to execute -- required")
+    rn.add_argument(
+        "--only-fail", action="store_true", help="notify only on non‑zero exit"
+    )
+    rn.add_argument(
+        "cmd", nargs=argparse.REMAINDER, help="command to execute -- required"
+    )
     rn.set_defaults(func=do_run)
 
     # help alias
@@ -150,6 +177,7 @@ def main():
     if getattr(args, "cmd", None) == [] and getattr(args, "func", None) is do_run:
         p.error("run: missing command – use telert run -- <cmd> …")
     args.func(args)
+
 
 if __name__ == "__main__":
     main()

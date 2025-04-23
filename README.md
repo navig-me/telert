@@ -1,15 +1,15 @@
 # telert – Telegram Alerts for Your Terminal
 
-**Version 0.1.3** 📱
+**Version 0.1.4** 📱
 
-Telert is a lightweight command-line utility that sends you Telegram notifications when your terminal commands complete. Perfect for long-running tasks, remote servers, or CI pipelines.
+Telert is a lightweight utility that sends Telegram notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 ✅ **Key benefits:**
 - Know instantly when your commands finish (even when away from your computer)
-- See exactly how long commands took to run
-- Capture success/failure status codes
+- See exactly how long commands or code took to run
+- Capture success/failure status codes and tracebacks
 - View command output snippets directly in your notifications
-- Works with any command or pipeline
+- Works with shell commands, pipelines, and Python code
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/mihirk)
 
@@ -53,6 +53,10 @@ The number after `"chat":{"id":` is your chat ID (in this example, `123456789`).
 For channels, the chat ID will start with `-100`.
 
 ### Step 4: Configure Telert
+
+You can configure telert using the CLI, Python API, or environment variables:
+
+#### Option 1: CLI Configuration
 ```bash
 # Save your bot token and chat ID
 telert config --token "<your-bot-token>" --chat-id "<your-chat-id>"
@@ -61,9 +65,28 @@ telert config --token "<your-bot-token>" --chat-id "<your-chat-id>"
 telert status
 ```
 
-You should receive a "✅ telert status OK" message in Telegram.
+#### Option 2: Python Configuration
+```python
+from telert import configure, send
 
-Telert securely stores your credentials in `~/.config/telert/config.json`.
+# Configure once
+configure("<your-bot-token>", "<your-chat-id>")
+
+# Test the connection
+send("✅ Telert configured successfully from Python")
+```
+
+#### Option 3: Environment Variables
+```bash
+# Set in your shell or .bashrc/.zshrc
+export TELERT_TOKEN="<your-bot-token>"
+export TELERT_CHAT_ID="<your-chat-id>"
+
+# Now telert will use these environment variables automatically
+telert send "Using environment variables"
+```
+
+Telert securely stores credentials in `~/.config/telert/config.json` unless environment variables are used.
 
 ---
 
@@ -79,45 +102,11 @@ Telert securely stores your credentials in `~/.config/telert/config.json`.
 
 ---
 
-## 📋 Usage Examples
+## 📋 Usage Guide
 
-### Python API
+### Command Line Interface (CLI)
 
-Telert can be used directly in Python code:
-
-```python
-from telert import telert, send, notify
-import time
-
-# Simple message
-send("Script started")
-
-# Context manager to time execution
-with telert("Data processing"):
-    # Your code here
-    time.sleep(2)
-    result = [1, 2, 3, 4, 5]
-    
-    # You can store results to include in the notification
-    with telert("Calculation") as t:
-        time.sleep(1)
-        t.result = {"success": True, "data": [1, 2, 3]}
-
-# Function decorator
-@notify("Database backup")
-def backup_database():
-    time.sleep(3)
-    return "Backup completed successfully"
-
-# Only notify on failure
-@notify(only_fail=True)
-def risky_operation():
-    # If this raises an exception, you'll get a notification
-    # Otherwise, no notification is sent
-    pass
-```
-
-### Run Mode
+#### Run Mode
 Wrap any command to receive a notification when it completes:
 
 ```bash
@@ -134,7 +123,7 @@ telert run --only-fail -- rsync -av /src/ /backup/
 telert run --message "Training complete! 🎉" -- python train_model.py
 ```
 
-### Filter Mode
+#### Filter Mode
 Perfect for adding notifications to existing pipelines:
 
 ```bash
@@ -148,7 +137,7 @@ cat large_file.csv | awk '{print $3}' | sort | uniq -c | telert "Data processing
 > **Note:** In filter mode, the exit status is not captured since commands in a pipeline run in separate processes.
 > For exit status tracking, use Run mode or add explicit status checking in your script.
 
-### Send Mode
+#### Send Mode
 Send custom messages from scripts:
 
 ```bash
@@ -163,7 +152,7 @@ else
 fi
 ```
 
-### Shell Hook
+#### Shell Hook
 Get notifications for ALL commands that take longer than a certain time:
 
 ```bash
@@ -174,7 +163,7 @@ eval "$(telert hook -l 30)"
 echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
 ```
 
-### Help & Options
+#### CLI Help
 ```bash
 # View all available commands
 telert --help
@@ -183,14 +172,136 @@ telert --help
 telert run --help
 ```
 
+### Python API
+
+#### Configuration
+```python
+from telert import configure, is_configured, get_config
+
+# Check if already configured
+if not is_configured():
+    configure("<your-token>", "<your-chat-id>")
+
+# Get current configuration (useful to check if properly set up)
+config = get_config()
+print(f"Using token: {config['token'][:8]}...")
+```
+
+#### Simple Messaging
+```python
+from telert import send
+
+# Send a simple notification
+send("Script started")
+send("Processing completed with 5 records updated")
+```
+
+#### Context Manager
+The `telert` context manager times code execution and sends a notification when the block completes:
+
+```python
+from telert import telert
+import time
+
+# Basic usage
+with telert("Data processing"):
+    # Your long-running code here
+    time.sleep(5)
+
+# Include results in the notification
+with telert("Calculation") as t:
+    result = sum(range(1000000))
+    t.result = {"sum": result, "status": "success"}
+
+# Only notify on failure
+with telert("Critical operation", only_fail=True):
+    # This block will only send a notification if an exception occurs
+    risky_function()
+```
+
+#### Function Decorator
+The `notify` decorator makes it easy to monitor functions:
+
+```python
+from telert import notify
+
+# Basic usage - uses function name as the label
+@notify()
+def process_data():
+    # Code that might take a while
+    return "Processing complete"
+
+# Custom label and only notify on failure
+@notify("Database backup", only_fail=True)
+def backup_database():
+    # This will only send a notification if it raises an exception
+    return "Backup successful"
+
+# Function result will be included in the notification
+@notify("Calculation")
+def calculate_stats(data):
+    return {"mean": sum(data)/len(data), "count": len(data)}
+```
+
 ---
 
 ## 🌿 Environment Variables
 
 | Variable            | Effect                                      |
 |---------------------|---------------------------------------------|
-| `TELERT_LONG`       | Default threshold (seconds) for `hook`.     |
-| `TELERT_SILENT=1`   | Suppress stdout/stderr echo in `run`.       |
+| `TELERT_TOKEN`      | Bot token (overrides config file)           |
+| `TELERT_CHAT_ID`    | Chat ID (overrides config file)             |
+| `TELERT_LONG`       | Default threshold (seconds) for `hook`      |
+| `TELERT_SILENT=1`   | Suppress stdout/stderr echo in `run`        |
+
+Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file.
+
+---
+
+## 💡 Use Cases and Tips
+
+### Server Administration
+- Get notified when backups complete
+- Monitor critical system jobs
+- Alert when disk space runs low
+
+```bash
+# Alert when disk space exceeds 90%
+df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
+
+# Monitor a system update
+telert run --label "System update" -- apt update && apt upgrade -y
+```
+
+### Data Processing
+- Monitor long-running data pipelines
+- Get notified when large file operations complete
+- Track ML model training progress
+
+```python
+from telert import telert, notify
+import pandas as pd
+
+@notify("Data processing")
+def process_large_dataset(filename):
+    df = pd.read_csv(filename)
+    # Process data...
+    return {"rows_processed": len(df), "outliers_removed": 15}
+```
+
+### CI/CD Pipelines
+- Get notified when builds complete
+- Alert on deployment failures
+- Track test suite status
+
+```bash
+# In a CI/CD environment using environment variables
+export TELERT_TOKEN="your-token"
+export TELERT_CHAT_ID="your-chat-id"
+
+# Alert on build completion
+telert run --label "CI Build" -- npm run build
+```
 
 ---
 
@@ -208,7 +319,7 @@ The project is automatically published to PyPI when a new GitHub release is crea
 
 1. Update version in both `pyproject.toml` and `telert/__init__.py`
 2. Commit the changes and push to main
-3. Create a new GitHub release with a tag like `v0.1.2`
+3. Create a new GitHub release with a tag like `v0.1.3`
 4. The GitHub Actions workflow will automatically build and publish to PyPI
 
 To manually publish to PyPI if needed:

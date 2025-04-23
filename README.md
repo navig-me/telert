@@ -1,7 +1,7 @@
 
 # telert – Telegram Alerts for Your Terminal  
 
-**Version 0.1.1**
+**Version 0.1.2**
 
 Telert is a tiny command‑line utility that shoots you a Telegram message the moment a command (or an entire shell pipeline) finishes.  
 It preserves **exit status**, captures **run‑time**, and can optionally include the first lines of _stdout_ / _stderr_.
@@ -24,18 +24,9 @@ It preserves **exit status**, captures **run‑time**, and can optionally includ
 ## 🚀 Quick install
 
 ```bash
-# Any OS (PyPI)
+# Install from PyPI (works on any OS with Python)
 pip install telert
-
-# Fedora / RHEL / Alma / Rocky
-sudo dnf install telert      # yum works too
-
-# Debian / Ubuntu / Linux Mint
-sudo apt install telert
 ```
-
-RPM/DEB repositories are published by GitHub Actions on every release tag.  
-If you prefer, you can also grab the single‑file wheel from Releases.
 
 ---
 

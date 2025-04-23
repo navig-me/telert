@@ -80,17 +80,9 @@ def do_run(a):
 
     msg = a.message or f"{label} finished with exit {status} in {dur}"
     if proc.stdout.strip():
-        msg += "
-
---- stdout ---
-" + "
-".join(proc.stdout.splitlines()[:20])[:3900]
+        msg += "\n\n--- stdout ---\n" + "\n".join(proc.stdout.splitlines()[:20])[:3900]
     if proc.stderr.strip():
-        msg += "
-
---- stderr ---
-" + "
-".join(proc.stderr.splitlines()[:20])[:3900]
+        msg += "\n\n--- stderr ---\n" + "\n".join(proc.stderr.splitlines()[:20])[:3900]
     _send(msg)
 
     sys.stdout.write(proc.stdout)
@@ -105,11 +97,7 @@ def piped_mode():
     if len(sys.argv) > 2:
         msg += f" (exit {sys.argv[2]})"
     if data.strip():
-        msg += "
-
---- output ---
-" + "
-".join(data.splitlines()[:20])[:3900]
+        msg += "\n\n--- output ---\n" + "\n".join(data.splitlines()[:20])[:3900]
     _send(msg)
 
 # ──────────────────────────────── entrypoint ───────────────────────────────

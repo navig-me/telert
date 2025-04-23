@@ -1,6 +1,6 @@
 [project]
 name = "telert"
-version = "0.1.2"
+version = "0.1.3"
 description = "CLI Telegram notifier: run commands or use as pipeline"
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"

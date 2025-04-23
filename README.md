@@ -126,19 +126,19 @@ Wrap any command to receive a notification when it completes:
 
 ```bash
 # Basic usage - notify when command finishes (uses default provider)
-telert run -- npm run build
+telert run npm run build
 
 # Add a descriptive label
-telert run --label "DB Backup" -- pg_dump -U postgres mydb > backup.sql
+telert run --label "DB Backup" pg_dump -U postgres mydb > backup.sql
 
 # Show notification only when a command fails
-telert run --only-fail -- rsync -av /src/ /backup/
+telert run --only-fail rsync -av /src/ /backup/
 
 # Send to a specific provider
-telert run --provider teams --label "ML Training" -- python train_model.py
+telert run --provider teams --label "ML Training" python train_model.py
 
 # Custom notification message
-telert run --message "Training complete! 🎉" -- python train_model.py
+telert run --message "Training complete! 🎉" python train_model.py
 ```
 
 #### Filter Mode
@@ -325,7 +325,7 @@ Using environment variables is especially useful in CI/CD pipelines or container
 df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
 
 # Monitor a system update
-telert run --label "System update" -- apt update && apt upgrade -y
+telert run --label "System update" apt update && apt upgrade -y
 ```
 
 ### Data Processing

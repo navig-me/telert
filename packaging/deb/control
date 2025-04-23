@@ -1,8 +1,0 @@
-Package: telert
-Version: 0.1.1
-Section: utils
-Priority: optional
-Architecture: all
-Depends: python3, python3-requests
-Maintainer: Mihir Khandekar <mihirkhandekar@gmail.com>
-Description: Telegram alert CLI that preserves exit status.

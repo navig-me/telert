@@ -1,25 +1,29 @@
 name: Publish to PyPI
 
 on:
-  workflow_run:
-    workflows: ["Build wheels, RPM, DEB"]
-    types: [completed]
-    branches: [main]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  pypi:
+  build-and-publish:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: packages
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: Build package
+        run: python -m build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

@@ -155,7 +155,13 @@ class TelegramProvider:
 
 
 class TeamsProvider:
-    """Provider for Microsoft Teams messaging."""
+    """
+    Provider for Microsoft Teams messaging.
+    
+    Uses Power Automate HTTP triggers to send messages to Teams channels.
+    The payload format is compatible with HTTP request triggers that post
+    to Teams channels.
+    """
 
     def __init__(self, webhook_url: Optional[str] = None):
         self.webhook_url = webhook_url
@@ -181,15 +187,19 @@ class TeamsProvider:
             )
 
     def send(self, message: str) -> bool:
-        """Send a message via Microsoft Teams."""
+        """
+        Send a message to Microsoft Teams via Power Automate HTTP trigger.
+        
+        The payload format is compatible with Power Automate HTTP triggers
+        configured to post messages to Teams channels.
+        """
         if not self.webhook_url:
             raise ValueError("Teams provider not configured")
 
-        # Format message for Teams
+        # Format message for Teams Power Automate flow
         payload = {
-            "text": message,
-            # Could add more formatting options here
-            "summary": "Telert Notification",
+            "text": message,  # Main message content
+            "summary": "Telert Notification",  # Used as notification title in Teams
         }
 
         response = requests.post(self.webhook_url, json=payload)

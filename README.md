@@ -55,13 +55,13 @@ telert status  # Test your configuration
 
 ### Microsoft Teams Setup
 
-Teams integration uses incoming webhooks to deliver notifications to any Teams channel.
+Teams integration uses Power Automate (Microsoft Flow) to deliver notifications to any Teams channel.
 
-1. **Create Webhook**: In Teams channel → "..." → Connectors → Incoming Webhook → Configure
+1. **Create Flow**: Use Power Automate to create an HTTP trigger flow that posts to Teams
 2. **Configure**:
 
 ```bash
-telert config teams --webhook-url "<webhook-url>" --set-default
+telert config teams --webhook-url "<flow-http-url>" --set-default
 telert status  # Test your configuration
 ```
 
@@ -120,6 +120,8 @@ Telert securely stores all configuration in `~/.config/telert/config.json` unles
 ## 📋 Usage Guide
 
 ### Command Line Interface (CLI)
+
+> **Note**: When using the `run` command, do not use double dashes (`--`) to separate telert options from the command to run. The correct syntax is `telert run [options] command`, not `telert run [options] -- command`.
 
 #### Run Mode
 Wrap any command to receive a notification when it completes:
@@ -304,7 +306,7 @@ def slack_notification_function():
 |-----------------------|---------------------------------------------|
 | `TELERT_TOKEN`        | Telegram bot token                          |
 | `TELERT_CHAT_ID`      | Telegram chat ID                            |
-| `TELERT_TEAMS_WEBHOOK`| Microsoft Teams webhook URL                 |
+| `TELERT_TEAMS_WEBHOOK`| Microsoft Teams Power Automate HTTP URL     |
 | `TELERT_SLACK_WEBHOOK`| Slack webhook URL                           |
 | `TELERT_LONG`         | Default threshold (seconds) for `hook`      |
 | `TELERT_SILENT=1`     | Suppress stdout/stderr echo in `run`        |

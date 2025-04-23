@@ -1,6 +1,6 @@
 # telert – Telegram Alerts for Your Terminal
 
-**Version 0.1.2** 📱
+**Version 0.1.3** 📱
 
 Telert is a lightweight command-line utility that sends you Telegram notifications when your terminal commands complete. Perfect for long-running tasks, remote servers, or CI pipelines.
 
@@ -75,10 +75,47 @@ Telert securely stores your credentials in `~/.config/telert/config.json`.
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job | telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text to myself" helper. | `telert send "server rebooted"` |
+| **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
 
 ---
 
 ## 📋 Usage Examples
+
+### Python API
+
+Telert can be used directly in Python code:
+
+```python
+from telert import telert, send, notify
+import time
+
+# Simple message
+send("Script started")
+
+# Context manager to time execution
+with telert("Data processing"):
+    # Your code here
+    time.sleep(2)
+    result = [1, 2, 3, 4, 5]
+    
+    # You can store results to include in the notification
+    with telert("Calculation") as t:
+        time.sleep(1)
+        t.result = {"success": True, "data": [1, 2, 3]}
+
+# Function decorator
+@notify("Database backup")
+def backup_database():
+    time.sleep(3)
+    return "Backup completed successfully"
+
+# Only notify on failure
+@notify(only_fail=True)
+def risky_operation():
+    # If this raises an exception, you'll get a notification
+    # Otherwise, no notification is sent
+    pass
+```
 
 ### Run Mode
 Wrap any command to receive a notification when it completes:

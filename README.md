@@ -10,7 +10,7 @@ Telert is a lightweight utility that sends notifications to Telegram, Microsoft 
 pip install telert
 
 # After quick setup (see below)
-long_running_command \| telert "Command finished!"
+long_running_command | telert "Command finished!"
 ```
 
 ✅ **Key benefits:**
@@ -33,110 +33,53 @@ pip install telert
 
 ---
 
-## 🤖 Setup Guide
+## 🤖 Quick Setup Guide
 
-Telert supports multiple messaging services. Choose one or more based on your needs.
+Telert supports multiple messaging services. Choose one or more based on your needs:
 
-### Telegram Setup
+### Telegram Setup (Recommended)
 
-#### Step 1: Create Your Telegram Bot
-1. Open Telegram and search for `@BotFather`
-2. Start a chat and send `/newbot`
-3. Follow the prompts to name your bot (e.g., "My Server Alerts")
-4. Choose a username (must end with "bot", e.g., "my_server_alerts_bot")
-5. **Important:** Save the API token (looks like `123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ`)
+Telegram is the original and most fully featured provider for Telert. It uses official Bot API with reliable delivery.
 
-#### Step 2: Initialize Chat & Get Chat ID
-1. Send any message to your new bot (this is required before it can message you)
-2. Get your chat ID with:
-   ```bash
-   curl -s "https://api.telegram.org/bot<token>/getUpdates"
-   ```
-3. Find the `"chat":{"id":` value in the response (e.g., `123456789`)
+1. **Create Bot**: Chat with `@BotFather` in Telegram, send `/newbot`, follow prompts and save your token
+2. **Initialize**: Send any message to your new bot
+3. **Get Chat ID**: Run `curl -s "https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates"` and find your chat ID
+4. **Configure**:
 
-#### Step 3: Configure Telegram in Telert
-
-**CLI Configuration:**
 ```bash
 telert config telegram --token "<token>" --chat-id "<chat-id>" --set-default
-telert status --provider telegram  # Test
+telert status  # Test your configuration
 ```
 
-**Python Configuration:**
-```python
-from telert import configure_telegram, send
-
-configure_telegram("<token>", "<chat-id>")
-send("✅ Telegram test", provider="telegram")
-```
-
-**Environment Variables:**
-```bash
-export TELERT_TOKEN="<token>"
-export TELERT_CHAT_ID="<chat-id>"
-```
+[**Detailed Telegram Setup Guide**](./TELEGRAM.md)
 
 ### Microsoft Teams Setup
 
-#### Step 1: Create Incoming Webhook
-1. Open Teams and navigate to the channel where you want to receive alerts
-2. Click the "..." menu next to the channel name
-3. Select "Connectors"
-4. Find "Incoming Webhook" and click "Configure"
-5. Give it a name and optionally upload an icon
-6. Click "Create" and copy the webhook URL
+Teams integration uses incoming webhooks to deliver notifications to any Teams channel.
 
-#### Step 2: Configure Teams in Telert
+1. **Create Webhook**: In Teams channel → "..." → Connectors → Incoming Webhook → Configure
+2. **Configure**:
 
-**CLI Configuration:**
 ```bash
 telert config teams --webhook-url "<webhook-url>" --set-default
-telert status --provider teams  # Test
+telert status  # Test your configuration
 ```
 
-**Python Configuration:**
-```python
-from telert import configure_teams, send
-
-configure_teams("<webhook-url>")
-send("✅ Teams test", provider="teams")
-```
-
-**Environment Variables:**
-```bash
-export TELERT_TEAMS_WEBHOOK="<webhook-url>"
-```
+[**Detailed Microsoft Teams Setup Guide**](./TEAMS.md)
 
 ### Slack Setup
 
-#### Step 1: Create Incoming Webhook
-1. Go to https://api.slack.com/apps and click "Create New App"
-2. Choose "From scratch" and fill in the app name and workspace
-3. Click "Incoming Webhooks" in the sidebar
-4. Activate incoming webhooks and click "Add New Webhook to Workspace"
-5. Choose the channel where notifications should appear
-6. Copy the webhook URL that looks like `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX`
+Slack integration uses incoming webhooks to deliver notifications to channels or direct messages.
 
-#### Step 2: Configure Slack in Telert
+1. **Create Webhook**: Create app at api.slack.com → Incoming Webhooks → Add to Workspace
+2. **Configure**:
 
-**CLI Configuration:**
 ```bash
 telert config slack --webhook-url "<webhook-url>" --set-default
-telert status --provider slack  # Test
+telert status  # Test your configuration
 ```
 
-**Python Configuration:**
-```python
-from telert import configure_slack, send
-
-configure_slack("<webhook-url>")
-send("✅ Slack test", provider="slack")
-```
-
-**Environment Variables:**
-```bash
-export TELERT_SLACK_WEBHOOK="<webhook-url>"
-```
+[**Detailed Slack Setup Guide**](./SLACK.md)
 
 ### Managing Multiple Providers
 
@@ -147,16 +90,14 @@ Telert lets you configure multiple providers and set one as default:
 telert status
 
 # Set a provider as default
-telert config slack --webhook-url "<url>" --set-default
+telert config set-default --provider telegram  # Change default to configured Telegram
 
 # Use a specific provider rather than default
-telert send --provider telegram "Via Telegram"
+telert send --provider teams "Via Teams"
 
 # Python API
-from telert import set_default_provider, list_providers
-
-set_default_provider("teams")
-providers = list_providers()  # Get info about configured providers
+from telert import set_default_provider
+set_default_provider("telegram")
 ```
 
 Telert securely stores all configuration in `~/.config/telert/config.json` unless environment variables are used.
@@ -205,10 +146,10 @@ Perfect for adding notifications to existing pipelines:
 
 ```bash
 # Send notification when a pipeline completes (uses default provider)
-find . -name "*.log" \| xargs grep "ERROR" \| telert "Error check complete"
+find . -name "*.log" | xargs grep "ERROR" | telert "Error check complete"
 
 # Process and notify with specific provider
-cat large_file.csv \| awk '{print $3}' \| sort \| uniq -c \| telert --provider=slack "Data processing finished"
+cat large_file.csv | awk '{print $3}' | sort | uniq -c | telert --provider slack "Data processing finished"
 ```
 
 > **Note:** In filter mode, the exit status is not captured since commands in a pipeline run in separate processes.
@@ -381,7 +322,7 @@ Using environment variables is especially useful in CI/CD pipelines or container
 
 ```bash
 # Alert when disk space exceeds 90%
-df -h \| grep -E '[9][0-9]%' \| telert "Disk space alert!"
+df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
 
 # Monitor a system update
 telert run --label "System update" -- apt update && apt upgrade -y

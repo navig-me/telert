@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal (Telegram, Teams, Slack)
 
-**Version 0.1.5** 📱
+**Version 0.1.6** 📱
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 

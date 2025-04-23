@@ -12,7 +12,7 @@ __all__ = [
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.5"  # Bump version for multi-provider support
+__version__ = "0.1.6"  # Bump version for multi-provider support
 
 from telert.api import (
     telert, 

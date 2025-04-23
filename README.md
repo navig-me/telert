@@ -4,6 +4,15 @@
 
 Telert is a lightweight utility that sends Telegram notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
+**Quick start:**
+```bash
+# Install
+pip install telert
+
+# After quick setup (see below)
+long_running_command | telert "Command finished!"
+```
+
 ✅ **Key benefits:**
 - Know instantly when your commands finish (even when away from your computer)
 - See exactly how long commands or code took to run
@@ -341,3 +350,9 @@ twine upload dist/*
 
 PRs & issues welcome!  
 Licensed under the MIT License – see `LICENSE`.
+
+## 👏 Acknowledgements
+
+This project has been improved with help from:
+- [Claude Code](https://claude.ai/code) - AI assistant that helped enhance documentation, create the Python API, and implement environment variable support
+- All contributors who provide feedback and feature suggestions

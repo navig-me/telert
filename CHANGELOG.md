@@ -2,6 +2,13 @@
 
 All notable changes to telert will be documented in this file.
 
+## 0.1.10 (2024-04-24)
+
+### Improvements
+- Add terminal demo SVG to documentation
+- Clean up recording-related files
+- Better organization of demo scripts
+
 ## 0.1.9 (2024-04-24)
 
 ### Improvements

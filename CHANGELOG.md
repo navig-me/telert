@@ -2,6 +2,12 @@
 
 All notable changes to telert will be documented in this file.
 
+## 0.1.9 (2024-04-24)
+
+### Improvements
+- Fix Buy Me A Coffee button for PyPI compatibility
+- Add telert-wrapper.sh script to handle shell built-ins like `source`
+
 ## 0.1.8 (2024-04-24)
 
 ### Bug Fixes

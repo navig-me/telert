@@ -22,8 +22,6 @@ long_running_command | telert "Command finished!"
 - View command output snippets directly in your notifications
 - Works with shell commands, pipelines, and Python code
 
-If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
-
 ---
 
 ## 🚀 Quick Install
@@ -514,6 +512,6 @@ Licensed under the MIT License – see `LICENSE`.
 
 ## 👏 Acknowledgements
 
-This project has been improved with help from:
-- [Claude Code](https://claude.ai/code) - AI assistant that helped enhance documentation and with certain features.
-- All contributors who provide feedback and feature suggestions
+This project has been improved with help from all contributors who provide feedback and feature suggestions!
+
+If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕

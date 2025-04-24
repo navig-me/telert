@@ -14,7 +14,7 @@ __all__ = [
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.11"  # Add audio and desktop notification providers
+__version__ = "0.1.12"  # Add default icon for desktop notifications
 
 from telert.api import (
     telert, 

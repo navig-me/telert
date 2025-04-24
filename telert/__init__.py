@@ -7,12 +7,14 @@ __all__ = [
     "configure_telegram",
     "configure_teams",
     "configure_slack",
+    "configure_audio",
+    "configure_desktop",
     "get_config", 
     "is_configured",
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.10"  # Add terminal demo to documentation
+__version__ = "0.1.11"  # Add audio and desktop notification providers
 
 from telert.api import (
     telert, 
@@ -22,6 +24,8 @@ from telert.api import (
     configure_telegram,
     configure_teams,
     configure_slack,
+    configure_audio,
+    configure_desktop,
     get_config, 
     is_configured,
     set_default_provider,

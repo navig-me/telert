@@ -113,6 +113,39 @@ def do_config(a):
             )
             print(f"✔ Slack configuration saved")
             
+        elif provider == 'audio':
+            config_params = {
+                'volume': a.volume,
+                'set_default': a.set_default
+            }
+            
+            if hasattr(a, 'sound_file') and a.sound_file:
+                config_params['sound_file'] = a.sound_file
+                
+            try:
+                configure_provider(Provider.AUDIO, **config_params)
+                if hasattr(a, 'sound_file') and a.sound_file:
+                    print(f"✔ Audio configuration saved with custom sound file")
+                else:
+                    print(f"✔ Audio configuration saved with default sound file")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
+                
+        elif provider == 'desktop':
+            config_params = {
+                'app_name': a.app_name,
+                'set_default': a.set_default
+            }
+            
+            if hasattr(a, 'icon_path') and a.icon_path:
+                config_params['icon_path'] = a.icon_path
+                
+            try:
+                configure_provider(Provider.DESKTOP, **config_params)
+                print(f"✔ Desktop notification configuration saved")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
+            
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
     else:
@@ -148,8 +181,24 @@ def do_status(a):
         webhook = slack_config['webhook_url']
         print(f"- Slack{default_marker}: webhook={webhook[:20]}…")
     
+    # Check Audio
+    audio_config = config.get_provider_config(Provider.AUDIO)
+    if audio_config:
+        default_marker = " (default)" if default_provider == Provider.AUDIO else ""
+        sound_file = audio_config['sound_file']
+        volume = audio_config.get('volume', 1.0)
+        print(f"- Audio{default_marker}: sound_file={sound_file}, volume={volume}")
+    
+    # Check Desktop
+    desktop_config = config.get_provider_config(Provider.DESKTOP)
+    if desktop_config:
+        default_marker = " (default)" if default_provider == Provider.DESKTOP else ""
+        app_name = desktop_config.get('app_name', 'Telert')
+        icon_info = f", icon={desktop_config['icon_path']}" if 'icon_path' in desktop_config else ""
+        print(f"- Desktop{default_marker}: app_name={app_name}{icon_info}")
+    
     # If none configured, show warning
-    if not (telegram_config or teams_config or slack_config):
+    if not (telegram_config or teams_config or slack_config or audio_config or desktop_config):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
     
@@ -371,6 +420,18 @@ def main():
     slack_parser.add_argument("--webhook-url", required=True, help="incoming webhook URL")
     slack_parser.add_argument("--set-default", action="store_true", help="set as default provider")
     
+    # Audio config
+    audio_parser = c_subparsers.add_parser("audio", help="configure Audio alerts")
+    audio_parser.add_argument("--sound-file", help="path to sound file (.wav, .mp3, etc.) (default: built-in sound)")
+    audio_parser.add_argument("--volume", type=float, default=1.0, help="volume level (0.0-1.0)")
+    audio_parser.add_argument("--set-default", action="store_true", help="set as default provider")
+    
+    # Desktop config
+    desktop_parser = c_subparsers.add_parser("desktop", help="configure Desktop notifications")
+    desktop_parser.add_argument("--app-name", default="Telert", help="application name shown in notifications")
+    desktop_parser.add_argument("--icon-path", help="path to icon file for the notification")
+    desktop_parser.add_argument("--set-default", action="store_true", help="set as default provider")
+    
     # Legacy Telegram config (for backward compatibility)
     c.add_argument("--token", help="(legacy) Telegram bot token")
     c.add_argument("--chat-id", help="(legacy) Telegram chat ID")
@@ -379,7 +440,7 @@ def main():
 
     # status
     st = sp.add_parser("status", help="show configuration and send test message")
-    st.add_argument("--provider", choices=["telegram", "teams", "slack"], 
+    st.add_argument("--provider", choices=["telegram", "teams", "slack", "audio", "desktop"], 
                    help="provider to test (default: use configured default)")
     st.set_defaults(func=do_status)
 
@@ -392,7 +453,7 @@ def main():
     # send
     sd = sp.add_parser("send", help="send arbitrary text")
     sd.add_argument("text", help="message to send")
-    sd.add_argument("--provider", choices=["telegram", "teams", "slack"], 
+    sd.add_argument("--provider", choices=["telegram", "teams", "slack", "audio", "desktop"], 
                    help="provider to use (default: use configured default)")
     sd.set_defaults(func=do_send)
 
@@ -401,7 +462,7 @@ def main():
     rn.add_argument("--label", "-L", help="friendly name for the command")
     rn.add_argument("--message", "-m", help="override default notification text")
     rn.add_argument("--only-fail", action="store_true", help="notify only on non‑zero exit")
-    rn.add_argument("--provider", choices=["telegram", "teams", "slack"], 
+    rn.add_argument("--provider", choices=["telegram", "teams", "slack", "audio", "desktop"], 
                    help="provider to use (default: use configured default)")
     rn.add_argument("cmd", nargs=argparse.REMAINDER, help="command to execute -- required")
     rn.set_defaults(func=do_run)

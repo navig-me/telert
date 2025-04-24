@@ -1,7 +1,7 @@
 [project]
 name = "telert"
-version = "0.1.10"
-description = "CLI notifier for Telegram, Teams, and Slack: run commands or use as pipeline"
+version = "0.1.11"
+description = "CLI notifier for Telegram, Teams, Slack, Audio & Desktop: alerts when commands complete"
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"
 readme = "README.md"
@@ -37,10 +37,17 @@ dev = [
     "twine",
     "pytest"
 ]
+audio = [
+    "playsound"
+]
+desktop = []
 
 [tool.setuptools]
 packages = ["telert"]
-include-package-data = false
+include-package-data = true
+
+[tool.setuptools.package-data]
+telert = ["data/*.wav", "data/*.mp3"]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

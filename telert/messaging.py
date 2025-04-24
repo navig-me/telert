@@ -6,6 +6,8 @@ This module contains implementations for different messaging services:
 - Telegram
 - Microsoft Teams
 - Slack
+- Audio (plays sound files)
+- Desktop (system notifications)
 """
 
 from __future__ import annotations
@@ -14,6 +16,9 @@ import enum
 import json
 import os
 import pathlib
+import platform
+import subprocess
+import sys
 from typing import Any, Dict, Optional, Union
 
 import requests
@@ -22,6 +27,10 @@ import requests
 CONFIG_DIR = pathlib.Path(os.path.expanduser("~/.config/telert"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
+# Default resources
+DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
+DEFAULT_SOUND_FILE = DATA_DIR / "notification.wav"
+
 
 class Provider(enum.Enum):
     """Supported messaging providers."""
@@ -29,6 +38,8 @@ class Provider(enum.Enum):
     TELEGRAM = "telegram"
     TEAMS = "teams"
     SLACK = "slack"
+    AUDIO = "audio"
+    DESKTOP = "desktop"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -284,9 +295,201 @@ class SlackProvider:
             raise RuntimeError("Slack API connection error - please check your network connection")
 
 
+class AudioProvider:
+    """Provider for audio notifications."""
+
+    def __init__(self, sound_file: Optional[str] = None, volume: Optional[float] = None):
+        self.sound_file = sound_file or str(DEFAULT_SOUND_FILE)
+        self.volume = volume or 1.0
+
+    def configure_from_env(self) -> bool:
+        """Configure from environment variables."""
+        env_sound_file = os.environ.get("TELERT_AUDIO_FILE")
+        if env_sound_file:
+            self.sound_file = env_sound_file
+            
+        vol = os.environ.get("TELERT_AUDIO_VOLUME")
+        if vol:
+            try:
+                self.volume = float(vol)
+            except ValueError:
+                self.volume = 1.0
+                
+        # Even if no env variables are set, we have a default sound file
+        return True
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        """Configure from stored configuration."""
+        provider_config = config.get_provider_config(Provider.AUDIO)
+        if provider_config:
+            if "sound_file" in provider_config:
+                self.sound_file = provider_config.get("sound_file")
+            self.volume = provider_config.get("volume", 1.0)
+            
+        # Even if no config is found, we have a default sound file
+        return True
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        if self.sound_file:
+            config.set_provider_config(
+                Provider.AUDIO, {"sound_file": self.sound_file, "volume": self.volume}
+            )
+
+    def send(self, message: str) -> bool:
+        """Play audio notification."""
+        if not self.sound_file:
+            self.sound_file = str(DEFAULT_SOUND_FILE)
+        
+        # Resolve the path - expanduser for user paths, or use as is for absolute paths
+        if self.sound_file.startswith("~"):
+            sound_file = os.path.expanduser(self.sound_file)
+        else:
+            sound_file = self.sound_file
+            
+        # Verify the file exists
+        if not os.path.exists(sound_file):
+            # If custom sound file doesn't exist, fall back to default
+            if sound_file != str(DEFAULT_SOUND_FILE):
+                print(f"Warning: Sound file not found: {sound_file}. Using default sound.")
+                sound_file = str(DEFAULT_SOUND_FILE)
+                # If default also doesn't exist, raise error
+                if not os.path.exists(sound_file):
+                    raise RuntimeError(f"Default sound file not found: {sound_file}")
+            else:
+                raise RuntimeError(f"Sound file not found: {sound_file}")
+
+        try:
+            system = platform.system()
+            
+            # macOS approach
+            if system == "Darwin":
+                subprocess.run(["afplay", sound_file], check=True)
+                return True
+            
+            # Linux approach - try multiple options
+            elif system == "Linux":
+                # Try using paplay (PulseAudio)
+                try:
+                    subprocess.run(["paplay", sound_file], check=True)
+                    return True
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    pass
+                
+                # Try using aplay (ALSA)
+                try:
+                    subprocess.run(["aplay", sound_file], check=True) 
+                    return True
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    pass
+                    
+                # Try mpg123 for MP3s
+                try:
+                    subprocess.run(["mpg123", sound_file], check=True)
+                    return True
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    raise RuntimeError("No suitable audio player found on Linux (tried paplay, aplay, mpg123)")
+            
+            # Windows approach
+            elif system == "Windows":
+                import winsound
+                winsound.PlaySound(sound_file, winsound.SND_FILENAME)
+                return True
+                
+            else:
+                raise RuntimeError(f"Unsupported platform: {system}")
+                
+        except Exception as e:
+            raise RuntimeError(f"Audio playback error: {str(e)}")
+
+
+class DesktopProvider:
+    """Provider for desktop notifications."""
+
+    def __init__(self, app_name: Optional[str] = None, icon_path: Optional[str] = None):
+        self.app_name = app_name or "Telert"
+        self.icon_path = icon_path
+
+    def configure_from_env(self) -> bool:
+        """Configure from environment variables."""
+        self.app_name = os.environ.get("TELERT_DESKTOP_APP_NAME") or "Telert"
+        self.icon_path = os.environ.get("TELERT_DESKTOP_ICON")
+        return True  # Desktop notifications can work with defaults
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        """Configure from stored configuration."""
+        provider_config = config.get_provider_config(Provider.DESKTOP)
+        if provider_config:
+            self.app_name = provider_config.get("app_name", "Telert")
+            self.icon_path = provider_config.get("icon_path")
+            return True
+        return False
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        config_data = {"app_name": self.app_name}
+        if self.icon_path:
+            config_data["icon_path"] = self.icon_path
+        config.set_provider_config(Provider.DESKTOP, config_data)
+
+    def send(self, message: str) -> bool:
+        """Send a desktop notification."""
+        system = platform.system()
+        icon = self.icon_path and os.path.expanduser(self.icon_path)
+        
+        try:
+            # macOS
+            if system == "Darwin":
+                # Escape quotes and special characters in message
+                escaped_message = message.replace('"', '\\"').replace('$', '\\$')
+                apple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
+                subprocess.run(["osascript", "-e", apple_script], check=True)
+                return True
+                
+            # Linux
+            elif system == "Linux":
+                # Try using notify-send (Linux)
+                try:
+                    cmd = ["notify-send", self.app_name, message]
+                    if icon:
+                        cmd.extend(["--icon", icon])
+                    subprocess.run(cmd, check=True)
+                    return True
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    raise RuntimeError("Desktop notifications require notify-send on Linux")
+                    
+            # Windows
+            elif system == "Windows":
+                # Use PowerShell for Windows 10+
+                ps_script = f"""
+                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+                [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+
+                $app = '{self.app_name}'
+                $template = [Windows.UI.Notifications.ToastTemplateType]::ToastText02
+                $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($template)
+                $text = $xml.GetElementsByTagName('text')
+                $text[0].AppendChild($xml.CreateTextNode($app))
+                $text[1].AppendChild($xml.CreateTextNode('{message}'))
+                $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+                [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show($toast)
+                """
+                
+                try:
+                    subprocess.run(["powershell", "-Command", ps_script], check=True)
+                    return True
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    raise RuntimeError("Desktop notifications on Windows require PowerShell")
+            else:
+                raise RuntimeError(f"Desktop notifications not supported on {system}")
+                
+        except Exception as e:
+            raise RuntimeError(f"Desktop notification error: {str(e)}")
+
+
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
-) -> Union[TelegramProvider, TeamsProvider, SlackProvider]:
+) -> Union[TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider"]:
     """Get a configured messaging provider."""
     config = MessagingConfig()
 
@@ -314,6 +517,14 @@ def get_provider(
             provider = SlackProvider()
             provider.configure_from_env()
             return provider
+        elif os.environ.get("TELERT_AUDIO_FILE"):
+            provider = AudioProvider()
+            provider.configure_from_env()
+            return provider
+        elif os.environ.get("TELERT_DESKTOP_APP_NAME"):
+            provider = DesktopProvider()
+            provider.configure_from_env()
+            return provider
         else:
             raise ValueError("No messaging provider configured")
 
@@ -328,6 +539,10 @@ def get_provider(
         provider = TeamsProvider()
     elif provider_name == Provider.SLACK:
         provider = SlackProvider()
+    elif provider_name == Provider.AUDIO:
+        provider = AudioProvider()
+    elif provider_name == Provider.DESKTOP:
+        provider = DesktopProvider()
     else:
         raise ValueError(f"Unsupported provider: {provider_name}")
 
@@ -393,6 +608,31 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
         # Validate webhook URL format
         _validate_webhook_url(kwargs["webhook_url"])
         provider_instance = SlackProvider(kwargs["webhook_url"])
+        
+    elif provider == Provider.AUDIO:
+        # Sound file is optional (default will be used if not provided)
+        sound_file = kwargs.get("sound_file")
+        
+        # If a custom sound file is provided, validate it
+        if sound_file:
+            # Validate sound file exists if provided
+            if not os.path.exists(os.path.expanduser(sound_file)):
+                raise ValueError(f"Sound file not found: {sound_file}")
+        
+        provider_instance = AudioProvider(
+            sound_file=sound_file,
+            volume=kwargs.get("volume", 1.0)
+        )
+        
+    elif provider == Provider.DESKTOP:
+        app_name = kwargs.get("app_name", "Telert")
+        icon_path = kwargs.get("icon_path")
+        
+        # Validate icon if provided
+        if icon_path and not os.path.exists(os.path.expanduser(icon_path)):
+            raise ValueError(f"Icon file not found: {icon_path}")
+            
+        provider_instance = DesktopProvider(app_name=app_name, icon_path=icon_path)
 
     else:
         raise ValueError(f"Unsupported provider: {provider}")

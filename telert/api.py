@@ -96,6 +96,60 @@ def configure_slack(webhook_url: str, set_default: bool = True) -> None:
     configure_provider(Provider.SLACK, webhook_url=webhook_url, set_default=set_default)
 
 
+def configure_audio(sound_file: Optional[str] = None, volume: float = 1.0, set_default: bool = True) -> None:
+    """
+    Configure Telert for audio notifications.
+
+    Args:
+        sound_file: Path to the sound file (.wav, .mp3, etc.) (default: uses built-in sound)
+        volume: Volume level between 0.0 and 1.0 (default: 1.0)
+        set_default: Whether to set Audio as the default provider
+
+    Examples:
+        from telert import configure_audio
+        
+        # Use the built-in sound
+        configure_audio(volume=0.8)
+        
+        # Use a custom sound file
+        configure_audio("/path/to/alert.wav", volume=0.8)
+    """
+    config = {
+        "volume": volume,
+        "set_default": set_default
+    }
+    
+    if sound_file:
+        config["sound_file"] = sound_file
+        
+    configure_provider(Provider.AUDIO, **config)
+
+
+def configure_desktop(app_name: str = "Telert", icon_path: str = None, set_default: bool = True) -> None:
+    """
+    Configure Telert for desktop notifications.
+
+    Args:
+        app_name: Application name shown in notifications (default: "Telert")
+        icon_path: Path to icon file for the notification (optional)
+        set_default: Whether to set Desktop as the default provider
+
+    Examples:
+        from telert import configure_desktop
+        
+        configure_desktop("My App", icon_path="/path/to/icon.png")
+    """
+    config = {
+        "app_name": app_name,
+        "set_default": set_default
+    }
+    
+    if icon_path:
+        config["icon_path"] = icon_path
+        
+    configure_provider(Provider.DESKTOP, **config)
+
+
 # Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """
@@ -103,7 +157,7 @@ def configure(token: str, chat_id: str) -> None:
     
     This is a legacy function maintained for backward compatibility.
     For new code, consider using configure_telegram(), configure_teams(), 
-    or configure_slack() instead.
+    configure_slack(), configure_audio(), or configure_desktop() instead.
 
     Args:
         token: The Telegram bot API token

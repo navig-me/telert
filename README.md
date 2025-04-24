@@ -1,8 +1,8 @@
-# telert – Alerts for Your Terminal (Telegram, Teams, Slack)
+# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Audio, Desktop)
 
-**Version 0.1.10** 📱
+**Version 0.1.11** 📱
 
-Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 <img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
 
@@ -37,9 +37,9 @@ pip install telert
 
 ## 🤖 Quick Setup Guide
 
-Telert supports multiple messaging services. Choose one or more based on your needs:
+Telert supports multiple notification services. Choose one or more based on your needs:
 
-### Telegram Setup (Recommended)
+### Telegram Setup
 
 Telegram is the original and most fully featured provider for Telert. It uses official Bot API with reliable delivery.
 
@@ -83,6 +83,44 @@ telert status  # Test your configuration
 
 [**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
 
+### Audio Alerts Setup
+
+Play a sound notification when your command completes.
+
+```bash
+# Install with audio dependencies (optional)
+pip install telert[audio]
+
+# Configure with default sound (uses platform-specific audio players)
+telert config audio --set-default
+telert status  # Test your configuration
+
+# Or with custom sound file
+telert config audio --sound-file "/path/to/alert.wav" --volume 0.8 --set-default
+```
+
+Audio notifications work on:
+- **macOS**: Uses built-in `afplay` command
+- **Linux**: Tries `paplay` (PulseAudio), `aplay` (ALSA), or `mpg123` for MP3s
+- **Windows**: Uses Python's `winsound` module
+
+Telert includes a built-in notification sound, so you don't need to provide your own sound file.
+
+### Desktop Notifications Setup
+
+Show notifications in your operating system's notification center.
+
+```bash
+# Configure
+telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-default
+telert status  # Test your configuration
+```
+
+Desktop notifications work on:
+- **macOS**: Uses AppleScript
+- **Linux**: Uses `notify-send` (install with `sudo apt install libnotify-bin` on Debian/Ubuntu)
+- **Windows**: Uses PowerShell on Windows 10+
+
 ### Managing Multiple Providers
 
 Telert lets you configure multiple providers and set one as default:
@@ -92,14 +130,14 @@ Telert lets you configure multiple providers and set one as default:
 telert status
 
 # Set a provider as default
-telert config set-default --provider telegram  # Change default to configured Telegram
+telert config set-default --provider telegram  # Change default to configured provider
 
 # Use a specific provider rather than default
-telert send --provider teams "Via Teams"
+telert send --provider desktop "Via desktop notification"
 
 # Python API
 from telert import set_default_provider
-set_default_provider("telegram")
+set_default_provider("audio")
 ```
 
 Telert securely stores all configuration in `~/.config/telert/config.json` unless environment variables are used.
@@ -115,7 +153,7 @@ Telert securely stores all configuration in `~/.config/telert/config.json` unles
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
-| **Multi-provider** | Configure and use multiple messaging services (Telegram, Teams, Slack). | `telert config teams --webhook-url "..."` |
+| **Multi-provider** | Configure and use multiple notification services (Telegram, Teams, Slack, Audio, Desktop). | `telert config desktop --app-name "My App"` |
 
 ---
 
@@ -234,21 +272,25 @@ telert-wrapper run source deploy.sh
 ```python
 from telert import (
     configure_telegram, configure_teams, configure_slack, 
+    configure_audio, configure_desktop,
     set_default_provider, is_configured, get_config, list_providers
 )
 
 # Configure one or more providers
 configure_telegram("<token>", "<chat-id>")
 configure_teams("<webhook-url>")
-configure_slack("<webhook-url>", set_default=True)  # Set as default
+configure_slack("<webhook-url>")
+configure_audio()  # Uses built-in sound
+# Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
+configure_desktop("My App", icon_path="/path/to/icon.png", set_default=True)  # Set as default
 
 # Check if specific provider is configured
-if not is_configured("teams"):
-    configure_teams("<webhook-url>")
+if not is_configured("audio"):
+    configure_audio("/path/to/bell.wav")
 
 # Get configuration for a specific provider
-telegram_config = get_config("telegram")
-print(f"Using token: {telegram_config['token'][:8]}...")
+desktop_config = get_config("desktop")
+print(f"Using app name: {desktop_config['app_name']}")
 
 # List all providers and see which is default
 providers = list_providers()
@@ -256,7 +298,7 @@ for p in providers:
     print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
 
 # Change default provider
-set_default_provider("telegram")
+set_default_provider("audio")
 ```
 
 #### Simple Messaging
@@ -269,6 +311,8 @@ send("Script started")
 # Send to specific provider regardless of default
 send("Processing completed with 5 records updated", provider="teams")
 send("Critical error detected!", provider="slack")
+send("Play a sound alert", provider="audio")
+send("Show a desktop notification", provider="desktop")
 ```
 
 #### Context Manager
@@ -297,6 +341,16 @@ with telert("Critical operation", only_fail=True):
 with telert("Teams notification", provider="teams"):
     # This will send to Teams regardless of the default provider
     teams_specific_operation()
+    
+# Use audio notifications
+with telert("Long calculation", provider="audio"):
+    # This will play a sound when done
+    time.sleep(5)
+    
+# Use desktop notifications
+with telert("Database backup", provider="desktop"):
+    # This will show a desktop notification when done
+    backup_database()
 ```
 
 #### Function Decorator
@@ -326,22 +380,36 @@ def calculate_stats(data):
 @notify("Slack alert", provider="slack")
 def slack_notification_function():
     return "This will be sent to Slack"
+    
+# Use audio notifications
+@notify("Audio alert", provider="audio")
+def play_sound_on_completion():
+    return "This will play a sound when done"
+    
+# Use desktop notifications
+@notify("Desktop alert", provider="desktop")
+def show_desktop_notification():
+    return "This will show a desktop notification when done"
 ```
 
 ---
 
 ## 🌿 Environment Variables
 
-| Variable              | Effect                                      |
-|-----------------------|---------------------------------------------|
-| `TELERT_TOKEN`        | Telegram bot token                          |
-| `TELERT_CHAT_ID`      | Telegram chat ID                            |
-| `TELERT_TEAMS_WEBHOOK`| Microsoft Teams Power Automate HTTP URL     |
-| `TELERT_SLACK_WEBHOOK`| Slack webhook URL                           |
-| `TELERT_LONG`         | Default threshold (seconds) for `hook`      |
-| `TELERT_SILENT=1`     | Capture and include command output in notification, but don't display in real-time |
+| Variable                 | Effect                                      |
+|--------------------------|---------------------------------------------|
+| `TELERT_TOKEN`           | Telegram bot token                          |
+| `TELERT_CHAT_ID`         | Telegram chat ID                            |
+| `TELERT_TEAMS_WEBHOOK`   | Microsoft Teams Power Automate HTTP URL     |
+| `TELERT_SLACK_WEBHOOK`   | Slack webhook URL                           |
+| `TELERT_AUDIO_FILE`      | Path to sound file for audio notifications  |
+| `TELERT_AUDIO_VOLUME`    | Volume level for audio notifications (0.0-1.0) |
+| `TELERT_DESKTOP_APP_NAME`| Application name for desktop notifications  |
+| `TELERT_DESKTOP_ICON`    | Path to icon file for desktop notifications |
+| `TELERT_LONG`            | Default threshold (seconds) for `hook`      |
+| `TELERT_SILENT=1`        | Capture and include command output in notification, but don't display in real-time |
 
-Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack.
+Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack, Audio, Desktop.
 
 ---
 

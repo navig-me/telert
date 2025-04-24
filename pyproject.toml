@@ -47,7 +47,7 @@ packages = ["telert"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-telert = ["data/*.wav", "data/*.mp3"]
+telert = ["data/*.wav", "data/*.mp3", "data/*.png", "data/*.svg"]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

@@ -111,15 +111,20 @@ Telert includes a built-in notification sound, so you don't need to provide your
 Show notifications in your operating system's notification center.
 
 ```bash
-# Configure
-telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-default
+# Configure with default icon
+telert config desktop --app-name "My App" --set-default
 telert status  # Test your configuration
+
+# Or with custom icon
+telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-default
 ```
 
 Desktop notifications work on:
 - **macOS**: Uses AppleScript
 - **Linux**: Uses `notify-send` (install with `sudo apt install libnotify-bin` on Debian/Ubuntu)
 - **Windows**: Uses PowerShell on Windows 10+
+
+Telert includes a built-in notification icon, so you don't need to provide your own icon.
 
 ### Managing Multiple Providers
 
@@ -282,7 +287,8 @@ configure_teams("<webhook-url>")
 configure_slack("<webhook-url>")
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
-configure_desktop("My App", icon_path="/path/to/icon.png", set_default=True)  # Set as default
+configure_desktop("My App", set_default=True)  # Uses built-in icon
+# Or with custom icon: configure_desktop("My App", icon_path="/path/to/icon.png")
 
 # Check if specific provider is configured
 if not is_configured("audio"):

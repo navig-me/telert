@@ -429,7 +429,7 @@ def main():
     # Desktop config
     desktop_parser = c_subparsers.add_parser("desktop", help="configure Desktop notifications")
     desktop_parser.add_argument("--app-name", default="Telert", help="application name shown in notifications")
-    desktop_parser.add_argument("--icon-path", help="path to icon file for the notification")
+    desktop_parser.add_argument("--icon-path", help="path to icon file for the notification (default: built-in icon)")
     desktop_parser.add_argument("--set-default", action="store_true", help="set as default provider")
     
     # Legacy Telegram config (for backward compatibility)

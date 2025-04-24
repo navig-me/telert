@@ -29,8 +29,8 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default resources
 DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
-DEFAULT_SOUND_FILE = DATA_DIR / "notification.wav"
-DEFAULT_ICON_FILE = DATA_DIR / "notification-icon.png"
+DEFAULT_SOUND_FILE = DATA_DIR / "notification.wav"  # Simple notification sound
+DEFAULT_ICON_FILE = DATA_DIR / "notification-icon.png"  # Bell icon
 
 
 class Provider(enum.Enum):

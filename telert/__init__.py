@@ -14,7 +14,7 @@ __all__ = [
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.15"  # Fix macOS notifications and update sound file
+__version__ = "0.1.16"  # Fix code formatting and cross-platform compatibility
 
 from telert.api import (
     telert, 

@@ -7,18 +7,18 @@ It shares the same configuration as the CLI tool.
 
 Usage:
     from telert import telert, send
-    
+
     # Send a simple notification
     send("My script finished processing")
-    
+
     # Specify a provider
     send("Hello Slack!", provider="slack")
-    
+
     # Use with a context manager to time execution
     with telert("Long computation"):
         # Your code here
         result = compute_something_expensive()
-    
+
     # The notification will be sent when the block exits,
     # including the execution time.
 """
@@ -29,19 +29,11 @@ import functools
 import os
 import time
 import traceback
-from typing import Any, Callable, Dict, Optional, TypeVar, Union, List
-
-from telert.messaging import (
-    Provider,
-    MessagingConfig,
-    configure_provider,
-    send_message,
-    CONFIG_DIR,
-    get_provider
-)
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 # For backward compatibility
 from telert.cli import _human
+from telert.messaging import MessagingConfig, Provider, configure_provider, send_message
 
 # Type variable for function return type
 T = TypeVar("T")
@@ -58,10 +50,12 @@ def configure_telegram(token: str, chat_id: str, set_default: bool = True) -> No
 
     Examples:
         from telert import configure_telegram
-        
+
         configure_telegram("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
-    configure_provider(Provider.TELEGRAM, token=token, chat_id=chat_id, set_default=set_default)
+    configure_provider(
+        Provider.TELEGRAM, token=token, chat_id=chat_id, set_default=set_default
+    )
 
 
 def configure_teams(webhook_url: str, set_default: bool = True) -> None:
@@ -74,7 +68,7 @@ def configure_teams(webhook_url: str, set_default: bool = True) -> None:
 
     Examples:
         from telert import configure_teams
-        
+
         configure_teams("https://prod-00.northcentralus.logic.azure.com/workflows/...")
     """
     configure_provider(Provider.TEAMS, webhook_url=webhook_url, set_default=set_default)
@@ -90,13 +84,15 @@ def configure_slack(webhook_url: str, set_default: bool = True) -> None:
 
     Examples:
         from telert import configure_slack
-        
+
         configure_slack("https://hooks.slack.com/services/...")
     """
     configure_provider(Provider.SLACK, webhook_url=webhook_url, set_default=set_default)
 
 
-def configure_audio(sound_file: Optional[str] = None, volume: float = 1.0, set_default: bool = True) -> None:
+def configure_audio(
+    sound_file: Optional[str] = None, volume: float = 1.0, set_default: bool = True
+) -> None:
     """
     Configure Telert for audio notifications.
 
@@ -107,25 +103,24 @@ def configure_audio(sound_file: Optional[str] = None, volume: float = 1.0, set_d
 
     Examples:
         from telert import configure_audio
-        
+
         # Use the built-in sound
         configure_audio(volume=0.8)
-        
+
         # Use a custom sound file
         configure_audio("/path/to/alert.wav", volume=0.8)
     """
-    config = {
-        "volume": volume,
-        "set_default": set_default
-    }
-    
+    config = {"volume": volume, "set_default": set_default}
+
     if sound_file:
         config["sound_file"] = sound_file
-        
+
     configure_provider(Provider.AUDIO, **config)
 
 
-def configure_desktop(app_name: str = "Telert", icon_path: Optional[str] = None, set_default: bool = True) -> None:
+def configure_desktop(
+    app_name: str = "Telert", icon_path: Optional[str] = None, set_default: bool = True
+) -> None:
     """
     Configure Telert for desktop notifications.
 
@@ -136,21 +131,18 @@ def configure_desktop(app_name: str = "Telert", icon_path: Optional[str] = None,
 
     Examples:
         from telert import configure_desktop
-        
+
         # Use the built-in icon
         configure_desktop("My App")
-        
+
         # Use a custom icon
         configure_desktop("My App", icon_path="/path/to/icon.png")
     """
-    config = {
-        "app_name": app_name,
-        "set_default": set_default
-    }
-    
+    config = {"app_name": app_name, "set_default": set_default}
+
     if icon_path:
         config["icon_path"] = icon_path
-        
+
     configure_provider(Provider.DESKTOP, **config)
 
 
@@ -158,9 +150,9 @@ def configure_desktop(app_name: str = "Telert", icon_path: Optional[str] = None,
 def configure(token: str, chat_id: str) -> None:
     """
     Configure Telert with Telegram bot token and chat ID.
-    
+
     This is a legacy function maintained for backward compatibility.
-    For new code, consider using configure_telegram(), configure_teams(), 
+    For new code, consider using configure_telegram(), configure_teams(),
     configure_slack(), configure_audio(), or configure_desktop() instead.
 
     Args:
@@ -169,7 +161,7 @@ def configure(token: str, chat_id: str) -> None:
 
     Examples:
         from telert import configure
-        
+
         configure("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
     configure_telegram(token, chat_id, set_default=True)
@@ -188,24 +180,24 @@ def get_config(provider: Optional[Union[str, Provider]] = None) -> Dict[str, Any
 
     Examples:
         from telert import get_config
-        
+
         # Get Telegram config
         telegram_config = get_config("telegram")
         if telegram_config:
             print(f"Using bot token: {telegram_config['token'][:8]}...")
-        
+
         # Get all configurations
         all_config = get_config()
     """
     config = MessagingConfig()
-    
+
     if provider:
         if isinstance(provider, str):
             try:
                 provider = Provider.from_string(provider)
             except ValueError:
                 return {}
-        
+
         return config.get_provider_config(provider)
     else:
         # Return all provider configs
@@ -214,12 +206,12 @@ def get_config(provider: Optional[Union[str, Provider]] = None) -> Dict[str, Any
             p_config = config.get_provider_config(p)
             if p_config:
                 result[p.value] = p_config
-                
+
         # Include default provider
         default = config.get_default_provider()
         if default:
             result["default"] = default.value
-            
+
         return result
 
 
@@ -236,26 +228,26 @@ def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
 
     Examples:
         from telert import is_configured, configure_teams
-        
+
         if not is_configured("teams"):
             configure_teams("https://outlook.office.com/webhook/...")
     """
     config = MessagingConfig()
-    
+
     if provider:
         if isinstance(provider, str):
             try:
                 provider = Provider.from_string(provider)
             except ValueError:
                 return False
-                
+
         return config.is_provider_configured(provider)
     else:
         # Check if any provider is configured
         for p in Provider:
             if config.is_provider_configured(p):
                 return True
-                
+
         # Check for environment variables
         if os.environ.get("TELERT_TOKEN") and os.environ.get("TELERT_CHAT_ID"):
             return True
@@ -263,7 +255,7 @@ def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
             return True
         if os.environ.get("TELERT_SLACK_WEBHOOK"):
             return True
-            
+
         return False
 
 
@@ -276,14 +268,14 @@ def set_default_provider(provider: Union[str, Provider]) -> None:
 
     Examples:
         from telert import set_default_provider
-        
+
         set_default_provider("slack")
     """
     config = MessagingConfig()
-    
+
     if isinstance(provider, str):
         provider = Provider.from_string(provider)
-        
+
     config.set_default_provider(provider)
 
 
@@ -296,7 +288,7 @@ def list_providers() -> List[Dict[str, Any]]:
 
     Examples:
         from telert import list_providers
-        
+
         providers = list_providers()
         for p in providers:
             print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
@@ -304,17 +296,17 @@ def list_providers() -> List[Dict[str, Any]]:
     config = MessagingConfig()
     default = config.get_default_provider()
     result = []
-    
+
     for p in Provider:
         if config.is_provider_configured(p):
             provider_config = config.get_provider_config(p)
             info = {
                 "name": p.value,
                 "is_default": (default == p),
-                "config": provider_config
+                "config": provider_config,
             }
             result.append(info)
-            
+
     return result
 
 
@@ -329,10 +321,10 @@ def send(message: str, provider: Optional[Union[str, Provider]] = None) -> None:
 
     Examples:
         from telert import send
-        
+
         # Use default provider
         send("Hello from Python!")
-        
+
         # Specify provider
         send("Hello Teams!", provider="teams")
 
@@ -344,7 +336,7 @@ def send(message: str, provider: Optional[Union[str, Provider]] = None) -> None:
     try:
         if provider is not None and isinstance(provider, str):
             provider = Provider.from_string(provider)
-            
+
         send_message(message, provider)
     except Exception as e:
         raise RuntimeError(f"Failed to send message: {str(e)}")
@@ -353,41 +345,41 @@ def send(message: str, provider: Optional[Union[str, Provider]] = None) -> None:
 class telert:
     """
     Context manager for sending notifications.
-    
-    When used as a context manager, it will time the code execution and 
+
+    When used as a context manager, it will time the code execution and
     send a notification when the block exits, including the execution time
     and any exceptions that were raised.
-    
+
     Examples:
         # Basic usage with default message
         with telert():
             do_something_lengthy()
-        
+
         # Custom message
         with telert("Database backup"):
             backup_database()
-        
+
         # Handle return value
         with telert("Processing data") as t:
             result = process_data()
             t.result = result  # This will be included in the notification
-            
+
         # Specify provider
         with telert("Teams message", provider="teams"):
             run_teams_task()
     """
-    
+
     def __init__(
-        self, 
-        label: Optional[str] = None, 
-        only_fail: bool = False, 
+        self,
+        label: Optional[str] = None,
+        only_fail: bool = False,
         include_traceback: bool = True,
         callback: Optional[Callable[[str], Any]] = None,
-        provider: Optional[Union[str, Provider]] = None
+        provider: Optional[Union[str, Provider]] = None,
     ):
         """
         Initialize a telert context manager.
-        
+
         Args:
             label: Optional label to identify this operation in the notification
             only_fail: If True, only send notification on failure (exception)
@@ -402,7 +394,7 @@ class telert:
         self.result = None
         self.start_time = None
         self.exception = None
-        
+
         # Convert provider string to enum if needed
         self.provider = None
         if provider is not None:
@@ -413,91 +405,96 @@ class telert:
                     raise ValueError(f"Unknown provider: {provider}")
             else:
                 self.provider = provider
-        
+
     def __enter__(self):
         self.start_time = time.time()
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration = _human(time.time() - self.start_time)
-        
+
         if exc_type is not None:
             self.exception = exc_val
             status = "failed"
-            
+
             if self.include_traceback:
                 tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
-                message = f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
+                message = (
+                    f"{self.label} {status} in {duration}\n\n--- traceback ---\n{tb}"
+                )
             else:
                 message = f"{self.label} {status} in {duration}: {exc_val}"
-                
+
             send(message, self.provider)
             return False  # Re-raise the exception
-            
+
         status = "completed"
-        
+
         # Only send notification on success if only_fail is False
         if not self.only_fail:
             message = f"{self.label} {status} in {duration}"
-            
+
             # Include the result if it was set
             if self.result is not None:
                 result_str = str(self.result)
                 if len(result_str) > 1000:
                     result_str = result_str[:997] + "..."
                 message += f"\n\n--- result ---\n{result_str}"
-                
+
             send(message, self.provider)
-            
+
         # If a callback was provided, call it with the message
         if self.callback and not self.only_fail:
             self.callback(message)
-            
+
         return True  # Don't re-raise exception on success
 
 
 def notify(
-    label: Optional[str] = None, 
-    only_fail: bool = False, 
+    label: Optional[str] = None,
+    only_fail: bool = False,
     include_traceback: bool = True,
-    provider: Optional[Union[str, Provider]] = None
+    provider: Optional[Union[str, Provider]] = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to send notifications when a function completes.
-    
+
     Args:
         label: Optional label to identify this operation in the notification
         only_fail: If True, only send notification on failure (exception)
         include_traceback: If True, include traceback in notification when an exception occurs
         provider: Optional provider to use for notifications
-        
+
     Returns:
         A decorator function
-        
+
     Examples:
         @notify("Database backup")
         def backup_database():
             # Your code here
-            
+
         @notify(only_fail=True)
         def critical_operation():
             # Your code here
-            
+
         @notify(provider="teams")
         def teams_function():
             # This will notify via Teams
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             # Use the function name if no label is provided
             func_label = label or func.__name__
-            
-            with telert(func_label, only_fail, include_traceback, provider=provider) as t:
+
+            with telert(
+                func_label, only_fail, include_traceback, provider=provider
+            ) as t:
                 result = func(*args, **kwargs)
                 t.result = result
                 return result
-                
+
         return wrapper
-    
+
     return decorator

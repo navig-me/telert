@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Messaging providers for telert.
 
@@ -164,7 +164,7 @@ class TelegramProvider:
                 timeout=20  # 20 second timeout
             )
             
-            if response.status_code != 200:
+            if response.status_code \!= 200:
                 error_msg = f"Telegram API error {response.status_code}: {response.text}"
                 raise RuntimeError(error_msg)
                 
@@ -285,7 +285,7 @@ class SlackProvider:
                 timeout=20  # 20 second timeout
             )
             
-            if response.status_code != 200:
+            if response.status_code \!= 200:
                 error_msg = f"Slack API error {response.status_code}: {response.text}"
                 raise RuntimeError(error_msg)
                 
@@ -351,7 +351,7 @@ class AudioProvider:
         # Verify the file exists
         if not os.path.exists(sound_file):
             # If custom sound file doesn't exist, fall back to default
-            if sound_file != str(DEFAULT_SOUND_FILE):
+            if sound_file \!= str(DEFAULT_SOUND_FILE):
                 print(f"Warning: Sound file not found: {sound_file}. Using default sound.")
                 sound_file = str(DEFAULT_SOUND_FILE)
                 # If default also doesn't exist, raise error
@@ -462,7 +462,7 @@ class DesktopProvider:
     def save_config(self, config: MessagingConfig):
         """Save configuration."""
         config_data = {"app_name": self.app_name}
-        if self.icon_path and self.icon_path != str(DEFAULT_ICON_FILE):
+        if self.icon_path and self.icon_path \!= str(DEFAULT_ICON_FILE):
             config_data["icon_path"] = self.icon_path
         config.set_provider_config(Provider.DESKTOP, config_data)
 
@@ -481,7 +481,7 @@ class DesktopProvider:
             icon = self.icon_path
             
         # Check if custom icon exists
-        if icon != str(DEFAULT_ICON_FILE) and not os.path.exists(icon):
+        if icon \!= str(DEFAULT_ICON_FILE) and not os.path.exists(icon):
             print(f"Warning: Icon file not found: {icon}. Using default icon.")
             icon = str(DEFAULT_ICON_FILE)
             # Check if default exists
@@ -492,10 +492,30 @@ class DesktopProvider:
             # macOS
             if system == "Darwin":
                 # Escape quotes and special characters in message
-                escaped_message = message.replace('"', '\\"').replace('$', '\\$')$', '\\$')
-                apple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
-                subprocess.run(["osascript", "-e", apple_script], check=True)
-                return True
+                escaped_message = message.replace('"', '\\"').replace('$', '\\$')
+                
+                # Enhanced AppleScript for better visibility
+                # Use system sound to increase chances of notification being noticed
+                apple_script = f'''
+                display notification "{escaped_message}" with title "{self.app_name}" sound name "Submarine"
+                '''
+                
+                try:
+                    subprocess.run(["osascript", "-e", apple_script], check=True, capture_output=True)
+                    return True
+                except subprocess.SubprocessError:
+                    # Fallback to simpler notification if the enhanced one fails
+                    try:
+                        simple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
+                        subprocess.run(["osascript", "-e", simple_script], check=True, capture_output=True)
+                        return True
+                    except subprocess.SubprocessError:
+                        # Ultimate fallback - use terminal-notifier if available
+                        try:
+                            subprocess.run(["terminal-notifier", "-title", self.app_name, "-message", message], check=True)
+                            return True
+                        except (subprocess.SubprocessError, FileNotFoundError):
+                            raise RuntimeError("Could not show desktop notification on macOS")
                 
             # Linux
             elif system == "Linux":
@@ -513,7 +533,7 @@ class DesktopProvider:
             elif system == "Windows":
                 # Use PowerShell for Windows 10+
                 ps_script = f"""
-                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]  < /dev/null |  Out-Null
                 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 
                 $app = '{self.app_name}'

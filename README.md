@@ -125,7 +125,11 @@ telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-
 ```
 
 Desktop notifications work on:
-- **macOS**: Uses AppleScript
+- **macOS**: 
+  - Uses AppleScript with sound alert to improve visibility
+  - On newer macOS versions (Catalina+), you may need to grant notification permissions:
+    - Go to System Preferences → Notifications → Terminal (or iTerm2) and enable notifications
+  - Alternative: Install `terminal-notifier` (`brew install terminal-notifier`) as a fallback
 - **Linux**: Uses `notify-send` (install with `sudo apt install libnotify-bin` on Debian/Ubuntu)
 - **Windows**: Uses PowerShell on Windows 10+
 

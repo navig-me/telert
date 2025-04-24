@@ -88,7 +88,10 @@ telert status  # Test your configuration
 Play a sound notification when your command completes.
 
 ```bash
-# Install with audio dependencies (optional)
+# Basic installation
+pip install telert
+
+# Install with audio dependencies (optional, for playsound support)
 pip install telert[audio]
 
 # Configure with default sound (uses platform-specific audio players)

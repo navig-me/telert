@@ -1,4 +1,4 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 """
 Messaging providers for telert.
 
@@ -18,7 +18,6 @@ import os
 import pathlib
 import platform
 import subprocess
-import sys
 from typing import Any, Dict, Optional, Union
 
 import requests
@@ -159,26 +158,30 @@ class TelegramProvider:
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
         try:
             response = requests.post(
-                url, 
+                url,
                 json={"chat_id": self.chat_id, "text": message},
-                timeout=20  # 20 second timeout
+                timeout=20,  # 20 second timeout
             )
-            
-            if response.status_code \!= 200:
-                error_msg = f"Telegram API error {response.status_code}: {response.text}"
+
+            if response.status_code != 200:
+                error_msg = (
+                    f"Telegram API error {response.status_code}: {response.text}"
+                )
                 raise RuntimeError(error_msg)
-                
+
             return True
         except requests.exceptions.Timeout:
             raise RuntimeError("Telegram API request timed out after 20 seconds")
         except requests.exceptions.ConnectionError:
-            raise RuntimeError("Telegram API connection error - please check your network connection")
+            raise RuntimeError(
+                "Telegram API connection error - please check your network connection"
+            )
 
 
 class TeamsProvider:
     """
     Provider for Microsoft Teams messaging.
-    
+
     Uses Power Automate HTTP triggers to send messages to Teams channels.
     The payload format is compatible with HTTP request triggers that post
     to Teams channels.
@@ -210,7 +213,7 @@ class TeamsProvider:
     def send(self, message: str) -> bool:
         """
         Send a message to Microsoft Teams via Power Automate HTTP trigger.
-        
+
         The payload format is compatible with Power Automate HTTP triggers
         configured to post messages to Teams channels.
         """
@@ -225,20 +228,22 @@ class TeamsProvider:
 
         try:
             response = requests.post(
-                self.webhook_url, 
+                self.webhook_url,
                 json=payload,
-                timeout=20  # 20 second timeout
+                timeout=20,  # 20 second timeout
             )
-            
+
             if response.status_code not in (200, 201, 202):
                 error_msg = f"Teams API error {response.status_code}: {response.text}"
                 raise RuntimeError(error_msg)
-                
+
             return True
         except requests.exceptions.Timeout:
             raise RuntimeError("Teams API request timed out after 20 seconds")
         except requests.exceptions.ConnectionError:
-            raise RuntimeError("Teams API connection error - please check your network connection")
+            raise RuntimeError(
+                "Teams API connection error - please check your network connection"
+            )
 
 
 class SlackProvider:
@@ -280,26 +285,30 @@ class SlackProvider:
 
         try:
             response = requests.post(
-                self.webhook_url, 
+                self.webhook_url,
                 json=payload,
-                timeout=20  # 20 second timeout
+                timeout=20,  # 20 second timeout
             )
-            
-            if response.status_code \!= 200:
+
+            if response.status_code != 200:
                 error_msg = f"Slack API error {response.status_code}: {response.text}"
                 raise RuntimeError(error_msg)
-                
+
             return True
         except requests.exceptions.Timeout:
             raise RuntimeError("Slack API request timed out after 20 seconds")
         except requests.exceptions.ConnectionError:
-            raise RuntimeError("Slack API connection error - please check your network connection")
+            raise RuntimeError(
+                "Slack API connection error - please check your network connection"
+            )
 
 
 class AudioProvider:
     """Provider for audio notifications."""
 
-    def __init__(self, sound_file: Optional[str] = None, volume: Optional[float] = None):
+    def __init__(
+        self, sound_file: Optional[str] = None, volume: Optional[float] = None
+    ):
         self.sound_file = sound_file or str(DEFAULT_SOUND_FILE)
         self.volume = volume or 1.0
 
@@ -308,14 +317,14 @@ class AudioProvider:
         env_sound_file = os.environ.get("TELERT_AUDIO_FILE")
         if env_sound_file:
             self.sound_file = env_sound_file
-            
+
         vol = os.environ.get("TELERT_AUDIO_VOLUME")
         if vol:
             try:
                 self.volume = float(vol)
             except ValueError:
                 self.volume = 1.0
-                
+
         # Even if no env variables are set, we have a default sound file
         return True
 
@@ -326,7 +335,7 @@ class AudioProvider:
             if "sound_file" in provider_config:
                 self.sound_file = provider_config.get("sound_file")
             self.volume = provider_config.get("volume", 1.0)
-            
+
         # Even if no config is found, we have a default sound file
         return True
 
@@ -341,18 +350,20 @@ class AudioProvider:
         """Play audio notification."""
         if not self.sound_file:
             self.sound_file = str(DEFAULT_SOUND_FILE)
-        
+
         # Resolve the path - expanduser for user paths, or use as is for absolute paths
         if self.sound_file.startswith("~"):
             sound_file = os.path.expanduser(self.sound_file)
         else:
             sound_file = self.sound_file
-            
+
         # Verify the file exists
         if not os.path.exists(sound_file):
             # If custom sound file doesn't exist, fall back to default
-            if sound_file \!= str(DEFAULT_SOUND_FILE):
-                print(f"Warning: Sound file not found: {sound_file}. Using default sound.")
+            if sound_file != str(DEFAULT_SOUND_FILE):
+                print(
+                    f"Warning: Sound file not found: {sound_file}. Using default sound."
+                )
                 sound_file = str(DEFAULT_SOUND_FILE)
                 # If default also doesn't exist, raise error
                 if not os.path.exists(sound_file):
@@ -362,16 +373,16 @@ class AudioProvider:
 
         # Get file extension to determine type
         file_ext = os.path.splitext(sound_file)[1].lower()
-        
+
         try:
             system = platform.system()
-            
+
             # macOS approach
             if system == "Darwin":
                 # afplay supports both WAV and MP3
                 subprocess.run(["afplay", sound_file], check=True)
                 return True
-            
+
             # Linux approach - try multiple options
             elif system == "Linux":
                 # MP3 file
@@ -382,24 +393,26 @@ class AudioProvider:
                         return True
                     except (subprocess.SubprocessError, FileNotFoundError):
                         pass
-                
+
                 # Try using paplay (PulseAudio)
                 try:
                     subprocess.run(["paplay", sound_file], check=True)
                     return True
                 except (subprocess.SubprocessError, FileNotFoundError):
                     pass
-                
+
                 # Try using aplay (ALSA)
                 try:
-                    subprocess.run(["aplay", sound_file], check=True) 
+                    subprocess.run(["aplay", sound_file], check=True)
                     return True
                 except (subprocess.SubprocessError, FileNotFoundError):
                     pass
-                    
+
                 # If we get here, we couldn't find a suitable player
-                raise RuntimeError("No suitable audio player found on Linux (tried mpg123, paplay, aplay)")
-            
+                raise RuntimeError(
+                    "No suitable audio player found on Linux (tried mpg123, paplay, aplay)"
+                )
+
             # Windows approach
             elif system == "Windows":
                 # For MP3 files on Windows, try to use an alternative player
@@ -408,31 +421,40 @@ class AudioProvider:
                         # Try with the optional playsound package first
                         try:
                             from playsound import playsound
+
                             playsound(sound_file)
                             return True
                         except ImportError:
                             pass
-                            
+
                         # Otherwise try with built-in tools
-                        subprocess.run(["powershell", "-c", 
-                                      f"(New-Object Media.SoundPlayer '{sound_file}').PlaySync()"], 
-                                      check=True)
+                        subprocess.run(
+                            [
+                                "powershell",
+                                "-c",
+                                f"(New-Object Media.SoundPlayer '{sound_file}').PlaySync()",
+                            ],
+                            check=True,
+                        )
                         return True
                     except Exception:
                         # Fallback message
-                        print(f"Warning: MP3 playback requires playsound package on Windows.")
-                        print(f"Install with: pip install telert[audio]")
+                        print(
+                            "Warning: MP3 playback requires playsound package on Windows."
+                        )
+                        print("Install with: pip install telert[audio]")
                         # Continue with normal notification (no sound)
                         return True
-                        
+
                 # For WAV files, use winsound
                 import winsound
+
                 winsound.PlaySound(sound_file, winsound.SND_FILENAME)
                 return True
-                
+
             else:
                 raise RuntimeError(f"Unsupported platform: {system}")
-                
+
         except Exception as e:
             raise RuntimeError(f"Audio playback error: {str(e)}")
 
@@ -462,61 +484,80 @@ class DesktopProvider:
     def save_config(self, config: MessagingConfig):
         """Save configuration."""
         config_data = {"app_name": self.app_name}
-        if self.icon_path and self.icon_path \!= str(DEFAULT_ICON_FILE):
+        if self.icon_path and self.icon_path != str(DEFAULT_ICON_FILE):
             config_data["icon_path"] = self.icon_path
         config.set_provider_config(Provider.DESKTOP, config_data)
 
     def send(self, message: str) -> bool:
         """Send a desktop notification."""
         system = platform.system()
-        
+
         # Resolve icon path
         if not self.icon_path:
             self.icon_path = str(DEFAULT_ICON_FILE)
-            
+
         # Get the actual icon path
         if self.icon_path.startswith("~"):
             icon = os.path.expanduser(self.icon_path)
         else:
             icon = self.icon_path
-            
+
         # Check if custom icon exists
-        if icon \!= str(DEFAULT_ICON_FILE) and not os.path.exists(icon):
+        if icon != str(DEFAULT_ICON_FILE) and not os.path.exists(icon):
             print(f"Warning: Icon file not found: {icon}. Using default icon.")
             icon = str(DEFAULT_ICON_FILE)
             # Check if default exists
             if not os.path.exists(icon):
                 icon = None  # No icon if default is also missing
-        
+
         try:
             # macOS
             if system == "Darwin":
                 # Escape quotes and special characters in message
-                escaped_message = message.replace('"', '\\"').replace('$', '\\$')
-                
+                escaped_message = message.replace('"', '\\"').replace("$", "\\$")
+
                 # Enhanced AppleScript for better visibility
                 # Use system sound to increase chances of notification being noticed
                 apple_script = f'''
                 display notification "{escaped_message}" with title "{self.app_name}" sound name "Submarine"
                 '''
-                
+
                 try:
-                    subprocess.run(["osascript", "-e", apple_script], check=True, capture_output=True)
+                    subprocess.run(
+                        ["osascript", "-e", apple_script],
+                        check=True,
+                        capture_output=True,
+                    )
                     return True
                 except subprocess.SubprocessError:
                     # Fallback to simpler notification if the enhanced one fails
                     try:
                         simple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
-                        subprocess.run(["osascript", "-e", simple_script], check=True, capture_output=True)
+                        subprocess.run(
+                            ["osascript", "-e", simple_script],
+                            check=True,
+                            capture_output=True,
+                        )
                         return True
                     except subprocess.SubprocessError:
                         # Ultimate fallback - use terminal-notifier if available
                         try:
-                            subprocess.run(["terminal-notifier", "-title", self.app_name, "-message", message], check=True)
+                            subprocess.run(
+                                [
+                                    "terminal-notifier",
+                                    "-title",
+                                    self.app_name,
+                                    "-message",
+                                    message,
+                                ],
+                                check=True,
+                            )
                             return True
                         except (subprocess.SubprocessError, FileNotFoundError):
-                            raise RuntimeError("Could not show desktop notification on macOS")
-                
+                            raise RuntimeError(
+                                "Could not show desktop notification on macOS"
+                            )
+
             # Linux
             elif system == "Linux":
                 # Try using notify-send (Linux)
@@ -527,8 +568,10 @@ class DesktopProvider:
                     subprocess.run(cmd, check=True)
                     return True
                 except (subprocess.SubprocessError, FileNotFoundError):
-                    raise RuntimeError("Desktop notifications require notify-send on Linux")
-                    
+                    raise RuntimeError(
+                        "Desktop notifications require notify-send on Linux"
+                    )
+
             # Windows
             elif system == "Windows":
                 # Use PowerShell for Windows 10+
@@ -545,22 +588,26 @@ class DesktopProvider:
                 $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
                 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show($toast)
                 """
-                
+
                 try:
                     subprocess.run(["powershell", "-Command", ps_script], check=True)
                     return True
                 except (subprocess.SubprocessError, FileNotFoundError):
-                    raise RuntimeError("Desktop notifications on Windows require PowerShell")
+                    raise RuntimeError(
+                        "Desktop notifications on Windows require PowerShell"
+                    )
             else:
                 raise RuntimeError(f"Desktop notifications not supported on {system}")
-                
+
         except Exception as e:
             raise RuntimeError(f"Desktop notification error: {str(e)}")
 
 
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
-) -> Union[TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider"]:
+) -> Union[
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider"
+]:
     """Get a configured messaging provider."""
     config = MessagingConfig()
 
@@ -633,9 +680,9 @@ def send_message(message: str, provider: Optional[Union[Provider, str]] = None) 
 
 def _validate_webhook_url(url: str) -> bool:
     """Validate that a webhook URL is properly formatted."""
-    if not url.startswith(('http://', 'https://')):
+    if not url.startswith(("http://", "https://")):
         raise ValueError("Webhook URL must start with http:// or https://")
-    
+
     # Basic URL format validation
     try:
         # Parse the URL to ensure it's valid
@@ -657,7 +704,7 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     if provider == Provider.TELEGRAM:
         if "token" not in kwargs or "chat_id" not in kwargs:
             raise ValueError("Telegram provider requires 'token' and 'chat_id'")
-            
+
         # Basic validation
         if not kwargs["token"] or not kwargs["chat_id"]:
             raise ValueError("Telegram token and chat_id cannot be empty")
@@ -667,7 +714,7 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     elif provider == Provider.TEAMS:
         if "webhook_url" not in kwargs:
             raise ValueError("Teams provider requires 'webhook_url'")
-            
+
         # Validate webhook URL format
         _validate_webhook_url(kwargs["webhook_url"])
         provider_instance = TeamsProvider(kwargs["webhook_url"])
@@ -675,34 +722,33 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     elif provider == Provider.SLACK:
         if "webhook_url" not in kwargs:
             raise ValueError("Slack provider requires 'webhook_url'")
-            
+
         # Validate webhook URL format
         _validate_webhook_url(kwargs["webhook_url"])
         provider_instance = SlackProvider(kwargs["webhook_url"])
-        
+
     elif provider == Provider.AUDIO:
         # Sound file is optional (default will be used if not provided)
         sound_file = kwargs.get("sound_file")
-        
+
         # If a custom sound file is provided, validate it
         if sound_file:
             # Validate sound file exists if provided
             if not os.path.exists(os.path.expanduser(sound_file)):
                 raise ValueError(f"Sound file not found: {sound_file}")
-        
+
         provider_instance = AudioProvider(
-            sound_file=sound_file,
-            volume=kwargs.get("volume", 1.0)
+            sound_file=sound_file, volume=kwargs.get("volume", 1.0)
         )
-        
+
     elif provider == Provider.DESKTOP:
         app_name = kwargs.get("app_name", "Telert")
         icon_path = kwargs.get("icon_path")
-        
+
         # Validate icon if provided
         if icon_path and not os.path.exists(os.path.expanduser(icon_path)):
             raise ValueError(f"Icon file not found: {icon_path}")
-            
+
         provider_instance = DesktopProvider(app_name=app_name, icon_path=icon_path)
 
     else:

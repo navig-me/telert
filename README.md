@@ -103,11 +103,13 @@ telert config audio --sound-file "/path/to/alert.wav" --volume 0.8 --set-default
 ```
 
 Audio notifications work on:
-- **macOS**: Uses built-in `afplay` command
-- **Linux**: Tries `paplay` (PulseAudio), `aplay` (ALSA), or `mpg123` for MP3s
-- **Windows**: Uses Python's `winsound` module
+- **macOS**: Uses built-in `afplay` command (supports MP3 and WAV)
+- **Linux**: Tries `mpg123` (for MP3s), `paplay` (PulseAudio), or `aplay` (ALSA)
+- **Windows**: 
+  - For WAV files: Uses built-in `winsound` module
+  - For MP3 files: Tries `playsound` library (install with `pip install telert[audio]`)
 
-Telert includes a built-in notification sound, so you don't need to provide your own sound file.
+Telert includes a built-in MP3 notification sound, so you don't need to provide your own sound file.
 
 ### Desktop Notifications Setup
 

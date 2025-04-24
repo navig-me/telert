@@ -145,13 +145,22 @@ class TelegramProvider:
             raise ValueError("Telegram provider not configured")
 
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        response = requests.post(url, json={"chat_id": self.chat_id, "text": message})
-
-        if response.status_code != 200:
-            error_msg = f"Telegram API error {response.status_code}: {response.text}"
-            raise RuntimeError(error_msg)
-
-        return True
+        try:
+            response = requests.post(
+                url, 
+                json={"chat_id": self.chat_id, "text": message},
+                timeout=20  # 20 second timeout
+            )
+            
+            if response.status_code != 200:
+                error_msg = f"Telegram API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+                
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Telegram API request timed out after 20 seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Telegram API connection error - please check your network connection")
 
 
 class TeamsProvider:
@@ -202,13 +211,22 @@ class TeamsProvider:
             "summary": "Telert Notification",  # Used as notification title in Teams
         }
 
-        response = requests.post(self.webhook_url, json=payload)
-
-        if response.status_code not in (200, 201, 202):
-            error_msg = f"Teams API error {response.status_code}: {response.text}"
-            raise RuntimeError(error_msg)
-
-        return True
+        try:
+            response = requests.post(
+                self.webhook_url, 
+                json=payload,
+                timeout=20  # 20 second timeout
+            )
+            
+            if response.status_code not in (200, 201, 202):
+                error_msg = f"Teams API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+                
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Teams API request timed out after 20 seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Teams API connection error - please check your network connection")
 
 
 class SlackProvider:
@@ -248,13 +266,22 @@ class SlackProvider:
             # Could add more formatting options here
         }
 
-        response = requests.post(self.webhook_url, json=payload)
-
-        if response.status_code != 200:
-            error_msg = f"Slack API error {response.status_code}: {response.text}"
-            raise RuntimeError(error_msg)
-
-        return True
+        try:
+            response = requests.post(
+                self.webhook_url, 
+                json=payload,
+                timeout=20  # 20 second timeout
+            )
+            
+            if response.status_code != 200:
+                error_msg = f"Slack API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+                
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Slack API request timed out after 20 seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Slack API connection error - please check your network connection")
 
 
 def get_provider(
@@ -318,6 +345,22 @@ def send_message(message: str, provider: Optional[Union[Provider, str]] = None) 
     return get_provider(provider).send(message)
 
 
+def _validate_webhook_url(url: str) -> bool:
+    """Validate that a webhook URL is properly formatted."""
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError("Webhook URL must start with http:// or https://")
+    
+    # Basic URL format validation
+    try:
+        # Parse the URL to ensure it's valid
+        parsed = requests.utils.urlparse(url)
+        if not all([parsed.scheme, parsed.netloc]):
+            raise ValueError("Invalid webhook URL format")
+        return True
+    except Exception:
+        raise ValueError("Invalid webhook URL format")
+
+
 def configure_provider(provider: Union[Provider, str], **kwargs):
     """Configure a messaging provider."""
     config = MessagingConfig()
@@ -328,19 +371,27 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     if provider == Provider.TELEGRAM:
         if "token" not in kwargs or "chat_id" not in kwargs:
             raise ValueError("Telegram provider requires 'token' and 'chat_id'")
+            
+        # Basic validation
+        if not kwargs["token"] or not kwargs["chat_id"]:
+            raise ValueError("Telegram token and chat_id cannot be empty")
 
         provider_instance = TelegramProvider(kwargs["token"], kwargs["chat_id"])
 
     elif provider == Provider.TEAMS:
         if "webhook_url" not in kwargs:
             raise ValueError("Teams provider requires 'webhook_url'")
-
+            
+        # Validate webhook URL format
+        _validate_webhook_url(kwargs["webhook_url"])
         provider_instance = TeamsProvider(kwargs["webhook_url"])
 
     elif provider == Provider.SLACK:
         if "webhook_url" not in kwargs:
             raise ValueError("Slack provider requires 'webhook_url'")
-
+            
+        # Validate webhook URL format
+        _validate_webhook_url(kwargs["webhook_url"])
         provider_instance = SlackProvider(kwargs["webhook_url"])
 
     else:

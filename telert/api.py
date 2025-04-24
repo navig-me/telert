@@ -395,7 +395,7 @@ class telert:
         if self.callback and not self.only_fail:
             self.callback(message)
             
-        return False
+        return True  # Don't re-raise exception on success
 
 
 def notify(

@@ -212,14 +212,21 @@ def do_send(a):
 def do_run(a):
     """Run a command and send notification when it completes."""
     start = time.time()
-    proc = subprocess.run(a.cmd, text=True, capture_output=True)
+    
+    # Check if we should suppress output
+    silent_mode = os.environ.get("TELERT_SILENT") == "1"
+    
+    if silent_mode:
+        # Capture output when in silent mode
+        proc = subprocess.run(a.cmd, text=True, capture_output=True)
+        # Output will be included only in notification
+    else:
+        # Show output in real-time by not capturing
+        proc = subprocess.run(a.cmd, text=True)
+    
     dur = _human(time.time() - start)
     status = proc.returncode
     label = a.label or " ".join(a.cmd)
-    
-    # Always write output
-    sys.stdout.write(proc.stdout)
-    sys.stderr.write(proc.stderr)
     
     # Exit early if only notifying on failure and command succeeded
     if a.only_fail and status == 0:
@@ -227,10 +234,30 @@ def do_run(a):
 
     # Prepare message
     msg = a.message or f"{label} finished with exit {status} in {dur}"
-    if proc.stdout.strip():
-        msg += "\n\n--- stdout ---\n" + "\n".join(proc.stdout.splitlines()[:20])[:3900]
-    if proc.stderr.strip():
-        msg += "\n\n--- stderr ---\n" + "\n".join(proc.stderr.splitlines()[:20])[:3900]
+    
+    # Add captured output to notification if in silent mode
+    if silent_mode and hasattr(proc, 'stdout') and hasattr(proc, 'stderr'):
+        # Add stdout with size limits for safety
+        if proc.stdout and proc.stdout.strip():
+            stdout_lines = proc.stdout.splitlines()[:20]  # Limit to 20 lines
+            stdout_text = "\n".join(stdout_lines)
+            
+            # Limit each line length
+            if len(stdout_text) > 3900:
+                stdout_text = stdout_text[:3897] + "..."
+            
+            msg += "\n\n--- stdout ---\n" + stdout_text
+            
+        # Add stderr with size limits for safety
+        if proc.stderr and proc.stderr.strip():
+            stderr_lines = proc.stderr.splitlines()[:20]  # Limit to 20 lines
+            stderr_text = "\n".join(stderr_lines)
+            
+            # Limit each line length
+            if len(stderr_text) > 3900:
+                stderr_text = stderr_text[:3897] + "..."
+                
+            msg += "\n\n--- stderr ---\n" + stderr_text
     
     # Send message with specified provider or default
     provider = None
@@ -256,19 +283,43 @@ def piped_mode():
     data = sys.stdin.read()
     msg = sys.argv[1] if len(sys.argv) > 1 else "Pipeline finished"
     
-    # Check for provider specification (format: --provider=slack)
+    # Check for provider specification (supports both --provider=slack and --provider slack formats)
     provider = None
+    skip_next = False
+    provider_index = -1
+    
     for i, arg in enumerate(sys.argv[1:], 1):
+        if skip_next:
+            skip_next = False
+            continue
+            
+        # Handle --provider=slack format
         if arg.startswith("--provider="):
             provider_name = arg.split("=", 1)[1]
+            provider_index = i
             try:
                 provider = Provider.from_string(provider_name)
-                # Remove the provider arg from what we use for message
-                if i == 1:
-                    msg = sys.argv[2] if len(sys.argv) > 2 else "Pipeline finished"
             except ValueError:
                 sys.exit(f"❌ Unknown provider: {provider_name}")
             break
+            
+        # Handle --provider slack format
+        if arg == "--provider":
+            if i + 1 < len(sys.argv):
+                provider_name = sys.argv[i+1]
+                provider_index = i
+                try:
+                    provider = Provider.from_string(provider_name)
+                    skip_next = True
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {provider_name}")
+                break
+    
+    # Update message if provider was the first argument
+    if provider_index == 1:
+        # Skip 2 positions if using space format, 1 if using equals format
+        skip = 2 if skip_next else 1
+        msg = sys.argv[skip+1] if len(sys.argv) > skip+1 else "Pipeline finished"
     
     # Format the message
     if len(sys.argv) > 2 and not any(arg.startswith("--provider=") for arg in sys.argv[1:3]):

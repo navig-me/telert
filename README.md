@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal (Telegram, Teams, Slack)
 
-**Version 0.1.5** 📱
+**Version 0.1.8** 📱
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
@@ -51,7 +51,7 @@ telert config telegram --token "<token>" --chat-id "<chat-id>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Telegram Setup Guide**](./TELEGRAM.md)
+[**Detailed Telegram Setup Guide**](https://github.com/navig-me/telert/blob/main/TELEGRAM.md)
 
 ### Microsoft Teams Setup
 
@@ -65,7 +65,7 @@ telert config teams --webhook-url "<flow-http-url>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Microsoft Teams Setup Guide**](./TEAMS.md)
+[**Detailed Microsoft Teams Setup Guide**](https://github.com/navig-me/telert/blob/main/TEAMS.md)
 
 ### Slack Setup
 
@@ -79,7 +79,7 @@ telert config slack --webhook-url "<webhook-url>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Slack Setup Guide**](./SLACK.md)
+[**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
 
 ### Managing Multiple Providers
 
@@ -141,7 +141,12 @@ telert run --provider teams --label "ML Training" python train_model.py
 
 # Custom notification message
 telert run --message "Training complete! 🎉" python train_model.py
+
+# Run in silent mode (output only in notification, not displayed in terminal)
+TELERT_SILENT=1 telert run python long_process.py
 ```
+
+Command output is shown in real-time by default. Use `TELERT_SILENT=1` environment variable if you want to capture output for the notification but not display it in the terminal.
 
 #### Filter Mode
 Perfect for adding notifications to existing pipelines:
@@ -309,7 +314,7 @@ def slack_notification_function():
 | `TELERT_TEAMS_WEBHOOK`| Microsoft Teams Power Automate HTTP URL     |
 | `TELERT_SLACK_WEBHOOK`| Slack webhook URL                           |
 | `TELERT_LONG`         | Default threshold (seconds) for `hook`      |
-| `TELERT_SILENT=1`     | Suppress stdout/stderr echo in `run`        |
+| `TELERT_SILENT=1`     | Capture and include command output in notification, but don't display in real-time |
 
 Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack.
 

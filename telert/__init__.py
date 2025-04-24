@@ -14,7 +14,7 @@ __all__ = [
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.13"  # Fix notification sound and icon files
+__version__ = "0.1.14"  # Fix audio file playback issues
 
 from telert.api import (
     telert, 

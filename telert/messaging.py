@@ -30,6 +30,7 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 # Default resources
 DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
 DEFAULT_SOUND_FILE = DATA_DIR / "notification.wav"
+DEFAULT_ICON_FILE = DATA_DIR / "notification-icon.png"
 
 
 class Provider(enum.Enum):
@@ -408,12 +409,12 @@ class DesktopProvider:
 
     def __init__(self, app_name: Optional[str] = None, icon_path: Optional[str] = None):
         self.app_name = app_name or "Telert"
-        self.icon_path = icon_path
+        self.icon_path = icon_path or str(DEFAULT_ICON_FILE)
 
     def configure_from_env(self) -> bool:
         """Configure from environment variables."""
         self.app_name = os.environ.get("TELERT_DESKTOP_APP_NAME") or "Telert"
-        self.icon_path = os.environ.get("TELERT_DESKTOP_ICON")
+        self.icon_path = os.environ.get("TELERT_DESKTOP_ICON") or str(DEFAULT_ICON_FILE)
         return True  # Desktop notifications can work with defaults
 
     def configure_from_config(self, config: MessagingConfig) -> bool:
@@ -421,27 +422,44 @@ class DesktopProvider:
         provider_config = config.get_provider_config(Provider.DESKTOP)
         if provider_config:
             self.app_name = provider_config.get("app_name", "Telert")
-            self.icon_path = provider_config.get("icon_path")
+            self.icon_path = provider_config.get("icon_path", str(DEFAULT_ICON_FILE))
             return True
         return False
 
     def save_config(self, config: MessagingConfig):
         """Save configuration."""
         config_data = {"app_name": self.app_name}
-        if self.icon_path:
+        if self.icon_path and self.icon_path != str(DEFAULT_ICON_FILE):
             config_data["icon_path"] = self.icon_path
         config.set_provider_config(Provider.DESKTOP, config_data)
 
     def send(self, message: str) -> bool:
         """Send a desktop notification."""
         system = platform.system()
-        icon = self.icon_path and os.path.expanduser(self.icon_path)
+        
+        # Resolve icon path
+        if not self.icon_path:
+            self.icon_path = str(DEFAULT_ICON_FILE)
+            
+        # Get the actual icon path
+        if self.icon_path.startswith("~"):
+            icon = os.path.expanduser(self.icon_path)
+        else:
+            icon = self.icon_path
+            
+        # Check if custom icon exists
+        if icon != str(DEFAULT_ICON_FILE) and not os.path.exists(icon):
+            print(f"Warning: Icon file not found: {icon}. Using default icon.")
+            icon = str(DEFAULT_ICON_FILE)
+            # Check if default exists
+            if not os.path.exists(icon):
+                icon = None  # No icon if default is also missing
         
         try:
             # macOS
             if system == "Darwin":
                 # Escape quotes and special characters in message
-                escaped_message = message.replace('"', '\\"').replace('$', '\\$')
+                escaped_message = message.replace('"', '\\"').replace('$', '\\$')$', '\\$')
                 apple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
                 subprocess.run(["osascript", "-e", apple_script], check=True)
                 return True
@@ -451,7 +469,7 @@ class DesktopProvider:
                 # Try using notify-send (Linux)
                 try:
                     cmd = ["notify-send", self.app_name, message]
-                    if icon:
+                    if icon and os.path.exists(icon):
                         cmd.extend(["--icon", icon])
                     subprocess.run(cmd, check=True)
                     return True

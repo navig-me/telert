@@ -125,18 +125,22 @@ def configure_audio(sound_file: Optional[str] = None, volume: float = 1.0, set_d
     configure_provider(Provider.AUDIO, **config)
 
 
-def configure_desktop(app_name: str = "Telert", icon_path: str = None, set_default: bool = True) -> None:
+def configure_desktop(app_name: str = "Telert", icon_path: Optional[str] = None, set_default: bool = True) -> None:
     """
     Configure Telert for desktop notifications.
 
     Args:
         app_name: Application name shown in notifications (default: "Telert")
-        icon_path: Path to icon file for the notification (optional)
+        icon_path: Path to icon file for the notification (default: uses built-in icon)
         set_default: Whether to set Desktop as the default provider
 
     Examples:
         from telert import configure_desktop
         
+        # Use the built-in icon
+        configure_desktop("My App")
+        
+        # Use a custom icon
         configure_desktop("My App", icon_path="/path/to/icon.png")
     """
     config = {

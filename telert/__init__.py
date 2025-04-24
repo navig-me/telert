@@ -14,7 +14,7 @@ __all__ = [
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.14"  # Fix audio file playback issues
+__version__ = "0.1.15"  # Fix macOS notifications and update sound file
 
 from telert.api import (
     telert, 

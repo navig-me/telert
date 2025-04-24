@@ -4,6 +4,8 @@
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
+<img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
+
 **Quick start:**
 ```bash
 # Install

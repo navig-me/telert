@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal (Telegram, Teams, Slack)
 
-**Version 0.1.8** 📱
+**Version 0.1.9** 📱
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, or Slack when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
@@ -20,7 +20,7 @@ long_running_command | telert "Command finished!"
 - View command output snippets directly in your notifications
 - Works with shell commands, pipelines, and Python code
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/mihirk)
+If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
 
 ---
 
@@ -201,6 +201,29 @@ telert --help
 
 # Get help for a specific command
 telert run --help
+```
+
+### Using Shell Built-ins with telert
+
+When using `telert run` with shell built-in commands like `source`, you'll need to wrap them in a bash call:
+
+```bash
+# This will fail
+telert run source deploy.sh
+
+# This works
+telert run bash -c "source deploy.sh"
+```
+
+For convenience, we provide a wrapper script that automatically handles shell built-ins:
+
+```bash
+# Download the wrapper script
+curl -o ~/bin/telert-wrapper https://raw.githubusercontent.com/navig-me/telert/main/telert-wrapper.sh
+chmod +x ~/bin/telert-wrapper
+
+# Now you can use shell built-ins directly
+telert-wrapper run source deploy.sh
 ```
 
 ### Python API

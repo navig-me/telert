@@ -422,7 +422,7 @@ def main():
     
     # Audio config
     audio_parser = c_subparsers.add_parser("audio", help="configure Audio alerts")
-    audio_parser.add_argument("--sound-file", help="path to sound file (.wav, .mp3, etc.) (default: built-in sound)")
+    audio_parser.add_argument("--sound-file", help="path to sound file (.mp3 or .wav) (default: built-in MP3 sound)")
     audio_parser.add_argument("--volume", type=float, default=1.0, help="volume level (0.0-1.0)")
     audio_parser.add_argument("--set-default", action="store_true", help="set as default provider")
     

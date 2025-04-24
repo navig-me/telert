@@ -29,7 +29,7 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default resources
 DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
-DEFAULT_SOUND_FILE = DATA_DIR / "notification.wav"  # Simple notification sound
+DEFAULT_SOUND_FILE = DATA_DIR / "notification.mp3"  # Simple notification sound
 DEFAULT_ICON_FILE = DATA_DIR / "notification-icon.png"  # Bell icon
 
 
@@ -360,16 +360,29 @@ class AudioProvider:
             else:
                 raise RuntimeError(f"Sound file not found: {sound_file}")
 
+        # Get file extension to determine type
+        file_ext = os.path.splitext(sound_file)[1].lower()
+        
         try:
             system = platform.system()
             
             # macOS approach
             if system == "Darwin":
+                # afplay supports both WAV and MP3
                 subprocess.run(["afplay", sound_file], check=True)
                 return True
             
             # Linux approach - try multiple options
             elif system == "Linux":
+                # MP3 file
+                if file_ext == ".mp3":
+                    # Try mpg123 first for MP3s
+                    try:
+                        subprocess.run(["mpg123", sound_file], check=True)
+                        return True
+                    except (subprocess.SubprocessError, FileNotFoundError):
+                        pass
+                
                 # Try using paplay (PulseAudio)
                 try:
                     subprocess.run(["paplay", sound_file], check=True)
@@ -384,15 +397,35 @@ class AudioProvider:
                 except (subprocess.SubprocessError, FileNotFoundError):
                     pass
                     
-                # Try mpg123 for MP3s
-                try:
-                    subprocess.run(["mpg123", sound_file], check=True)
-                    return True
-                except (subprocess.SubprocessError, FileNotFoundError):
-                    raise RuntimeError("No suitable audio player found on Linux (tried paplay, aplay, mpg123)")
+                # If we get here, we couldn't find a suitable player
+                raise RuntimeError("No suitable audio player found on Linux (tried mpg123, paplay, aplay)")
             
             # Windows approach
             elif system == "Windows":
+                # For MP3 files on Windows, try to use an alternative player
+                if file_ext == ".mp3":
+                    try:
+                        # Try with the optional playsound package first
+                        try:
+                            from playsound import playsound
+                            playsound(sound_file)
+                            return True
+                        except ImportError:
+                            pass
+                            
+                        # Otherwise try with built-in tools
+                        subprocess.run(["powershell", "-c", 
+                                      f"(New-Object Media.SoundPlayer '{sound_file}').PlaySync()"], 
+                                      check=True)
+                        return True
+                    except Exception:
+                        # Fallback message
+                        print(f"Warning: MP3 playback requires playsound package on Windows.")
+                        print(f"Install with: pip install telert[audio]")
+                        # Continue with normal notification (no sound)
+                        return True
+                        
+                # For WAV files, use winsound
                 import winsound
                 winsound.PlaySound(sound_file, winsound.SND_FILENAME)
                 return True

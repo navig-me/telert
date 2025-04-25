@@ -17,10 +17,10 @@ function type_text() {
   text="$1"
   for (( i=0; i<${#text}; i++ )); do
     echo -n "${text:$i:1}"
-    sleep 0.05
+    sleep 0.02
   done
   echo ""
-  sleep 0.5
+  sleep 0.2
 }
 
 # Function to show a prompt and command, then "execute" it with simulated output
@@ -50,8 +50,16 @@ function simulate_command() {
 clear
 
 # Introduction
-echo -e "${BLUE}=== telert Demo - Terminal Notifications Made Easy ===${NC}"
-sleep 2
+echo -e "${RED}=== telert ===${NC}"
+sleep 0.1
+echo -e "${CYAN}== Command completion notifications${NC}" 
+echo -e "${CYAN}== on Telegram, Slack, Teams and Desktop.${NC}"
+sleep 0.5
+
+# Simple telert run example
+simulate_command "sleep 2 | telert" \
+"Simple notification after command completion" \
+"${CYAN}✓ Notification sent with exit code 0${NC}"
 
 # Show basic telert run example
 simulate_command "telert run --label \"Database Backup\" pg_dump -U postgres mydb > backup.sql" \
@@ -71,21 +79,16 @@ Training complete! Model saved to ./model.h5
 ${CYAN}✓ Notification sent: ML Training finished with exit 0 in 52s${NC}"
 
 # Show pipeline example
-simulate_command "find . -name \"*.log\" | grep \"ERROR\" | telert \"Error check complete\"" \
+simulate_command "find . -name \"*.log\" | grep \"ERROR\" | telert --provider slack \"Error check complete\"" \
                 "Pipe command output to telert" \
 "./logs/app.log:ERROR: Database connection failed
 ./logs/service.log:ERROR: Authentication timeout
-${CYAN}✓ Notification sent: Error check complete${NC}"
+${CYAN}✓ Notification sent to Slack: Error check complete${NC}"
 
 # Show direct message example
 simulate_command "telert send \"Deployment to production completed successfully!\"" \
                 "Send custom notification messages" \
 "${CYAN}✓ Notification sent: Deployment to production completed successfully!${NC}"
-
-# Show provider selection
-simulate_command "telert send --provider slack \"Critical: System load > 90%\"" \
-                "Send to specific messaging services" \
-"${CYAN}✓ Notification sent to Slack: Critical: System load > 90%${NC}"
 
 # Show failure case
 simulate_command "telert run --only-fail rsync -a /src/ /backup/" \
@@ -99,8 +102,3 @@ ${GREEN}✓ Command completed successfully (no notification sent, as --only-fail
 simulate_command "eval \"\$(telert hook -l 30)\"" \
                 "Set up automatic notifications for all commands > 30s" \
 "${CYAN}✓ Hook installed! All commands taking longer than 30s will now trigger notifications${NC}"
-
-# Final message
-echo -e "\n${BLUE}=== That's it! Get notified when your commands complete! ===${NC}"
-echo -e "${GREEN}Install telert today: pip install telert${NC}"
-sleep 3

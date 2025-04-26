@@ -77,7 +77,32 @@ def do_config(a):
     """Configure the messaging provider."""
     if hasattr(a, "provider") and a.provider:
         provider = a.provider
+        
+        # Check if we're configuring defaults (new command)
+        if provider == "set-defaults":
+            if not hasattr(a, "providers") or not a.providers:
+                sys.exit("❌ You must specify at least one provider with --providers")
+                
+            # Parse the providers list
+            provider_list = []
+            for p in a.providers.split(','):
+                try:
+                    provider_list.append(Provider.from_string(p.strip()))
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {p.strip()}")
+            
+            # Set the defaults
+            config = MessagingConfig()
+            config.set_default_providers(provider_list)
+            
+            # Print confirmation
+            providers_str = ", ".join([p.value for p in provider_list])
+            print(f"✔ Default providers set: {providers_str}")
+            
+            # Exit the function since we're done
+            return
 
+        # Single provider configuration
         if provider == "telegram":
             if not (hasattr(a, "token") and hasattr(a, "chat_id")):
                 sys.exit("❌ Telegram configuration requires --token and --chat-id")
@@ -87,6 +112,7 @@ def do_config(a):
                 token=a.token,
                 chat_id=a.chat_id,
                 set_default=a.set_default,
+                add_to_defaults=a.add_to_defaults,
             )
             print("✔ Telegram configuration saved")
 
@@ -95,7 +121,10 @@ def do_config(a):
                 sys.exit("❌ Teams configuration requires --webhook-url")
 
             configure_provider(
-                Provider.TEAMS, webhook_url=a.webhook_url, set_default=a.set_default
+                Provider.TEAMS, 
+                webhook_url=a.webhook_url, 
+                set_default=a.set_default,
+                add_to_defaults=a.add_to_defaults,
             )
             print("✔ Microsoft Teams configuration saved")
 
@@ -104,12 +133,19 @@ def do_config(a):
                 sys.exit("❌ Slack configuration requires --webhook-url")
 
             configure_provider(
-                Provider.SLACK, webhook_url=a.webhook_url, set_default=a.set_default
+                Provider.SLACK, 
+                webhook_url=a.webhook_url, 
+                set_default=a.set_default,
+                add_to_defaults=a.add_to_defaults,
             )
             print("✔ Slack configuration saved")
 
         elif provider == "audio":
-            config_params = {"volume": a.volume, "set_default": a.set_default}
+            config_params = {
+                "volume": a.volume, 
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
 
             if hasattr(a, "sound_file") and a.sound_file:
                 config_params["sound_file"] = a.sound_file
@@ -124,7 +160,11 @@ def do_config(a):
                 sys.exit(f"❌ {str(e)}")
 
         elif provider == "desktop":
-            config_params = {"app_name": a.app_name, "set_default": a.set_default}
+            config_params = {
+                "app_name": a.app_name, 
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
 
             if hasattr(a, "icon_path") and a.icon_path:
                 config_params["icon_path"] = a.icon_path
@@ -144,6 +184,7 @@ def do_config(a):
                 token=a.token,
                 user=a.user,
                 set_default=a.set_default,
+                add_to_defaults=a.add_to_defaults,
             )
             print("✔ Pushover configuration saved")
 
@@ -157,7 +198,10 @@ def do_config(a):
 def do_status(a):
     """Show status of configured providers and send a test message."""
     config = MessagingConfig()
-    default_provider = config.get_default_provider()
+    default_providers = config.get_default_providers()
+    
+    # Convert to list of strings for easier checks
+    default_provider_names = [p.value for p in default_providers]
 
     # Show status for all configured providers
     print("Configured providers:")
@@ -165,7 +209,17 @@ def do_status(a):
     # Check Telegram
     telegram_config = config.get_provider_config(Provider.TELEGRAM)
     if telegram_config:
-        default_marker = " (default)" if default_provider == Provider.TELEGRAM else ""
+        # Mark as default if in default providers list
+        if Provider.TELEGRAM.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.TELEGRAM.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         print(
             f"- Telegram{default_marker}: token={telegram_config['token'][:8]}…, chat_id={telegram_config['chat_id']}"
         )
@@ -173,21 +227,51 @@ def do_status(a):
     # Check Teams
     teams_config = config.get_provider_config(Provider.TEAMS)
     if teams_config:
-        default_marker = " (default)" if default_provider == Provider.TEAMS else ""
+        # Mark as default if in default providers list
+        if Provider.TEAMS.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.TEAMS.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         webhook = teams_config["webhook_url"]
         print(f"- Microsoft Teams{default_marker}: webhook={webhook[:20]}…")
 
     # Check Slack
     slack_config = config.get_provider_config(Provider.SLACK)
     if slack_config:
-        default_marker = " (default)" if default_provider == Provider.SLACK else ""
+        # Mark as default if in default providers list
+        if Provider.SLACK.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.SLACK.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         webhook = slack_config["webhook_url"]
         print(f"- Slack{default_marker}: webhook={webhook[:20]}…")
 
     # Check Audio
     audio_config = config.get_provider_config(Provider.AUDIO)
     if audio_config:
-        default_marker = " (default)" if default_provider == Provider.AUDIO else ""
+        # Mark as default if in default providers list
+        if Provider.AUDIO.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.AUDIO.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         sound_file = audio_config["sound_file"]
         volume = audio_config.get("volume", 1.0)
         print(f"- Audio{default_marker}: sound_file={sound_file}, volume={volume}")
@@ -195,7 +279,17 @@ def do_status(a):
     # Check Desktop
     desktop_config = config.get_provider_config(Provider.DESKTOP)
     if desktop_config:
-        default_marker = " (default)" if default_provider == Provider.DESKTOP else ""
+        # Mark as default if in default providers list
+        if Provider.DESKTOP.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.DESKTOP.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         app_name = desktop_config.get("app_name", "Telert")
         icon_info = (
             f", icon={desktop_config['icon_path']}"
@@ -207,7 +301,17 @@ def do_status(a):
     # Check Pushover
     pushover_config = config.get_provider_config(Provider.PUSHOVER)
     if pushover_config:
-        default_marker = " (default)" if default_provider == Provider.PUSHOVER else ""
+        # Mark as default if in default providers list
+        if Provider.PUSHOVER.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.PUSHOVER.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+            
         token = pushover_config["token"]
         user = pushover_config["user"]
         print(f"- Pushover{default_marker}: token={token[:8]}…, user={user[:8]}…")
@@ -223,34 +327,72 @@ def do_status(a):
     ):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
+        
+    # Show environment variable information
+    env_default = os.environ.get("TELERT_DEFAULT_PROVIDER")
+    if env_default:
+        print(f"\nEnvironment variable TELERT_DEFAULT_PROVIDER={env_default}")
 
     # Send test message if requested
-    provider_to_test = None
     if hasattr(a, "provider") and a.provider:
-        try:
-            provider_to_test = Provider.from_string(a.provider)
-        except ValueError:
-            sys.exit(f"❌ Unknown provider: {a.provider}")
-
-    if provider_to_test:
-        if not config.is_provider_configured(provider_to_test):
-            sys.exit(f"❌ Provider {provider_to_test} is not configured")
-
-        try:
-            send_message("✅ telert status OK", provider_to_test)
-            print(f"sent: test message via {provider_to_test.value}")
-        except Exception as e:
-            sys.exit(
-                f"❌ Failed to send message via {provider_to_test.value}: {str(e)}"
-            )
+        # Handle all-providers option
+        if a.provider == "all":
+            try:
+                results = send_message("✅ telert status OK", all_providers=True)
+                print(f"sent: test message to all providers")
+                # Show results for each provider
+                for provider_name, success in results.items():
+                    status = "✅ success" if success else "❌ failed"
+                    print(f"  - {provider_name}: {status}")
+            except Exception as e:
+                sys.exit(f"❌ Failed to send message: {str(e)}")
+        else:
+            # Handle multiple providers (comma-separated)
+            if "," in a.provider:
+                providers_to_test = []
+                for p in a.provider.split(","):
+                    try:
+                        providers_to_test.append(Provider.from_string(p.strip()))
+                    except ValueError:
+                        sys.exit(f"❌ Unknown provider: {p.strip()}")
+                
+                # Send to all specified providers
+                try:
+                    results = send_message("✅ telert status OK", providers_to_test)
+                    print(f"sent: test message to multiple providers")
+                    # Show results for each provider
+                    for provider_name, success in results.items():
+                        status = "✅ success" if success else "❌ failed"
+                        print(f"  - {provider_name}: {status}")
+                except Exception as e:
+                    sys.exit(f"❌ Failed to send message: {str(e)}")
+            else:
+                # Single provider
+                try:
+                    provider_to_test = Provider.from_string(a.provider)
+                    if not config.is_provider_configured(provider_to_test):
+                        sys.exit(f"❌ Provider {provider_to_test.value} is not configured")
+                    
+                    send_message("✅ telert status OK", provider_to_test)
+                    print(f"sent: test message via {provider_to_test.value}")
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {a.provider}")
+                except Exception as e:
+                    sys.exit(f"❌ Failed to send message via {a.provider}: {str(e)}")
     else:
-        # Use default provider
+        # Use default provider(s)
         try:
-            send_message("✅ telert status OK")
-            provider_name = (
-                default_provider.value if default_provider else "default provider"
-            )
-            print(f"sent: test message via {provider_name}")
+            if len(default_providers) > 1:
+                results = send_message("✅ telert status OK")
+                print(f"sent: test message to default providers")
+                # Show results for each provider
+                for provider_name, success in results.items():
+                    status = "✅ success" if success else "❌ failed"
+                    print(f"  - {provider_name}: {status}")
+            else:
+                send_message("✅ telert status OK")
+                provider_name = default_provider_names[0] if default_provider_names else "default provider"
+                print(f"sent: test message via {provider_name}")
         except Exception as e:
             sys.exit(f"❌ Failed to send message: {str(e)}")
 
@@ -272,14 +414,44 @@ def do_hook(a):
 def do_send(a):
     """Send a simple message."""
     provider = None
-    if hasattr(a, "provider") and a.provider:
-        try:
-            provider = Provider.from_string(a.provider)
-        except ValueError:
-            sys.exit(f"❌ Unknown provider: {a.provider}")
+    all_providers = False
+    
+    # First check if all_providers flag is set
+    if hasattr(a, "all_providers") and a.all_providers:
+        all_providers = True
+    # Then check for provider argument
+    elif hasattr(a, "provider") and a.provider:
+        # Handle all option
+        if a.provider.lower() == "all":
+            all_providers = True
+        # Handle multiple providers (comma-separated)
+        elif "," in a.provider:
+            providers_to_use = []
+            for p in a.provider.split(","):
+                try:
+                    providers_to_use.append(Provider.from_string(p.strip()))
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {p.strip()}")
+            provider = providers_to_use
+        # Single provider
+        else:
+            try:
+                provider = Provider.from_string(a.provider)
+            except ValueError:
+                sys.exit(f"❌ Unknown provider: {a.provider}")
 
     try:
-        send_message(a.text, provider)
+        results = send_message(a.text, provider, all_providers)
+        # Always show a basic success message
+        if results:
+            providers_str = ", ".join(results.keys())
+            print(f"✓ Telert sent a message to: {providers_str}")
+            
+        # Show detailed results for each provider if verbose or multiple providers used
+        if hasattr(a, "verbose") and a.verbose or len(results) > 1:
+            for provider_name, success in results.items():
+                status = "✅ success" if success else "❌ failed"
+                print(f"  - {provider_name}: {status}")
     except Exception as e:
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
@@ -334,16 +506,40 @@ def do_run(a):
 
             msg += "\n\n--- stderr ---\n" + stderr_text
 
-    # Send message with specified provider or default
+    # Process provider options
     provider = None
-    if hasattr(a, "provider") and a.provider:
-        try:
-            provider = Provider.from_string(a.provider)
-        except ValueError:
-            sys.exit(f"❌ Unknown provider: {a.provider}")
+    all_providers = False
+    
+    # First check if all_providers flag is set
+    if hasattr(a, "all_providers") and a.all_providers:
+        all_providers = True
+    # Then check for provider argument
+    elif hasattr(a, "provider") and a.provider:
+        # Handle all option
+        if a.provider.lower() == "all":
+            all_providers = True
+        # Handle multiple providers (comma-separated)
+        elif "," in a.provider:
+            providers_to_use = []
+            for p in a.provider.split(","):
+                try:
+                    providers_to_use.append(Provider.from_string(p.strip()))
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {p.strip()}")
+            provider = providers_to_use
+        # Single provider
+        else:
+            try:
+                provider = Provider.from_string(a.provider)
+            except ValueError:
+                sys.exit(f"❌ Unknown provider: {a.provider}")
 
+    # Send notification
     try:
-        send_message(msg, provider)
+        results = send_message(msg, provider, all_providers)
+        if results:
+            providers_str = ", ".join(results.keys())
+            print(f"✓ Telert sent a message to: {providers_str}")
     except Exception as e:
         print(f"❌ Failed to send notification: {str(e)}", file=sys.stderr)
 
@@ -358,8 +554,16 @@ def piped_mode():
     data = sys.stdin.read()
     msg = sys.argv[1] if len(sys.argv) > 1 else "Pipeline finished"
 
-    # Check for provider specification (supports both --provider=slack and --provider slack formats)
+    # Check for provider specification
+    # We support three formats: 
+    # --provider=slack
+    # --provider slack
+    # --provider=slack,teams
+    # --provider slack,teams
+    # --provider=all
+    # --all-providers
     provider = None
+    all_providers = False
     skip_next = False
     provider_index = -1
 
@@ -368,14 +572,35 @@ def piped_mode():
             skip_next = False
             continue
 
+        # Handle --all-providers flag
+        if arg == "--all-providers":
+            all_providers = True
+            provider_index = i
+            break
+
         # Handle --provider=slack format
         if arg.startswith("--provider="):
             provider_name = arg.split("=", 1)[1]
             provider_index = i
-            try:
-                provider = Provider.from_string(provider_name)
-            except ValueError:
-                sys.exit(f"❌ Unknown provider: {provider_name}")
+            
+            # Check for "all" provider
+            if provider_name.lower() == "all":
+                all_providers = True
+            # Check for multiple providers (comma-separated)
+            elif "," in provider_name:
+                providers_list = []
+                for p in provider_name.split(","):
+                    try:
+                        providers_list.append(Provider.from_string(p.strip()))
+                    except ValueError:
+                        sys.exit(f"❌ Unknown provider: {p.strip()}")
+                provider = providers_list
+            # Single provider
+            else:
+                try:
+                    provider = Provider.from_string(provider_name)
+                except ValueError:
+                    sys.exit(f"❌ Unknown provider: {provider_name}")
             break
 
         # Handle --provider slack format
@@ -383,22 +608,46 @@ def piped_mode():
             if i + 1 < len(sys.argv):
                 provider_name = sys.argv[i + 1]
                 provider_index = i
-                try:
-                    provider = Provider.from_string(provider_name)
+                
+                # Check for "all" provider
+                if provider_name.lower() == "all":
+                    all_providers = True
                     skip_next = True
-                except ValueError:
-                    sys.exit(f"❌ Unknown provider: {provider_name}")
+                # Check for multiple providers (comma-separated)
+                elif "," in provider_name:
+                    providers_list = []
+                    for p in provider_name.split(","):
+                        try:
+                            providers_list.append(Provider.from_string(p.strip()))
+                        except ValueError:
+                            sys.exit(f"❌ Unknown provider: {p.strip()}")
+                    provider = providers_list
+                    skip_next = True
+                # Single provider
+                else:
+                    try:
+                        provider = Provider.from_string(provider_name)
+                        skip_next = True
+                    except ValueError:
+                        sys.exit(f"❌ Unknown provider: {provider_name}")
                 break
 
     # Update message if provider was the first argument
     if provider_index == 1:
-        # Skip 2 positions if using space format, 1 if using equals format
-        skip = 2 if skip_next else 1
+        # Skip positions based on format used
+        if arg == "--all-providers":
+            skip = 1
+        elif arg.startswith("--provider="):
+            skip = 1
+        else:  # --provider <name>
+            skip = 2
+        
         msg = sys.argv[skip + 1] if len(sys.argv) > skip + 1 else "Pipeline finished"
 
     # Format the message
     if len(sys.argv) > 2 and not any(
-        arg.startswith("--provider=") for arg in sys.argv[1:3]
+        arg.startswith("--provider=") or arg == "--provider" or arg == "--all-providers" 
+        for arg in sys.argv[1:3]
     ):
         msg += f" (exit {sys.argv[2]})"
 
@@ -407,7 +656,10 @@ def piped_mode():
 
     # Send the message
     try:
-        send_message(msg, provider)
+        results = send_message(msg, provider, all_providers)
+        if results:
+            providers_str = ", ".join(results.keys())
+            print(f"✓ Telert sent a message to: {providers_str}")
     except Exception as e:
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
@@ -432,6 +684,15 @@ def main():
     c = sp.add_parser("config", help="configure messaging providers")
     c_subparsers = c.add_subparsers(dest="provider", help="provider to configure")
 
+    # Set defaults command (new)
+    set_defaults_parser = c_subparsers.add_parser(
+        "set-defaults", help="set multiple default providers in priority order"
+    )
+    set_defaults_parser.add_argument(
+        "--providers", required=True, 
+        help="comma-separated list of providers to use as defaults, in priority order"
+    )
+
     # Telegram config
     telegram_parser = c_subparsers.add_parser("telegram", help="configure Telegram")
     telegram_parser.add_argument(
@@ -441,7 +702,10 @@ def main():
         "--chat-id", required=True, help="chat ID to send messages to"
     )
     telegram_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    telegram_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
 
     # Teams config
@@ -450,7 +714,10 @@ def main():
         "--webhook-url", required=True, help="incoming webhook URL"
     )
     teams_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    teams_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
 
     # Slack config
@@ -459,7 +726,10 @@ def main():
         "--webhook-url", required=True, help="incoming webhook URL"
     )
     slack_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    slack_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
 
     # Audio config
@@ -472,7 +742,10 @@ def main():
         "--volume", type=float, default=1.0, help="volume level (0.0-1.0)"
     )
     audio_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    audio_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
 
     # Desktop config
@@ -487,7 +760,10 @@ def main():
         help="path to icon file for the notification (default: built-in icon)",
     )
     desktop_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    desktop_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
     
     # Pushover config
@@ -501,7 +777,10 @@ def main():
         "--user", required=True, help="user key from Pushover.net"
     )
     pushover_parser.add_argument(
-        "--set-default", action="store_true", help="set as default provider"
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    pushover_parser.add_argument(
+        "--add-to-defaults", action="store_true", help="add to existing default providers"
     )
 
     # Legacy Telegram config (for backward compatibility)
@@ -514,8 +793,7 @@ def main():
     st = sp.add_parser("status", help="show configuration and send test message")
     st.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
-        help="provider to test (default: use configured default)",
+        help="provider(s) to test - can be a single provider, 'all', or comma-separated list (default: use configured default)",
     )
     st.set_defaults(func=do_status)
 
@@ -535,8 +813,17 @@ def main():
     sd.add_argument("text", help="message to send")
     sd.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
-        help="provider to use (default: use configured default)",
+        help="provider(s) to use - can be a single provider, 'all', or comma-separated list (default: use configured default)",
+    )
+    sd.add_argument(
+        "--all-providers",
+        action="store_true",
+        help="send to all configured providers",
+    )
+    sd.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="show detailed results for each provider",
     )
     sd.set_defaults(func=do_send)
 
@@ -549,8 +836,12 @@ def main():
     )
     rn.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
-        help="provider to use (default: use configured default)",
+        help="provider(s) to use - can be a single provider, 'all', or comma-separated list (default: use configured default)",
+    )
+    rn.add_argument(
+        "--all-providers",
+        action="store_true",
+        help="send to all configured providers",
     )
     rn.add_argument(
         "cmd", nargs=argparse.REMAINDER, help="command to execute -- required"

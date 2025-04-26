@@ -10,12 +10,14 @@ __all__ = [
     "configure_audio",
     "configure_desktop",
     "configure_pushover",
+    "configure_providers",
     "get_config", 
     "is_configured",
     "set_default_provider",
+    "set_default_providers",
     "list_providers"
 ]
-__version__ = "0.1.17"  # Add Pushover notification provider
+__version__ = "0.1.19"  # Added improved feedback messages and README TOC
 
 from telert.api import (
     telert, 
@@ -28,8 +30,10 @@ from telert.api import (
     configure_audio,
     configure_desktop,
     configure_pushover,
+    configure_providers,
     get_config, 
     is_configured,
     set_default_provider,
+    set_default_providers,
     list_providers
 )

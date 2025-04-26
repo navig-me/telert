@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop)
 
-**Version 0.1.17** 
+**Version 0.1.19** 
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -8,6 +8,24 @@
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+
+## Table of Contents
+- [Quick Start](#-quick-install)
+- [Setup Guide](#-quick-setup-guide)
+  - [Telegram Setup](#telegram-setup)
+  - [Microsoft Teams Setup](#microsoft-teams-setup)
+  - [Slack Setup](#slack-setup)
+  - [Pushover Setup](#pushover-setup)
+  - [Audio Alerts Setup](#audio-alerts-setup)
+  - [Desktop Notifications Setup](#desktop-notifications-setup)
+  - [Managing Multiple Providers](#managing-multiple-providers)
+- [Features](#-features)
+- [Usage Guide](#-usage-guide)
+  - [Command Line Interface](#command-line-interface-cli)
+  - [Python API](#python-api)
+- [Environment Variables](#-environment-variables)
+- [Use Cases and Tips](#-use-cases-and-tips)
+- [Contributing / License](#-contributing--license)
 
 **Quick start:**
 ```bash
@@ -157,24 +175,44 @@ Telert includes a built-in notification icon, so you don't need to provide your 
 
 ### Managing Multiple Providers
 
-Telert lets you configure multiple providers and set one as default:
+Telert lets you configure multiple providers with enhanced flexibility:
 
 ```bash
 # List configured providers
 telert status
 
 # Set a provider as default
-telert config set-default --provider telegram  # Change default to configured provider
+telert config telegram --token "<your-token>" --chat-id "<your-chat-id>" --set-default
+
+# Set multiple default providers in priority order
+telert config set-defaults --providers "slack,desktop,audio"
+
+# When configuring a provider, add it to existing defaults
+telert config audio --sound-file "/path/to/sound.mp3" --add-to-defaults
 
 # Use a specific provider rather than default
 telert send --provider desktop "Via desktop notification"
 
-# Python API
-from telert import set_default_provider
-set_default_provider("audio")
+# Send to multiple providers at once
+telert send --provider "slack,telegram" "Multi-provider message"
+
+# Send to all configured providers
+telert send --all-providers "Important message to all channels"
+
+# Python API for defaults
+from telert import set_default_provider, set_default_providers
+set_default_provider("audio")  # Single provider
+set_default_providers(["slack", "desktop"])  # Multiple providers in priority order
+
+# Python API for sending
+from telert import send
+send("Message to default provider(s)")
+send("Message to specific provider", provider="telegram")
+send("Message to multiple providers", provider=["slack", "audio"])
+send("Message to all providers", all_providers=True)
 ```
 
-Telert securely stores all configuration in `~/.config/telert/config.json` unless environment variables are used.
+Telert securely stores all configuration in `~/.config/telert/config.json` but supports environment variable overrides for all settings.
 
 ---
 
@@ -213,6 +251,12 @@ telert run --only-fail rsync -av /src/ /backup/
 # Send to a specific provider
 telert run --provider teams --label "ML Training" python train_model.py
 
+# Send to multiple specific providers
+telert run --provider "slack,telegram" --label "CI Build" make all
+
+# Send to all configured providers
+telert run --all-providers --label "Critical Backup" backup.sh
+
 # Custom notification message
 telert run --message "Training complete! 🎉" python train_model.py
 
@@ -231,6 +275,12 @@ find . -name "*.log" | xargs grep "ERROR" | telert "Error check complete"
 
 # Process and notify with specific provider
 cat large_file.csv | awk '{print $3}' | sort | uniq -c | telert --provider slack "Data processing finished"
+
+# Send to multiple providers
+find /var/log -name "*.err" | grep -i "critical" | telert --provider "telegram,desktop" "Critical errors found"
+
+# Send to all providers
+backup.sh | telert --all-providers "Database backup complete"
 ```
 
 > **Note:** In filter mode, the exit status is not captured since commands in a pipeline run in separate processes.
@@ -240,20 +290,28 @@ cat large_file.csv | awk '{print $3}' | sort | uniq -c | telert --provider slack
 Send custom messages from scripts to any provider:
 
 ```bash
-# Simple text message (uses default provider)
+# Simple text message (uses default provider(s))
 telert send "Server backup completed"
 
 # Send to a specific provider
 telert send --provider teams "Build completed"
 telert send --provider slack "Deployment started"
 
+# Send to multiple specific providers at once
+telert send --provider "telegram,slack,desktop" "Critical alert!"
+
+# Send to all configured providers
+telert send --all-providers "System restart required"
+
+# Show details of message delivery with verbose flag
+telert send --all-providers --verbose "Message sent to all providers"
+
 # Send status from a script
 if [ $? -eq 0 ]; then
   telert send "✅ Deployment successful"
 else
-  # Critical failures could go to multiple providers
-  telert send --provider telegram "❌ Deployment failed with exit code $?"
-  telert send --provider slack "❌ Deployment failed with exit code $?"
+  # Send failure notification to all providers
+  telert send --all-providers "❌ Deployment failed with exit code $?"
 fi
 ```
 
@@ -306,8 +364,9 @@ telert-wrapper run source deploy.sh
 ```python
 from telert import (
     configure_telegram, configure_teams, configure_slack, configure_pushover,
-    configure_audio, configure_desktop,
-    set_default_provider, is_configured, get_config, list_providers
+    configure_audio, configure_desktop, configure_providers,
+    set_default_provider, set_default_providers, 
+    is_configured, get_config, list_providers
 )
 
 # Configure one or more providers
@@ -317,8 +376,16 @@ configure_slack("<webhook-url>")
 configure_pushover("<app-token>", "<user-key>")
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
-configure_desktop("My App", set_default=True)  # Uses built-in icon
-# Or with custom icon: configure_desktop("My App", icon_path="/path/to/icon.png")
+
+# Configure provider and add to existing defaults (without replacing them)
+configure_desktop("My App", add_to_defaults=True)  # Uses built-in icon
+
+# Configure multiple providers at once
+configure_providers([
+    {"provider": "telegram", "token": "<token>", "chat_id": "<chat-id>"},
+    {"provider": "slack", "webhook_url": "<webhook-url>"},
+    {"provider": "audio"}
+], set_as_defaults=True)  # Optionally set these as defaults in the given order
 
 # Check if specific provider is configured
 if not is_configured("audio"):
@@ -333,23 +400,39 @@ providers = list_providers()
 for p in providers:
     print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
 
-# Change default provider
+# Set a single default provider
 set_default_provider("audio")
+
+# Set multiple default providers in priority order
+set_default_providers(["slack", "desktop", "audio"])
 ```
 
 #### Simple Messaging
 ```python
 from telert import send
 
-# Send using default provider
-send("Script started")
+# Send using default provider(s)
+send("Script started")  # Uses default providers in configured priority order
 
-# Send to specific provider regardless of default
+# Send to specific provider
 send("Processing completed with 5 records updated", provider="teams")
-send("Critical error detected!", provider="slack")
+
+# Send to multiple specific providers
+send("Critical error detected!", provider=["slack", "telegram"])
+
+# Send to all configured providers
+send("Major system error", all_providers=True)
+
+# Provider-specific examples
 send("Send to mobile device", provider="pushover")
 send("Play a sound alert", provider="audio")
 send("Show a desktop notification", provider="desktop")
+
+# Check delivery results
+results = send("Important message", provider=["slack", "telegram"])
+for provider, success in results.items():
+    if not success:
+        print(f"Failed to send to {provider}")
 ```
 
 #### Context Manager
@@ -376,8 +459,18 @@ with telert("Critical operation", only_fail=True):
     
 # Specify a provider
 with telert("Teams notification", provider="teams"):
-    # This will send to Teams regardless of the default provider
+    # This will notify via Teams regardless of the default provider
     teams_specific_operation()
+    
+# Send to multiple providers
+with telert("Important calculation", provider=["slack", "telegram"]):
+    # This will send to both Slack and Telegram
+    important_calculation()
+    
+# Send to all configured providers
+with telert("Critical operation", all_providers=True):
+    # This will send to all configured providers
+    critical_function()
     
 # Use audio notifications
 with telert("Long calculation", provider="audio"):
@@ -423,6 +516,16 @@ def calculate_stats(data):
 def slack_notification_function():
     return "This will be sent to Slack"
     
+# Send to multiple providers
+@notify("Important function", provider=["telegram", "desktop"])
+def important_function():
+    return "This will be sent to both Telegram and Desktop"
+    
+# Send to all configured providers
+@notify("Critical function", all_providers=True)
+def critical_function():
+    return "This will be sent to all providers"
+    
 # Use audio notifications
 @notify("Audio alert", provider="audio")
 def play_sound_on_completion():
@@ -443,22 +546,50 @@ def send_mobile_notification():
 
 ## 🌿 Environment Variables
 
-| Variable                 | Effect                                      |
-|--------------------------|---------------------------------------------|
-| `TELERT_TOKEN`           | Telegram bot token                          |
-| `TELERT_CHAT_ID`         | Telegram chat ID                            |
-| `TELERT_TEAMS_WEBHOOK`   | Microsoft Teams Power Automate HTTP URL     |
-| `TELERT_SLACK_WEBHOOK`   | Slack webhook URL                           |
-| `TELERT_PUSHOVER_TOKEN`  | Pushover application token                  |
-| `TELERT_PUSHOVER_USER`   | Pushover user key                           |
-| `TELERT_AUDIO_FILE`      | Path to sound file for audio notifications  |
-| `TELERT_AUDIO_VOLUME`    | Volume level for audio notifications (0.0-1.0) |
-| `TELERT_DESKTOP_APP_NAME`| Application name for desktop notifications  |
-| `TELERT_DESKTOP_ICON`    | Path to icon file for desktop notifications |
-| `TELERT_LONG`            | Default threshold (seconds) for `hook`      |
-| `TELERT_SILENT=1`        | Capture and include command output in notification, but don't display in real-time |
+### Configuration Variables
 
-Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack, Pushover, Audio, Desktop.
+| Variable                  | Effect                                      |
+|---------------------------|---------------------------------------------|
+| `TELERT_DEFAULT_PROVIDER` | Set default provider(s) to use (comma-separated for multiple) |
+| `TELERT_TOKEN` or `TELERT_TELEGRAM_TOKEN` | Telegram bot token         |
+| `TELERT_CHAT_ID` or `TELERT_TELEGRAM_CHAT_ID` | Telegram chat ID       |
+| `TELERT_TEAMS_WEBHOOK`    | Microsoft Teams Power Automate HTTP URL     |
+| `TELERT_SLACK_WEBHOOK`    | Slack webhook URL                           |
+| `TELERT_PUSHOVER_TOKEN`   | Pushover application token                  |
+| `TELERT_PUSHOVER_USER`    | Pushover user key                           |
+| `TELERT_AUDIO_FILE`       | Path to sound file for audio notifications  |
+| `TELERT_AUDIO_VOLUME`     | Volume level for audio notifications (0.0-1.0) |
+| `TELERT_DESKTOP_APP_NAME` | Application name for desktop notifications  |
+| `TELERT_DESKTOP_ICON`     | Path to icon file for desktop notifications |
+
+### Runtime Variables
+
+| Variable          | Effect                                            |
+|-------------------|---------------------------------------------------|
+| `TELERT_LONG`     | Default threshold (seconds) for `hook`            |
+| `TELERT_SILENT=1` | Capture and include command output in notification, but don't display in real-time |
+
+### Example Usage
+
+```bash
+# Set multiple default providers (will use in fallback order)
+export TELERT_DEFAULT_PROVIDER="slack,audio,desktop"
+
+# Configure Telegram via environment
+export TELERT_TELEGRAM_TOKEN="your-bot-token"
+export TELERT_TELEGRAM_CHAT_ID="your-chat-id"
+
+# Configure Slack
+export TELERT_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+
+# Configure desktop notifications
+export TELERT_DESKTOP_APP_NAME="MyApp"
+
+# Send a message (will use default providers in order)
+telert send "Environment variable configuration works!"
+```
+
+Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
 
 ---
 

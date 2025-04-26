@@ -22,6 +22,7 @@ from telert.messaging import (
     CONFIG_DIR,
     MessagingConfig,
     Provider,
+    PushoverProvider,
     configure_provider,
     send_message,
 )
@@ -133,6 +134,18 @@ def do_config(a):
                 print("✔ Desktop notification configuration saved")
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
+                
+        elif provider == "pushover":
+            if not (hasattr(a, "token") and hasattr(a, "user")):
+                sys.exit("❌ Pushover configuration requires --token and --user")
+
+            configure_provider(
+                Provider.PUSHOVER,
+                token=a.token,
+                user=a.user,
+                set_default=a.set_default,
+            )
+            print("✔ Pushover configuration saved")
 
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
@@ -191,6 +204,14 @@ def do_status(a):
         )
         print(f"- Desktop{default_marker}: app_name={app_name}{icon_info}")
 
+    # Check Pushover
+    pushover_config = config.get_provider_config(Provider.PUSHOVER)
+    if pushover_config:
+        default_marker = " (default)" if default_provider == Provider.PUSHOVER else ""
+        token = pushover_config["token"]
+        user = pushover_config["user"]
+        print(f"- Pushover{default_marker}: token={token[:8]}…, user={user[:8]}…")
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -198,6 +219,7 @@ def do_status(a):
         or slack_config
         or audio_config
         or desktop_config
+        or pushover_config
     ):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
@@ -467,6 +489,20 @@ def main():
     desktop_parser.add_argument(
         "--set-default", action="store_true", help="set as default provider"
     )
+    
+    # Pushover config
+    pushover_parser = c_subparsers.add_parser(
+        "pushover", help="configure Pushover notifications"
+    )
+    pushover_parser.add_argument(
+        "--token", required=True, help="application token from Pushover.net"
+    )
+    pushover_parser.add_argument(
+        "--user", required=True, help="user key from Pushover.net"
+    )
+    pushover_parser.add_argument(
+        "--set-default", action="store_true", help="set as default provider"
+    )
 
     # Legacy Telegram config (for backward compatibility)
     c.add_argument("--token", help="(legacy) Telegram bot token")
@@ -478,7 +514,7 @@ def main():
     st = sp.add_parser("status", help="show configuration and send test message")
     st.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop"],
+        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
         help="provider to test (default: use configured default)",
     )
     st.set_defaults(func=do_status)
@@ -499,7 +535,7 @@ def main():
     sd.add_argument("text", help="message to send")
     sd.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop"],
+        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
         help="provider to use (default: use configured default)",
     )
     sd.set_defaults(func=do_send)
@@ -513,7 +549,7 @@ def main():
     )
     rn.add_argument(
         "--provider",
-        choices=["telegram", "teams", "slack", "audio", "desktop"],
+        choices=["telegram", "teams", "slack", "audio", "desktop", "pushover"],
         help="provider to use (default: use configured default)",
     )
     rn.add_argument(

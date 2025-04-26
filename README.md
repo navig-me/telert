@@ -6,6 +6,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
+[![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 

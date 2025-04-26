@@ -9,12 +9,13 @@ __all__ = [
     "configure_slack",
     "configure_audio",
     "configure_desktop",
+    "configure_pushover",
     "get_config", 
     "is_configured",
     "set_default_provider",
     "list_providers"
 ]
-__version__ = "0.1.16"  # Fix code formatting and cross-platform compatibility
+__version__ = "0.1.17"  # Add Pushover notification provider
 
 from telert.api import (
     telert, 
@@ -26,6 +27,7 @@ from telert.api import (
     configure_slack,
     configure_audio,
     configure_desktop,
+    configure_pushover,
     get_config, 
     is_configured,
     set_default_provider,

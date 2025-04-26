@@ -1,4 +1,4 @@
-# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Audio, Desktop)
+# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop)
 
 **Version 0.1.16** 
 
@@ -7,7 +7,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 
-Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 **Quick start:**
 ```bash
@@ -87,6 +87,21 @@ telert status  # Test your configuration
 ```
 
 [**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
+
+### Pushover Setup (Android & iOS)
+
+Pushover provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
+
+1. **Create Account**: Sign up at [pushover.net](https://pushover.net/) to get your user key
+2. **Create App**: Create an application at pushover.net to get your app token
+3. **Configure**:
+
+```bash
+telert config pushover --token "<app-token>" --user "<user-key>" --set-default
+telert status  # Test your configuration
+```
+
+[**Detailed Pushover Setup Guide**](https://github.com/navig-me/telert/blob/main/PUSHOVER.md)
 
 ### Audio Alerts Setup
 
@@ -172,7 +187,7 @@ Telert securely stores all configuration in `~/.config/telert/config.json` unles
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
-| **Multi-provider** | Configure and use multiple notification services (Telegram, Teams, Slack, Audio, Desktop). | `telert config desktop --app-name "My App"` |
+| **Multi-provider** | Configure and use multiple notification services (Telegram, Teams, Slack, Pushover, Audio, Desktop). | `telert config desktop --app-name "My App"` |
 
 ---
 
@@ -290,7 +305,7 @@ telert-wrapper run source deploy.sh
 #### Configuration
 ```python
 from telert import (
-    configure_telegram, configure_teams, configure_slack, 
+    configure_telegram, configure_teams, configure_slack, configure_pushover,
     configure_audio, configure_desktop,
     set_default_provider, is_configured, get_config, list_providers
 )
@@ -299,6 +314,7 @@ from telert import (
 configure_telegram("<token>", "<chat-id>")
 configure_teams("<webhook-url>")
 configure_slack("<webhook-url>")
+configure_pushover("<app-token>", "<user-key>")
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
 configure_desktop("My App", set_default=True)  # Uses built-in icon
@@ -331,6 +347,7 @@ send("Script started")
 # Send to specific provider regardless of default
 send("Processing completed with 5 records updated", provider="teams")
 send("Critical error detected!", provider="slack")
+send("Send to mobile device", provider="pushover")
 send("Play a sound alert", provider="audio")
 send("Show a desktop notification", provider="desktop")
 ```
@@ -371,6 +388,11 @@ with telert("Long calculation", provider="audio"):
 with telert("Database backup", provider="desktop"):
     # This will show a desktop notification when done
     backup_database()
+    
+# Send to mobile device
+with telert("Long-running task", provider="pushover"):
+    # This will send to Pushover when done
+    time.sleep(60)
 ```
 
 #### Function Decorator
@@ -410,6 +432,11 @@ def play_sound_on_completion():
 @notify("Desktop alert", provider="desktop")
 def show_desktop_notification():
     return "This will show a desktop notification when done"
+    
+# Send to mobile device
+@notify("Mobile alert", provider="pushover")
+def send_mobile_notification():
+    return "This will send to Pushover when done"
 ```
 
 ---
@@ -422,6 +449,8 @@ def show_desktop_notification():
 | `TELERT_CHAT_ID`         | Telegram chat ID                            |
 | `TELERT_TEAMS_WEBHOOK`   | Microsoft Teams Power Automate HTTP URL     |
 | `TELERT_SLACK_WEBHOOK`   | Slack webhook URL                           |
+| `TELERT_PUSHOVER_TOKEN`  | Pushover application token                  |
+| `TELERT_PUSHOVER_USER`   | Pushover user key                           |
 | `TELERT_AUDIO_FILE`      | Path to sound file for audio notifications  |
 | `TELERT_AUDIO_VOLUME`    | Volume level for audio notifications (0.0-1.0) |
 | `TELERT_DESKTOP_APP_NAME`| Application name for desktop notifications  |
@@ -429,7 +458,7 @@ def show_desktop_notification():
 | `TELERT_LONG`            | Default threshold (seconds) for `hook`      |
 | `TELERT_SILENT=1`        | Capture and include command output in notification, but don't display in real-time |
 
-Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack, Audio, Desktop.
+Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. When multiple provider environment variables are set, telert will try them in this order: Telegram, Teams, Slack, Pushover, Audio, Desktop.
 
 ---
 

@@ -146,6 +146,23 @@ def configure_desktop(
     configure_provider(Provider.DESKTOP, **config)
 
 
+def configure_pushover(token: str, user: str, set_default: bool = True) -> None:
+    """
+    Configure Telert for Pushover notifications.
+
+    Args:
+        token: The Pushover application token
+        user: The Pushover user key
+        set_default: Whether to set Pushover as the default provider
+
+    Examples:
+        from telert import configure_pushover
+
+        configure_pushover("a1b2c3d4e5f6g7h8i9j0", "u1v2w3x4y5z6")
+    """
+    configure_provider(Provider.PUSHOVER, token=token, user=user, set_default=set_default)
+
+
 # Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """

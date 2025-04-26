@@ -1,13 +1,13 @@
 [project]
 name = "telert"
-version = "0.1.16"
-description = "CLI notifier for Telegram, Teams, Slack, Audio & Desktop: alerts when commands complete"
+version = "0.1.17"
+description = "CLI notifier for Telegram, Teams, Slack, Pushover, Audio & Desktop: alerts when commands complete"
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = ["requests>=2.25"]
-keywords = ["telegram", "notification", "cli", "terminal", "alert"]
+keywords = ["telegram", "notification", "cli", "terminal", "alert", "pushover", "mobile"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

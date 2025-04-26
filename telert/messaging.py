@@ -40,6 +40,7 @@ class Provider(enum.Enum):
     SLACK = "slack"
     AUDIO = "audio"
     DESKTOP = "desktop"
+    PUSHOVER = "pushover"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -603,10 +604,69 @@ class DesktopProvider:
             raise RuntimeError(f"Desktop notification error: {str(e)}")
 
 
+class PushoverProvider:
+    """Provider for Pushover messaging."""
+
+    def __init__(self, token: Optional[str] = None, user: Optional[str] = None):
+        self.token = token
+        self.user = user
+
+    def configure_from_env(self) -> bool:
+        """Configure from environment variables."""
+        self.token = os.environ.get("TELERT_PUSHOVER_TOKEN")
+        self.user = os.environ.get("TELERT_PUSHOVER_USER")
+        return bool(self.token and self.user)
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        """Configure from stored configuration."""
+        provider_config = config.get_provider_config(Provider.PUSHOVER)
+        if provider_config:
+            self.token = provider_config.get("token")
+            self.user = provider_config.get("user")
+            return bool(self.token and self.user)
+        return False
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        if self.token and self.user:
+            config.set_provider_config(
+                Provider.PUSHOVER, {"token": self.token, "user": self.user}
+            )
+
+    def send(self, message: str) -> bool:
+        """Send a message via Pushover."""
+        if not (self.token and self.user):
+            raise ValueError("Pushover provider not configured")
+
+        url = "https://api.pushover.net/1/messages.json"
+        try:
+            response = requests.post(
+                url,
+                data={
+                    "token": self.token,
+                    "user": self.user,
+                    "message": message,
+                },
+                timeout=20,  # 20 second timeout
+            )
+
+            if response.status_code != 200:
+                error_msg = f"Pushover API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Pushover API request timed out after 20 seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(
+                "Pushover API connection error - please check your network connection"
+            )
+
+
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
 ) -> Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider"
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider
 ]:
     """Get a configured messaging provider."""
     config = MessagingConfig()
@@ -635,6 +695,10 @@ def get_provider(
             provider = SlackProvider()
             provider.configure_from_env()
             return provider
+        elif os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
+            provider = PushoverProvider()
+            provider.configure_from_env()
+            return provider
         elif os.environ.get("TELERT_AUDIO_FILE"):
             provider = AudioProvider()
             provider.configure_from_env()
@@ -657,6 +721,8 @@ def get_provider(
         provider = TeamsProvider()
     elif provider_name == Provider.SLACK:
         provider = SlackProvider()
+    elif provider_name == Provider.PUSHOVER:
+        provider = PushoverProvider()
     elif provider_name == Provider.AUDIO:
         provider = AudioProvider()
     elif provider_name == Provider.DESKTOP:
@@ -750,6 +816,16 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
             raise ValueError(f"Icon file not found: {icon_path}")
 
         provider_instance = DesktopProvider(app_name=app_name, icon_path=icon_path)
+        
+    elif provider == Provider.PUSHOVER:
+        if "token" not in kwargs or "user" not in kwargs:
+            raise ValueError("Pushover provider requires 'token' and 'user'")
+
+        # Basic validation
+        if not kwargs["token"] or not kwargs["user"]:
+            raise ValueError("Pushover token and user cannot be empty")
+
+        provider_instance = PushoverProvider(kwargs["token"], kwargs["user"])
 
     else:
         raise ValueError(f"Unsupported provider: {provider}")

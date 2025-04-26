@@ -640,6 +640,31 @@ telert run --label "CI Build" -- npm run build
 
 ---
 
+### Releasing to PyPI
+ 
+ The project is automatically published to PyPI when a new GitHub release is created:
+ 
+ 1. Update version in both `pyproject.toml` and `telert/__init__.py`
+ 2. Commit the changes and push to main
+ 3. Create a new GitHub release with a tag like `v0.1.3`
+ 4. The GitHub Actions workflow will automatically build and publish to PyPI
+ 
+ To manually publish to PyPI if needed:
+ 
+ ```bash
+ # Install build tools
+ pip install build twine
+ 
+ # Build the package
+ python -m build
+ 
+ # Upload to PyPI
+ twine upload dist/*
+ ```
+
+
+---
+
 ## 🤝 Contributing / License
 
 PRs & issues welcome!  

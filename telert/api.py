@@ -33,7 +33,13 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 # For backward compatibility
 from telert.cli import _human
-from telert.messaging import MessagingConfig, Provider, configure_provider, send_message
+from telert.messaging import (
+    MessagingConfig, 
+    Provider, 
+    configure_provider, 
+    configure_providers,
+    send_message
+)
 
 # Type variable for function return type
 T = TypeVar("T")
@@ -296,6 +302,36 @@ def set_default_provider(provider: Union[str, Provider]) -> None:
     config.set_default_provider(provider)
 
 
+def set_default_providers(providers: List[Union[str, Provider]]) -> None:
+    """
+    Set multiple default messaging providers in priority order.
+
+    Args:
+        providers: List of providers to set as defaults, in priority order
+
+    Examples:
+        from telert import set_default_providers
+
+        # First try Slack, then fall back to Desktop notifications
+        set_default_providers(["slack", "desktop"])
+    """
+    config = MessagingConfig()
+    provider_enums = []
+
+    for p in providers:
+        if isinstance(p, str):
+            try:
+                provider_enums.append(Provider.from_string(p))
+            except ValueError:
+                # Skip invalid providers
+                pass
+        else:
+            provider_enums.append(p)
+
+    if provider_enums:
+        config.set_default_providers(provider_enums)
+
+
 def list_providers() -> List[Dict[str, Any]]:
     """
     List all configured providers.
@@ -327,34 +363,67 @@ def list_providers() -> List[Dict[str, Any]]:
     return result
 
 
-def send(message: str, provider: Optional[Union[str, Provider]] = None) -> None:
+def send(
+    message: str, 
+    provider: Optional[Union[str, Provider, List[Union[str, Provider]]]] = None,
+    all_providers: bool = False
+) -> Dict[str, bool]:
     """
-    Send a message using configured provider.
+    Send a message using configured provider(s).
 
     Args:
         message: The message text to send
-        provider: The provider to use (optional)
-                  If not provided, uses the default provider
+        provider: The specific provider(s) to use (optional)
+                 Can be a single provider or list of providers
+                 If not provided, uses the default provider(s)
+        all_providers: If True, sends to all configured providers
+
+    Returns:
+        A dictionary mapping provider names to success status
 
     Examples:
         from telert import send
 
-        # Use default provider
+        # Use default provider(s)
         send("Hello from Python!")
 
-        # Specify provider
+        # Specify a single provider
         send("Hello Teams!", provider="teams")
+        
+        # Send to multiple specific providers
+        send("Important message", provider=["slack", "telegram"])
+        
+        # Send to all configured providers
+        send("Critical alert", all_providers=True)
 
     Environment Variables:
+        TELERT_DEFAULT_PROVIDER: Override default provider(s), comma-separated for multiple
         TELERT_TOKEN, TELERT_CHAT_ID: Override Telegram configuration
         TELERT_TEAMS_WEBHOOK: Override Teams configuration
         TELERT_SLACK_WEBHOOK: Override Slack configuration
+        TELERT_PUSHOVER_TOKEN, TELERT_PUSHOVER_USER: Override Pushover configuration
+        TELERT_AUDIO_FILE, TELERT_AUDIO_VOLUME: Override Audio configuration
+        TELERT_DESKTOP_APP_NAME, TELERT_DESKTOP_ICON: Override Desktop configuration
     """
     try:
-        if provider is not None and isinstance(provider, str):
-            provider = Provider.from_string(provider)
+        # Convert string providers to Provider enums
+        if provider is not None:
+            if isinstance(provider, list):
+                normalized_providers = []
+                for p in provider:
+                    if isinstance(p, str):
+                        try:
+                            normalized_providers.append(Provider.from_string(p))
+                        except ValueError:
+                            raise ValueError(f"Unknown provider: {p}")
+                    else:
+                        normalized_providers.append(p)
+                provider = normalized_providers
+            elif isinstance(provider, str):
+                provider = Provider.from_string(provider)
 
-        send_message(message, provider)
+        # Send the message
+        return send_message(message, provider, all_providers)
     except Exception as e:
         raise RuntimeError(f"Failed to send message: {str(e)}")
 
@@ -384,6 +453,14 @@ class telert:
         # Specify provider
         with telert("Teams message", provider="teams"):
             run_teams_task()
+            
+        # Send to multiple providers
+        with telert("Important task", provider=["slack", "telegram"]):
+            important_function()
+            
+        # Send to all configured providers
+        with telert("Critical task", all_providers=True):
+            critical_function()
     """
 
     def __init__(
@@ -392,7 +469,8 @@ class telert:
         only_fail: bool = False,
         include_traceback: bool = True,
         callback: Optional[Callable[[str], Any]] = None,
-        provider: Optional[Union[str, Provider]] = None,
+        provider: Optional[Union[str, Provider, List[Union[str, Provider]]]] = None,
+        all_providers: bool = False,
     ):
         """
         Initialize a telert context manager.
@@ -402,7 +480,9 @@ class telert:
             only_fail: If True, only send notification on failure (exception)
             include_traceback: If True, include traceback in notification when an exception occurs
             callback: Optional callback function to run with the notification message
-            provider: Optional provider to use for notifications
+            provider: Optional provider(s) to use for notifications
+                     Can be a single provider or list of providers
+            all_providers: If True, sends to all configured providers
         """
         self.label = label or "Python task"
         self.only_fail = only_fail
@@ -411,11 +491,23 @@ class telert:
         self.result = None
         self.start_time = None
         self.exception = None
+        self.all_providers = all_providers
 
         # Convert provider string to enum if needed
         self.provider = None
         if provider is not None:
-            if isinstance(provider, str):
+            if isinstance(provider, list):
+                # Convert a list of providers
+                self.provider = []
+                for p in provider:
+                    if isinstance(p, str):
+                        try:
+                            self.provider.append(Provider.from_string(p))
+                        except ValueError:
+                            raise ValueError(f"Unknown provider: {p}")
+                    else:
+                        self.provider.append(p)
+            elif isinstance(provider, str):
                 try:
                     self.provider = Provider.from_string(provider)
                 except ValueError:
@@ -442,7 +534,7 @@ class telert:
             else:
                 message = f"{self.label} {status} in {duration}: {exc_val}"
 
-            send(message, self.provider)
+            send(message, self.provider, self.all_providers)
             return False  # Re-raise the exception
 
         status = "completed"
@@ -458,7 +550,7 @@ class telert:
                     result_str = result_str[:997] + "..."
                 message += f"\n\n--- result ---\n{result_str}"
 
-            send(message, self.provider)
+            send(message, self.provider, self.all_providers)
 
         # If a callback was provided, call it with the message
         if self.callback and not self.only_fail:
@@ -471,7 +563,8 @@ def notify(
     label: Optional[str] = None,
     only_fail: bool = False,
     include_traceback: bool = True,
-    provider: Optional[Union[str, Provider]] = None,
+    provider: Optional[Union[str, Provider, List[Union[str, Provider]]]] = None,
+    all_providers: bool = False,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to send notifications when a function completes.
@@ -480,7 +573,9 @@ def notify(
         label: Optional label to identify this operation in the notification
         only_fail: If True, only send notification on failure (exception)
         include_traceback: If True, include traceback in notification when an exception occurs
-        provider: Optional provider to use for notifications
+        provider: Optional provider(s) to use for notifications
+                 Can be a single provider or list of providers
+        all_providers: If True, sends to all configured providers
 
     Returns:
         A decorator function
@@ -497,6 +592,14 @@ def notify(
         @notify(provider="teams")
         def teams_function():
             # This will notify via Teams
+            
+        @notify(provider=["slack", "telegram"])
+        def multi_provider_function():
+            # This will notify via both Slack and Telegram
+            
+        @notify(all_providers=True)
+        def critical_function():
+            # This will notify via all configured providers
     """
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
@@ -506,7 +609,11 @@ def notify(
             func_label = label or func.__name__
 
             with telert(
-                func_label, only_fail, include_traceback, provider=provider
+                func_label,
+                only_fail,
+                include_traceback,
+                provider=provider,
+                all_providers=all_providers
             ) as t:
                 result = func(*args, **kwargs)
                 t.result = result

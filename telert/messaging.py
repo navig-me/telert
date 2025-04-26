@@ -83,7 +83,51 @@ class MessagingConfig:
         """Get configuration for a specific provider."""
         if isinstance(provider, str):
             provider = Provider.from_string(provider)
-
+        
+        # Check environment variables first
+        if provider == Provider.TELEGRAM:
+            token = os.environ.get("TELERT_TELEGRAM_TOKEN") or os.environ.get("TELERT_TOKEN")
+            chat_id = os.environ.get("TELERT_TELEGRAM_CHAT_ID") or os.environ.get("TELERT_CHAT_ID")
+            if token and chat_id:
+                return {"token": token, "chat_id": chat_id}
+        elif provider == Provider.TEAMS:
+            webhook_url = os.environ.get("TELERT_TEAMS_WEBHOOK")
+            if webhook_url:
+                return {"webhook_url": webhook_url}
+        elif provider == Provider.SLACK:
+            webhook_url = os.environ.get("TELERT_SLACK_WEBHOOK")
+            if webhook_url:
+                return {"webhook_url": webhook_url}
+        elif provider == Provider.PUSHOVER:
+            token = os.environ.get("TELERT_PUSHOVER_TOKEN")
+            user = os.environ.get("TELERT_PUSHOVER_USER")
+            if token and user:
+                return {"token": token, "user": user}
+        elif provider == Provider.AUDIO:
+            sound_file = os.environ.get("TELERT_AUDIO_FILE")
+            volume_str = os.environ.get("TELERT_AUDIO_VOLUME")
+            if sound_file or volume_str:
+                config = {}
+                if sound_file:
+                    config["sound_file"] = sound_file
+                if volume_str:
+                    try:
+                        config["volume"] = float(volume_str)
+                    except ValueError:
+                        config["volume"] = 1.0
+                return config or self._config.get(provider.value, {})
+        elif provider == Provider.DESKTOP:
+            app_name = os.environ.get("TELERT_DESKTOP_APP_NAME")
+            icon_path = os.environ.get("TELERT_DESKTOP_ICON")
+            if app_name or icon_path:
+                config = {}
+                if app_name:
+                    config["app_name"] = app_name
+                if icon_path:
+                    config["icon_path"] = icon_path
+                return config or self._config.get(provider.value, {})
+                
+        # Fall back to config file
         return self._config.get(provider.value, {})
 
     def set_provider_config(
@@ -100,25 +144,87 @@ class MessagingConfig:
         """Check if a provider is configured."""
         return bool(self.get_provider_config(provider))
 
-    def get_default_provider(self) -> Optional[Provider]:
-        """Get the default provider if configured."""
+    def get_default_providers(self) -> List[Provider]:
+        """Get the default providers if configured.
+        
+        Returns a list of Provider enums in priority order.
+        """
+        # Check environment variable first
+        env_default = os.environ.get("TELERT_DEFAULT_PROVIDER")
+        if env_default:
+            try:
+                # Multiple providers can be specified with comma separation
+                if "," in env_default:
+                    providers = []
+                    for p in env_default.split(","):
+                        try:
+                            providers.append(Provider.from_string(p.strip()))
+                        except ValueError:
+                            # Skip invalid providers
+                            pass
+                    if providers:
+                        return providers
+                else:
+                    # Single provider
+                    return [Provider.from_string(env_default)]
+            except ValueError:
+                # Invalid provider, fall through to config
+                pass
+        
+        # Next check config file for "defaults" array (new format)
+        defaults = self._config.get("defaults", [])
+        if defaults and isinstance(defaults, list):
+            providers = []
+            for p in defaults:
+                if p in [provider.value for provider in Provider]:
+                    providers.append(Provider.from_string(p))
+            if providers:
+                return providers
+                
+        # Finally check for legacy "default" string
         default = self._config.get("default")
         if default and default in [p.value for p in Provider]:
-            return Provider.from_string(default)
+            return [Provider.from_string(default)]
 
         # If no default is set but only one provider is configured, use that
         configured = [p for p in Provider if self.is_provider_configured(p)]
         if len(configured) == 1:
-            return configured[0]
+            return [configured[0]]
 
-        return None
+        return []
+    
+    def get_default_provider(self) -> Optional[Provider]:
+        """Get the default provider if configured (legacy support).
+        
+        Returns the first default provider or None if none configured.
+        """
+        providers = self.get_default_providers()
+        return providers[0] if providers else None
 
+    def set_default_providers(self, providers: List[Union[Provider, str]]):
+        """Set the default providers in priority order."""
+        provider_values = []
+        for provider in providers:
+            if isinstance(provider, str):
+                provider = Provider.from_string(provider)
+            provider_values.append(provider.value)
+
+        self._config["defaults"] = provider_values
+        # Maintain backwards compatibility
+        if provider_values:
+            self._config["default"] = provider_values[0]
+        else:
+            # Remove both keys if empty
+            self._config.pop("defaults", None)
+            self._config.pop("default", None)
+        self.save()
+    
     def set_default_provider(self, provider: Union[Provider, str]):
-        """Set the default provider."""
+        """Set a single default provider (legacy support)."""
         if isinstance(provider, str):
             provider = Provider.from_string(provider)
 
-        self._config["default"] = provider.value
+        self.set_default_providers([provider])
         self.save()
 
 
@@ -668,80 +774,215 @@ def get_provider(
 ) -> Union[
     TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider
 ]:
-    """Get a configured messaging provider."""
+    """Get a configured messaging provider (single provider mode for backward compatibility)."""
+    providers = get_providers(provider_name)
+    if not providers:
+        raise ValueError("No messaging provider configured")
+    return providers[0]  # Return first provider for compatibility
+
+def get_providers(
+    provider_name: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
+) -> List[Union[
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider
+]]:
+    """Get a list of configured messaging providers.
+    
+    Args:
+        provider_name: Optional specific provider(s) to use.
+                      Can be a single Provider or string, or a list of Providers/strings.
+                      If None, will use default providers.
+    
+    Returns:
+        A list of configured provider instances in priority order.
+    """
     config = MessagingConfig()
-
-    # If no provider specified, use default or first configured
+    result_providers = []
+    
+    # Convert input to list of Provider enums
+    provider_names = []
+    
     if provider_name is None:
-        provider_name = config.get_default_provider()
-        if provider_name is None:
-            # Try to use any configured provider
-            for p in Provider:
-                if config.is_provider_configured(p):
-                    provider_name = p
-                    break
-
-    if provider_name is None:
-        # If still no provider, check environment variables
+        # Use default providers if none specified
+        provider_names = config.get_default_providers()
+    elif isinstance(provider_name, list):
+        # If a list was provided, convert to Provider enums
+        for p in provider_name:
+            if isinstance(p, str):
+                try:
+                    provider_names.append(Provider.from_string(p))
+                except ValueError:
+                    # Skip invalid providers
+                    pass
+            else:
+                provider_names.append(p)
+    else:
+        # Single provider specified
+        if isinstance(provider_name, str):
+            provider_name = Provider.from_string(provider_name)
+        provider_names = [provider_name]
+    
+    # If we have specific providers to use, create and configure them
+    if provider_names:
+        for provider_enum in provider_names:
+            # Create provider instance
+            if provider_enum == Provider.TELEGRAM:
+                provider = TelegramProvider()
+            elif provider_enum == Provider.TEAMS:
+                provider = TeamsProvider()
+            elif provider_enum == Provider.SLACK:
+                provider = SlackProvider()
+            elif provider_enum == Provider.PUSHOVER:
+                provider = PushoverProvider()
+            elif provider_enum == Provider.AUDIO:
+                provider = AudioProvider()
+            elif provider_enum == Provider.DESKTOP:
+                provider = DesktopProvider()
+            else:
+                continue  # Skip unsupported providers
+            
+            # Try to configure from environment first
+            if provider.configure_from_env():
+                result_providers.append(provider)
+            # Fall back to saved config
+            elif provider.configure_from_config(config):
+                result_providers.append(provider)
+    
+    # If no providers have been specified or successfully configured,
+    # check environment variables to create providers on-the-fly
+    if not result_providers:
+        env_providers = []
+        
+        # Check each provider's environment variables
         if os.environ.get("TELERT_TOKEN") and os.environ.get("TELERT_CHAT_ID"):
             provider = TelegramProvider()
-            provider.configure_from_env()
-            return provider
-        elif os.environ.get("TELERT_TEAMS_WEBHOOK"):
+            if provider.configure_from_env():
+                env_providers.append(provider)
+                
+        if os.environ.get("TELERT_TEAMS_WEBHOOK"):
             provider = TeamsProvider()
-            provider.configure_from_env()
-            return provider
-        elif os.environ.get("TELERT_SLACK_WEBHOOK"):
+            if provider.configure_from_env():
+                env_providers.append(provider)
+                
+        if os.environ.get("TELERT_SLACK_WEBHOOK"):
             provider = SlackProvider()
-            provider.configure_from_env()
-            return provider
-        elif os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
+            if provider.configure_from_env():
+                env_providers.append(provider)
+                
+        if os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
             provider = PushoverProvider()
-            provider.configure_from_env()
-            return provider
-        elif os.environ.get("TELERT_AUDIO_FILE"):
+            if provider.configure_from_env():
+                env_providers.append(provider)
+                
+        if os.environ.get("TELERT_AUDIO_FILE", None) is not None or os.environ.get("TELERT_AUDIO_VOLUME", None) is not None:
             provider = AudioProvider()
-            provider.configure_from_env()
-            return provider
-        elif os.environ.get("TELERT_DESKTOP_APP_NAME"):
+            if provider.configure_from_env():
+                env_providers.append(provider)
+                
+        if os.environ.get("TELERT_DESKTOP_APP_NAME", None) is not None or os.environ.get("TELERT_DESKTOP_ICON", None) is not None:
             provider = DesktopProvider()
-            provider.configure_from_env()
-            return provider
-        else:
-            raise ValueError("No messaging provider configured")
+            if provider.configure_from_env():
+                env_providers.append(provider)
+        
+        # If multiple providers are configured via env vars, check for preference order
+        if env_providers:
+            # If TELERT_DEFAULT_PROVIDER is set, reorder the providers accordingly
+            env_default = os.environ.get("TELERT_DEFAULT_PROVIDER")
+            if env_default and "," in env_default:
+                # Get the order of providers from the environment variable
+                ordered_types = []
+                for p in env_default.split(","):
+                    try:
+                        ordered_types.append(Provider.from_string(p.strip()))
+                    except ValueError:
+                        pass
+                
+                # Reorder providers based on the specified order
+                if ordered_types:
+                    result_providers = []
+                    # First add providers in the specified order
+                    for p_type in ordered_types:
+                        for provider in env_providers:
+                            if isinstance(provider, {
+                                Provider.TELEGRAM: TelegramProvider,
+                                Provider.TEAMS: TeamsProvider,
+                                Provider.SLACK: SlackProvider,
+                                Provider.PUSHOVER: PushoverProvider,
+                                Provider.AUDIO: AudioProvider,
+                                Provider.DESKTOP: DesktopProvider
+                            }[p_type]):
+                                result_providers.append(provider)
+                                break
+                    
+                    # Then add any remaining providers not in the specified order
+                    for provider in env_providers:
+                        if provider not in result_providers:
+                            result_providers.append(provider)
+            else:
+                # Use providers in the order they were discovered
+                result_providers = env_providers
+    
+    return result_providers
 
-    # Convert string to Provider enum if needed
-    if isinstance(provider_name, str):
-        provider_name = Provider.from_string(provider_name)
 
-    # Create the appropriate provider
-    if provider_name == Provider.TELEGRAM:
-        provider = TelegramProvider()
-    elif provider_name == Provider.TEAMS:
-        provider = TeamsProvider()
-    elif provider_name == Provider.SLACK:
-        provider = SlackProvider()
-    elif provider_name == Provider.PUSHOVER:
-        provider = PushoverProvider()
-    elif provider_name == Provider.AUDIO:
-        provider = AudioProvider()
-    elif provider_name == Provider.DESKTOP:
-        provider = DesktopProvider()
+def send_message(
+    message: str, 
+    provider: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
+    all_providers: bool = False
+) -> Dict[str, bool]:
+    """Send a message using the specified or default provider(s).
+    
+    Args:
+        message: The message to send
+        provider: Optional specific provider(s) to use
+                 Can be a single Provider/string or a list of Providers/strings
+        all_providers: If True, sends to all configured providers
+                      If False (default), uses specified provider(s) or default provider(s)
+    
+    Returns:
+        A dictionary mapping provider names to success status
+    """
+    # If all_providers flag is True, get all configured providers
+    if all_providers:
+        config = MessagingConfig()
+        providers_to_use = []
+        for p in Provider:
+            if config.is_provider_configured(p):
+                try:
+                    provider_instance = get_provider(p)
+                    providers_to_use.append(provider_instance)
+                except ValueError:
+                    # Skip providers that fail to configure
+                    pass
     else:
-        raise ValueError(f"Unsupported provider: {provider_name}")
-
-    # Try to configure from environment first
-    if not provider.configure_from_env():
-        # Fall back to saved config
-        if not provider.configure_from_config(config):
-            raise ValueError(f"Provider {provider_name} is not configured")
-
-    return provider
-
-
-def send_message(message: str, provider: Optional[Union[Provider, str]] = None) -> bool:
-    """Send a message using the specified or default provider."""
-    return get_provider(provider).send(message)
+        # Otherwise use specified or default providers
+        providers_to_use = get_providers(provider)
+    
+    if not providers_to_use:
+        raise ValueError("No messaging provider configured")
+    
+    # For backward compatibility, if there's only one provider, just call send
+    if len(providers_to_use) == 1:
+        result = providers_to_use[0].send(message)
+        return {providers_to_use[0].__class__.__name__: result}
+    
+    # Send to all specified providers and collect results
+    results = {}
+    exceptions = []
+    
+    for provider_instance in providers_to_use:
+        provider_name = provider_instance.__class__.__name__
+        try:
+            success = provider_instance.send(message)
+            results[provider_name] = success
+        except Exception as e:
+            results[provider_name] = False
+            exceptions.append(f"{provider_name}: {str(e)}")
+    
+    # If all providers failed, raise an exception with details
+    if not any(results.values()):
+        raise RuntimeError(f"All providers failed: {'; '.join(exceptions)}")
+    
+    return results
 
 
 def _validate_webhook_url(url: str) -> bool:
@@ -759,6 +1000,76 @@ def _validate_webhook_url(url: str) -> bool:
     except Exception:
         raise ValueError("Invalid webhook URL format")
 
+
+def configure_providers(
+    providers: List[Union[Provider, str, Dict[str, Any]]],
+    set_as_defaults: bool = False
+) -> bool:
+    """Configure multiple messaging providers at once.
+    
+    Args:
+        providers: A list of providers to configure. Each item can be:
+                 - A Provider enum
+                 - A provider name string
+                 - A dict with "provider" key and provider-specific options
+        set_as_defaults: If True, sets these providers as defaults in the order provided
+    
+    Returns:
+        True if successful
+        
+    Example:
+        configure_providers([
+            {"provider": "telegram", "token": "123", "chat_id": "456"},
+            {"provider": "slack", "webhook_url": "https://hooks.slack.com/..."},
+            {"provider": "audio"}
+        ], set_as_defaults=True)
+    """
+    config = MessagingConfig()
+    configured_providers = []
+    
+    for p in providers:
+        provider_enum = None
+        provider_config = {}
+        
+        # Parse the provider specifications
+        if isinstance(p, dict):
+            # Dict format: {"provider": "name", ...options}
+            if "provider" not in p:
+                continue
+                
+            provider_name = p.pop("provider")
+            try:
+                if isinstance(provider_name, str):
+                    provider_enum = Provider.from_string(provider_name)
+                else:
+                    provider_enum = provider_name
+            except ValueError:
+                continue  # Skip invalid providers
+                
+            provider_config = p  # Remaining options
+        else:
+            # Simple provider name or enum
+            try:
+                if isinstance(p, str):
+                    provider_enum = Provider.from_string(p)
+                else:
+                    provider_enum = p
+            except ValueError:
+                continue  # Skip invalid providers
+        
+        # Configure this provider
+        try:
+            configure_provider(provider_enum, **provider_config)
+            configured_providers.append(provider_enum)
+        except Exception:
+            # Skip providers that fail to configure
+            pass
+    
+    # Set as defaults if requested
+    if set_as_defaults and configured_providers:
+        config.set_default_providers(configured_providers)
+    
+    return len(configured_providers) > 0
 
 def configure_provider(provider: Union[Provider, str], **kwargs):
     """Configure a messaging provider."""
@@ -833,8 +1144,19 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     # Save the configuration
     provider_instance.save_config(config)
 
-    # Set as default if requested or if it's the first/only provider
-    if kwargs.get("set_default", False) or not config.get_default_provider():
+    # Handle default provider setting
+    if kwargs.get("set_default", False):
+        # Check if we should add to existing defaults or replace them
+        if kwargs.get("add_to_defaults", False):
+            # Add to existing defaults
+            current_defaults = config.get_default_providers()
+            if provider not in current_defaults:
+                config.set_default_providers(current_defaults + [provider])
+        else:
+            # Set as the only default
+            config.set_default_provider(provider)
+    elif not config.get_default_providers():
+        # If no defaults exist, set this as default
         config.set_default_provider(provider)
 
     return True

@@ -6,8 +6,11 @@
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
+[![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+
+[![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
 
 <img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
 
@@ -106,9 +109,9 @@ telert status  # Test your configuration
 
 [**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
 
-### Pushover Setup (Android & iOS)
+### Pushover Setup
 
-Pushover provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
+Pushover (Android & iOS) provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
 
 1. **Create Account**: Sign up at [pushover.net](https://pushover.net/) to get your user key
 2. **Create App**: Create an application at pushover.net to get your app token

@@ -9,6 +9,8 @@
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
+<img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
+
 ## Table of Contents
 - [Quick Start](#-quick-install)
 - [Setup Guide](#-quick-setup-guide)
@@ -35,8 +37,6 @@ pip install telert
 # After quick setup (see below)
 long_running_command | telert "Command finished!"
 ```
-
-<img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
 
 If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
 
@@ -661,7 +661,6 @@ telert run --label "CI Build" -- npm run build
  # Upload to PyPI
  twine upload dist/*
  ```
-
 
 ---
 

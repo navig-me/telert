@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop)
 
-**Version 0.1.19** 
+**Version 0.1.20** 
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)

@@ -17,7 +17,7 @@ __all__ = [
     "set_default_providers",
     "list_providers"
 ]
-__version__ = "0.1.19"  # Added improved feedback messages and README TOC
+__version__ = "0.1.20"  # Added improved feedback messages and README TOC
 
 from telert.api import (
     telert, 

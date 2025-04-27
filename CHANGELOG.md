@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.20 (2024-04-26)
+- Added links for Replit, GitHub Actions to README and DigitalOcean, Vultr links
+
+
 ## 0.1.19 (2024-04-26)
 - Added feedback message after telert commands run, showing which providers received the notification
 - Added table of contents to README for improved documentation navigation

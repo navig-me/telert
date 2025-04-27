@@ -10,6 +10,8 @@
 
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
+[![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
+
 ## Table of Contents
 - [Quick Start](#-quick-install)
 - [Setup Guide](#-quick-setup-guide)
@@ -107,9 +109,9 @@ telert status  # Test your configuration
 
 [**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
 
-### Pushover Setup (Android & iOS)
+### Pushover Setup
 
-Pushover provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
+Pushover (Android & iOS) provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
 
 1. **Create Account**: Sign up at [pushover.net](https://pushover.net/) to get your user key
 2. **Create App**: Create an application at pushover.net to get your app token

@@ -4,10 +4,7 @@
   "description": "Run commands in integrated terminal and get notifications when they complete",
   "version": "0.1.0",
   "publisher": "navig-me",
-  "author": {
-    "name": "Mihir Khandekar",
-    "email": "mihirkhandekar@gmail.com"
-  },
+  "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -82,11 +79,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/navig-me/telert.git"
+    "url": "git+https://github.com/navig-me/telert.git"
   },
   "homepage": "https://github.com/navig-me/telert",
   "bugs": {
     "url": "https://github.com/navig-me/telert/issues"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99.1"
+  }
 }

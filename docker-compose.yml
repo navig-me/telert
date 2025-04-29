@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  # Standard telert CLI service
+  telert:
+    build: .
+    image: ghcr.io/navig-me/telert:latest
+    container_name: telert
+    environment:
+      # Example environment configuration for Telegram
+      # Uncomment and fill in the values for your preferred provider
+      # - TELERT_TELEGRAM_TOKEN=your_token
+      # - TELERT_TELEGRAM_CHAT_ID=your_chat_id
+      # - TELERT_DEFAULT_PROVIDER=telegram
+      - TZ=UTC
+    volumes:
+      # Mount a configuration directory for persistent config
+      - telert_config:/root/.config/telert
+    command: status
+
+  # Server mode with API for notifications
+  telert-server:
+    build: .
+    image: ghcr.io/navig-me/telert:latest
+    container_name: telert-server
+    environment:
+      # Configure provider(s) using environment variables
+      # Example for Telegram:
+      # - TELERT_TELEGRAM_TOKEN=your_token
+      # - TELERT_TELEGRAM_CHAT_ID=your_chat_id
+      # - TELERT_DEFAULT_PROVIDER=telegram
+      - TZ=UTC
+    ports:
+      - "8000:8000"
+    volumes:
+      - telert_config:/root/.config/telert
+      - telert_data:/app/data
+    command: serve
+
+volumes:
+  telert_config:
+  telert_data:

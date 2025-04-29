@@ -4,7 +4,6 @@
 - Added Docker image with server and CLI modes
 - Added GitHub Action for running commands with notifications
 - Added GitLab CI template and CircleCI orb integrations
-- Added shell completions for Bash, Zsh, and Fish
 - Created VS Code extension for "Run in Terminal & Notify"
 - Added detailed documentation for all new features
 

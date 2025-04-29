@@ -17,6 +17,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from typing import List
 
 from telert.messaging import (
     CONFIG_DIR,
@@ -29,15 +30,15 @@ from telert.messaging import (
 CFG_DIR = CONFIG_DIR
 CFG_FILE = CFG_DIR / "config.json"
 
-REFERRAL_FOOTER = """
+REFERRAL_FOOTER = textwrap.dedent("""
 —
-💡 Need a cheap, reliable VPS for Telert?
+✨ **Looking for a reliable VPS for your projects?**
 
-- DigitalOcean: https://m.do.co/c/cdf2b5a182f2 (✅ $200 credit)
-- Vultr: https://www.vultr.com/?ref=9752934-9J (✅ $100 credit)
+- [Vultr](https://www.vultr.com/?ref=9752934-9J) — $100 free credits
+- [DigitalOcean](https://m.do.co/c/cdf2b5a182f2) — $200 free credits
 
-(set TELERT_HIDE_ADS=1 to disable this footer)
-"""
+(Disable footer: `export TELERT_HIDE_ADS=1`)
+""").strip()
 
 # ───────────────────────────────── helpers ──────────────────────────────────
 
@@ -196,6 +197,48 @@ def do_config(a):
                 add_to_defaults=a.add_to_defaults,
             )
             print("✔ Pushover configuration saved")
+            
+        elif provider == "endpoint":
+            if not hasattr(a, "url"):
+                sys.exit("❌ Endpoint configuration requires --url")
+                
+            # Build configuration params
+            config_params = {
+                "url": a.url,
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
+            
+            if hasattr(a, "method") and a.method:
+                config_params["method"] = a.method
+                
+            if hasattr(a, "payload_template") and a.payload_template:
+                config_params["payload_template"] = a.payload_template
+                
+            if hasattr(a, "name") and a.name:
+                config_params["name"] = a.name
+                
+            if hasattr(a, "timeout") and a.timeout:
+                config_params["timeout"] = a.timeout
+                
+            # Handle headers
+            headers = {}
+            if hasattr(a, "header") and a.header:
+                for header in a.header:
+                    if ":" in header:
+                        key, value = header.split(":", 1)
+                        headers[key.strip()] = value.strip()
+                    else:
+                        sys.exit(f"❌ Invalid header format: {header}. Use 'Key: Value' format.")
+            
+            if headers:
+                config_params["headers"] = headers
+            
+            try:
+                configure_provider(Provider.ENDPOINT, **config_params)
+                print(f"✔ Endpoint configuration saved: {a.name or 'Custom Endpoint'}")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
 
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
@@ -325,6 +368,26 @@ def do_status(a):
         user = pushover_config["user"]
         print(f"- Pushover{default_marker}: token={token[:8]}…, user={user[:8]}…")
 
+    # Check Endpoint
+    endpoint_config = config.get_provider_config(Provider.ENDPOINT)
+    if endpoint_config:
+        # Mark as default if in default providers list
+        if Provider.ENDPOINT.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.ENDPOINT.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+
+        name = endpoint_config.get("name", "Custom Endpoint")
+        url = endpoint_config["url"]
+        method = endpoint_config.get("method", "POST")
+        timeout = endpoint_config.get("timeout", 20)
+        print(f"- {name}{default_marker}: url={url[:30]}…, method={method}, timeout={timeout}s")
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -333,6 +396,7 @@ def do_status(a):
         or audio_config
         or desktop_config
         or pushover_config
+        or endpoint_config
     ):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
@@ -810,6 +874,40 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
+    
+    # Endpoint config
+    endpoint_parser = c_subparsers.add_parser(
+        "endpoint", help="configure custom HTTP endpoint notifications"
+    )
+    endpoint_parser.add_argument(
+        "--url", required=True, help="URL to send notifications to (supports placeholders like {message}, {status_code}, {duration_seconds})"
+    )
+    endpoint_parser.add_argument(
+        "--method", default="POST", choices=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+        help="HTTP method to use (default: POST)"
+    )
+    endpoint_parser.add_argument(
+        "--header", action="append", 
+        help="HTTP header in 'Key: Value' format (can be specified multiple times)"
+    )
+    endpoint_parser.add_argument(
+        "--payload-template", 
+        help="JSON payload template with placeholders (default: '{\"text\": \"{message}\"}')"
+    )
+    endpoint_parser.add_argument(
+        "--name", default="Custom Endpoint", help="friendly name for this endpoint"
+    )
+    endpoint_parser.add_argument(
+        "--timeout", type=int, default=20, help="request timeout in seconds (default: 20)"
+    )
+    endpoint_parser.add_argument(
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    endpoint_parser.add_argument(
+        "--add-to-defaults",
+        action="store_true",
+        help="add to existing default providers",
+    )
 
     # Legacy Telegram config (for backward compatibility)
     c.add_argument("--token", help="(legacy) Telegram bot token")
@@ -877,23 +975,19 @@ def main():
     )
     rn.set_defaults(func=do_run)
 
+    def do_help(_):
+        p.print_help()
+        if os.environ.get("TELERT_HIDE_ADS") != "1":
+            print("\n" + REFERRAL_FOOTER)
+
     # help alias
     hp = sp.add_parser("help", help="show global help")
-    hp.set_defaults(func=lambda _a: p.print_help())
+    hp.set_defaults(func=do_help)
 
     args = p.parse_args()
 
     if getattr(args, "cmd", None) == [] and getattr(args, "func", None) is do_run:
         p.error("run: missing command – use telert run -- <cmd> …")
-
-    # If user called 'help' or used --help/-h flags, show referral links
-    if (
-        getattr(args, "func", None)
-        and args.func.__doc__
-        and "help" in args.func.__doc__.lower()
-    ):
-        if not os.environ.get("TELERT_HIDE_ADS") == "1":
-            print(REFERRAL_FOOTER)
 
     args.func(args)
 

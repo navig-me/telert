@@ -1,7 +1,7 @@
 [project]
 name = "telert"
-version = "0.1.20"
-description = "CLI notifier for Telegram, Teams, Slack, Pushover, Audio & Desktop: alerts when commands complete"
+version = "0.1.21"
+description = "CLI notifier for Telegram, Teams, Slack, Pushover, Custom HTTP Endpoints, Audio & Desktop: alerts when commands complete"
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"
 readme = "README.md"

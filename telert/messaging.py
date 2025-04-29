@@ -18,7 +18,10 @@ import os
 import pathlib
 import platform
 import subprocess
-from typing import Any, Dict, Optional, Union
+import re
+import string
+import time
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 
@@ -41,6 +44,7 @@ class Provider(enum.Enum):
     AUDIO = "audio"
     DESKTOP = "desktop"
     PUSHOVER = "pushover"
+    ENDPOINT = "endpoint"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -769,10 +773,182 @@ class PushoverProvider:
             )
 
 
+class EndpointProvider:
+    """Provider for custom HTTP endpoint messaging."""
+
+    def __init__(
+        self,
+        url: Optional[str] = None,
+        method: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        payload_template: Optional[str] = None,
+        name: Optional[str] = None,
+        timeout: Optional[int] = None,
+    ):
+        self.url = url
+        self.method = method or "POST"
+        self.headers = headers or {}
+        self.payload_template = payload_template or '{"text": "{message}"}'
+        self.name = name or "Custom Endpoint"
+        self.timeout = timeout or 20  # Default timeout: 20 seconds
+
+    def configure_from_env(self) -> bool:
+        """Configure from environment variables."""
+        self.url = os.environ.get("TELERT_ENDPOINT_URL")
+        
+        if os.environ.get("TELERT_ENDPOINT_METHOD"):
+            self.method = os.environ.get("TELERT_ENDPOINT_METHOD")
+            
+        if os.environ.get("TELERT_ENDPOINT_HEADERS"):
+            try:
+                self.headers = json.loads(os.environ.get("TELERT_ENDPOINT_HEADERS", "{}"))
+            except json.JSONDecodeError:
+                # Invalid JSON, fallback to empty headers
+                self.headers = {}
+                
+        if os.environ.get("TELERT_ENDPOINT_PAYLOAD"):
+            self.payload_template = os.environ.get("TELERT_ENDPOINT_PAYLOAD")
+            
+        if os.environ.get("TELERT_ENDPOINT_NAME"):
+            self.name = os.environ.get("TELERT_ENDPOINT_NAME")
+            
+        if os.environ.get("TELERT_ENDPOINT_TIMEOUT"):
+            try:
+                self.timeout = int(os.environ.get("TELERT_ENDPOINT_TIMEOUT", "20"))
+            except ValueError:
+                # Invalid timeout, use default
+                self.timeout = 20
+        
+        return bool(self.url)
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        """Configure from stored configuration."""
+        provider_config = config.get_provider_config(Provider.ENDPOINT)
+        if provider_config:
+            self.url = provider_config.get("url")
+            self.method = provider_config.get("method", "POST")
+            self.headers = provider_config.get("headers", {})
+            self.payload_template = provider_config.get("payload_template", '{"text": "{message}"}')
+            self.name = provider_config.get("name", "Custom Endpoint")
+            self.timeout = provider_config.get("timeout", 20)
+            return bool(self.url)
+        return False
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        if self.url:
+            config.set_provider_config(
+                Provider.ENDPOINT,
+                {
+                    "url": self.url,
+                    "method": self.method,
+                    "headers": self.headers,
+                    "payload_template": self.payload_template,
+                    "name": self.name,
+                    "timeout": self.timeout,
+                },
+            )
+
+    def _replace_placeholders(self, template: str, message: str) -> str:
+        """Replace placeholders in the template with actual values."""
+        # Basic placeholders
+        replacements = {
+            "message": message,
+            "status_code": "0",  # Default values for non-run contexts
+            "duration_seconds": "0",
+        }
+        
+        # Get current timestamp
+        replacements["timestamp"] = str(int(time.time()))
+        
+        # Use a safer string formatting approach than direct format()
+        result = template
+        for key, value in replacements.items():
+            placeholder = "{" + key + "}"
+            result = result.replace(placeholder, value)
+            
+        return result
+
+    def send(self, message: str) -> bool:
+        """Send a message via the custom endpoint."""
+        if not self.url:
+            raise ValueError("Endpoint provider not configured")
+
+        # Format URL if it contains placeholders
+        url = self._replace_placeholders(self.url, message)
+        
+        # Prepare payload from template
+        if self.payload_template:
+            try:
+                payload_str = self._replace_placeholders(self.payload_template, message)
+                # Check if payload is valid JSON
+                try:
+                    payload = json.loads(payload_str)
+                except json.JSONDecodeError:
+                    # If not JSON, use as raw string body
+                    payload = payload_str
+            except Exception as e:
+                raise RuntimeError(f"Failed to format payload template: {str(e)}")
+        else:
+            # Default to simple JSON with message
+            payload = {"text": message}
+
+        try:
+            # Send the request based on the method
+            if self.method.upper() == "GET":
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    timeout=self.timeout,
+                )
+            elif self.method.upper() == "POST":
+                # Determine if we're sending JSON or form data
+                if isinstance(payload, dict):
+                    response = requests.post(
+                        url,
+                        json=payload,
+                        headers=self.headers,
+                        timeout=self.timeout,
+                    )
+                else:
+                    # Raw string payload
+                    response = requests.post(
+                        url,
+                        data=payload,
+                        headers=self.headers,
+                        timeout=self.timeout,
+                    )
+            else:
+                # For other methods like PUT, DELETE, etc.
+                response = requests.request(
+                    self.method.upper(),
+                    url,
+                    json=payload if isinstance(payload, dict) else None,
+                    data=None if isinstance(payload, dict) else payload,
+                    headers=self.headers,
+                    timeout=self.timeout,
+                )
+
+            # Check for successful response (2xx status codes)
+            if response.status_code < 200 or response.status_code >= 300:
+                error_msg = f"Endpoint API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError(f"Endpoint API request timed out after {self.timeout} seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(
+                "Endpoint API connection error - please check your network connection"
+            )
+        except Exception as e:
+            raise RuntimeError(f"Endpoint request failed: {str(e)}")
+
+
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
 ) -> Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider
 ]:
     """Get a configured messaging provider (single provider mode for backward compatibility)."""
     providers = get_providers(provider_name)
@@ -783,7 +959,7 @@ def get_provider(
 def get_providers(
     provider_name: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
 ) -> List[Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider
 ]]:
     """Get a list of configured messaging providers.
     
@@ -837,6 +1013,8 @@ def get_providers(
                 provider = AudioProvider()
             elif provider_enum == Provider.DESKTOP:
                 provider = DesktopProvider()
+            elif provider_enum == Provider.ENDPOINT:
+                provider = EndpointProvider()
             else:
                 continue  # Skip unsupported providers
             
@@ -882,6 +1060,11 @@ def get_providers(
             provider = DesktopProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
+                
+        if os.environ.get("TELERT_ENDPOINT_URL", None) is not None:
+            provider = EndpointProvider()
+            if provider.configure_from_env():
+                env_providers.append(provider)
         
         # If multiple providers are configured via env vars, check for preference order
         if env_providers:
@@ -908,7 +1091,8 @@ def get_providers(
                                 Provider.SLACK: SlackProvider,
                                 Provider.PUSHOVER: PushoverProvider,
                                 Provider.AUDIO: AudioProvider,
-                                Provider.DESKTOP: DesktopProvider
+                                Provider.DESKTOP: DesktopProvider,
+                                Provider.ENDPOINT: EndpointProvider
                             }[p_type]):
                                 result_providers.append(provider)
                                 break
@@ -1137,6 +1321,33 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
             raise ValueError("Pushover token and user cannot be empty")
 
         provider_instance = PushoverProvider(kwargs["token"], kwargs["user"])
+
+    elif provider == Provider.ENDPOINT:
+        if "url" not in kwargs:
+            raise ValueError("Endpoint provider requires 'url'")
+
+        # Validate URL format
+        _validate_webhook_url(kwargs["url"])
+        
+        # Build the provider instance with all optional parameters
+        method = kwargs.get("method", "POST")
+        headers = kwargs.get("headers", {})
+        payload_template = kwargs.get("payload_template", '{"text": "{message}"}')
+        name = kwargs.get("name", "Custom Endpoint")
+        timeout = kwargs.get("timeout", 20)
+        
+        # Validate method
+        if method not in ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]:
+            raise ValueError(f"Invalid HTTP method: {method}")
+            
+        provider_instance = EndpointProvider(
+            url=kwargs["url"],
+            method=method,
+            headers=headers,
+            payload_template=payload_template,
+            name=name,
+            timeout=timeout
+        )
 
     else:
         raise ValueError(f"Unsupported provider: {provider}")

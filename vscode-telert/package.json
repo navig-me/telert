@@ -1,0 +1,92 @@
+{
+  "name": "telert-vscode",
+  "displayName": "Telert - Terminal Command Notifications",
+  "description": "Run commands in integrated terminal and get notifications when they complete",
+  "version": "0.1.0",
+  "publisher": "navig-me",
+  "author": {
+    "name": "Mihir Khandekar",
+    "email": "mihirkhandekar@gmail.com"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "terminal",
+    "notification",
+    "alert",
+    "telegram",
+    "slack"
+  ],
+  "activationEvents": [
+    "onCommand:telert.runInTerminal",
+    "onCommand:telert.sendLastOutput"
+  ],
+  "main": "./extension.js",
+  "icon": "images/icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "telert.runInTerminal",
+        "title": "Telert: Run in Integrated Terminal and Notify"
+      },
+      {
+        "command": "telert.sendLastOutput",
+        "title": "Telert: Send Last Terminal Output"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "telert.runInTerminal",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "telert.runInTerminal"
+        },
+        {
+          "command": "telert.sendLastOutput"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Telert",
+      "properties": {
+        "telert.defaultProvider": {
+          "type": "string",
+          "default": "",
+          "description": "Default notification provider to use (e.g., telegram, slack, teams, discord, pushover, audio, desktop)"
+        },
+        "telert.notificationThreshold": {
+          "type": "number",
+          "default": 5,
+          "description": "Minimum execution time in seconds before sending notification"
+        },
+        "telert.environmentVariables": {
+          "type": "object",
+          "default": {},
+          "description": "Environment variables for telert configuration (e.g., TELERT_TOKEN, TELERT_CHAT_ID)"
+        },
+        "telert.statusBarTimer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show timer in status bar while command is running"
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/navig-me/telert.git"
+  },
+  "homepage": "https://github.com/navig-me/telert",
+  "bugs": {
+    "url": "https://github.com/navig-me/telert/issues"
+  },
+  "license": "MIT"
+}

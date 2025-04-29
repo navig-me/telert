@@ -21,7 +21,9 @@ Perfect for long-running tasks, remote servers, CI pipelines, or monitoring crit
 
 Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
 
+
 <img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="600">
+
 
 ## 📋 Table of Contents
 - [Installation & Quick Start](#-installation--quick-start)
@@ -739,7 +741,7 @@ telert run --label "CI Build" -- npm run build
  
  The project is automatically published to PyPI when a new GitHub release is created:
  
- 1. Update version in both `pyproject.toml` and `telert/__init__.py`
+ 1. Update version in both `pyproject.toml`, `README.md` and `telert/__init__.py`
  2. Commit the changes and push to main
  3. Create a new GitHub release with a tag like `v0.1.3`
  4. The GitHub Actions workflow will automatically build and publish to PyPI

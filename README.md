@@ -11,6 +11,8 @@
 Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), custom HTTP endpoints, plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 [![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/A_kYXt?referralCode=vj4bEA)
+
 
 <img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
 
@@ -674,6 +676,16 @@ df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
 telert run --label "System update" apt update && apt upgrade -y
 ```
 
+### CI/CD Integration with Railway
+For CI/CD systems or services that can make HTTP requests but can't install Python packages, use our [Railway template](RAILWAY.md) to deploy a notification API:
+
+```bash
+# Send notification from any CI system to your Railway-deployed Telert API
+curl -X POST https://your-railway-url.up.railway.app/send \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Build complete!"}'
+```
+
 ### Data Processing
 - Monitor long-running data pipelines
 - Get notified when large file operations complete
@@ -729,6 +741,14 @@ telert run --label "CI Build" -- npm run build
  ```
 
 ---
+
+## Need a VPS for Your Projects?
+
+Try these providers with generous free credits:
+
+- [Vultr](https://www.vultr.com/?ref=9752934-9J) — $100 free credits
+- [DigitalOcean](https://m.do.co/c/cdf2b5a182f2) — $200 free credits
+
 
 ## 🤝 Contributing / License
 

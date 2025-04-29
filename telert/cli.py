@@ -17,7 +17,6 @@ import subprocess
 import sys
 import textwrap
 import time
-from typing import List
 
 from telert.messaging import (
     CONFIG_DIR,
@@ -29,16 +28,6 @@ from telert.messaging import (
 
 CFG_DIR = CONFIG_DIR
 CFG_FILE = CFG_DIR / "config.json"
-
-REFERRAL_FOOTER = textwrap.dedent("""
-—
-✨ **Looking for a reliable VPS for your projects?**
-
-- [Vultr](https://www.vultr.com/?ref=9752934-9J) — $100 free credits
-- [DigitalOcean](https://m.do.co/c/cdf2b5a182f2) — $200 free credits
-
-(Disable footer: `export TELERT_HIDE_ADS=1`)
-""").strip()
 
 # ───────────────────────────────── helpers ──────────────────────────────────
 
@@ -197,30 +186,30 @@ def do_config(a):
                 add_to_defaults=a.add_to_defaults,
             )
             print("✔ Pushover configuration saved")
-            
+
         elif provider == "endpoint":
             if not hasattr(a, "url"):
                 sys.exit("❌ Endpoint configuration requires --url")
-                
+
             # Build configuration params
             config_params = {
                 "url": a.url,
                 "set_default": a.set_default,
                 "add_to_defaults": a.add_to_defaults,
             }
-            
+
             if hasattr(a, "method") and a.method:
                 config_params["method"] = a.method
-                
+
             if hasattr(a, "payload_template") and a.payload_template:
                 config_params["payload_template"] = a.payload_template
-                
+
             if hasattr(a, "name") and a.name:
                 config_params["name"] = a.name
-                
+
             if hasattr(a, "timeout") and a.timeout:
                 config_params["timeout"] = a.timeout
-                
+
             # Handle headers
             headers = {}
             if hasattr(a, "header") and a.header:
@@ -229,11 +218,13 @@ def do_config(a):
                         key, value = header.split(":", 1)
                         headers[key.strip()] = value.strip()
                     else:
-                        sys.exit(f"❌ Invalid header format: {header}. Use 'Key: Value' format.")
-            
+                        sys.exit(
+                            f"❌ Invalid header format: {header}. Use 'Key: Value' format."
+                        )
+
             if headers:
                 config_params["headers"] = headers
-            
+
             try:
                 configure_provider(Provider.ENDPOINT, **config_params)
                 print(f"✔ Endpoint configuration saved: {a.name or 'Custom Endpoint'}")
@@ -386,7 +377,9 @@ def do_status(a):
         url = endpoint_config["url"]
         method = endpoint_config.get("method", "POST")
         timeout = endpoint_config.get("timeout", 20)
-        print(f"- {name}{default_marker}: url={url[:30]}…, method={method}, timeout={timeout}s")
+        print(
+            f"- {name}{default_marker}: url={url[:30]}…, method={method}, timeout={timeout}s"
+        )
 
     # If none configured, show warning
     if not (
@@ -874,31 +867,39 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
-    
+
     # Endpoint config
     endpoint_parser = c_subparsers.add_parser(
         "endpoint", help="configure custom HTTP endpoint notifications"
     )
     endpoint_parser.add_argument(
-        "--url", required=True, help="URL to send notifications to (supports placeholders like {message}, {status_code}, {duration_seconds})"
+        "--url",
+        required=True,
+        help="URL to send notifications to (supports placeholders like {message}, {status_code}, {duration_seconds})",
     )
     endpoint_parser.add_argument(
-        "--method", default="POST", choices=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
-        help="HTTP method to use (default: POST)"
+        "--method",
+        default="POST",
+        choices=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+        help="HTTP method to use (default: POST)",
     )
     endpoint_parser.add_argument(
-        "--header", action="append", 
-        help="HTTP header in 'Key: Value' format (can be specified multiple times)"
+        "--header",
+        action="append",
+        help="HTTP header in 'Key: Value' format (can be specified multiple times)",
     )
     endpoint_parser.add_argument(
-        "--payload-template", 
-        help="JSON payload template with placeholders (default: '{\"text\": \"{message}\"}')"
+        "--payload-template",
+        help='JSON payload template with placeholders (default: \'{"text": "{message}"}\')',
     )
     endpoint_parser.add_argument(
         "--name", default="Custom Endpoint", help="friendly name for this endpoint"
     )
     endpoint_parser.add_argument(
-        "--timeout", type=int, default=20, help="request timeout in seconds (default: 20)"
+        "--timeout",
+        type=int,
+        default=20,
+        help="request timeout in seconds (default: 20)",
     )
     endpoint_parser.add_argument(
         "--set-default", action="store_true", help="set as the only default provider"
@@ -977,8 +978,6 @@ def main():
 
     def do_help(_):
         p.print_help()
-        if os.environ.get("TELERT_HIDE_ADS") != "1":
-            print("\n" + REFERRAL_FOOTER)
 
     # help alias
     hp = sp.add_parser("help", help="show global help")

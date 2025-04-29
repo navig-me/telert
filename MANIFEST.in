@@ -1,2 +1,2 @@
-include LICENSE README.md TELEGRAM.md TEAMS.md SLACK.md
+include LICENSE README.md TELEGRAM.md TEAMS.md SLACK.md telert.png
 recursive-include telert *

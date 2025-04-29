@@ -1,94 +1,127 @@
-# Telert - Terminal Command Notifications
+# Telert - Notifications for Your VS Code Terminal
 
-Get notifications when your terminal commands complete, directly from VS Code. This extension integrates with the [telert](https://github.com/navig-me/telert) CLI tool to provide notifications for long-running commands.
+Never stare at a terminal waiting for your commands to finish again! Telert sends you instant notifications when long-running tasks complete, so you can focus on other work while waiting for builds, tests, or deployments.
 
 ![Telert Demo](https://raw.githubusercontent.com/navig-me/telert/main/docs/telert-demo.gif)
 
-## Features
+## 🚀 Why You Need This Extension
 
-- **Run in Terminal and Notify**: Execute code or commands in the integrated terminal and get notified when they complete
-- **Status Bar Timer**: Shows elapsed time while command is running
-- **Send Last Terminal Output**: Send the output of the last command as a notification
-- **Multiple Notification Providers**: Support for Telegram, Slack, Microsoft Teams, Discord, Pushover, and more
-- **Context Menu Integration**: Right-click on code to run it with notifications
-- **Command Palette Actions**: Easy access to telert commands
+- **Boost Your Productivity**: Run time-consuming tasks and get notified when they're done - no more checking back constantly
+- **Stay In The Flow**: Get notified on your phone, desktop, or messaging apps when commands complete
+- **Perfect For Remote Work**: Run commands on remote servers or cloud VMs and get notifications anywhere
+- **Works With Your Tools**: Seamlessly integrates into your VS Code workflow with minimal setup
+- **Cross-Platform**: Works on macOS, Windows, and Linux with multiple notification channels
 
-## Requirements
+## 📱 Notification Channels
 
-This extension requires the telert CLI tool to be installed:
+Receive notifications through various channels:
+
+- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
+- **Mobile Devices**: Pushover notifications on Android & iOS 
+- **Desktop**: Native notifications on Windows, macOS, and Linux
+- **Audio**: Sound alerts for immediate attention
+- **Custom APIs**: Send to any custom HTTP endpoint
+
+## ✨ Features
+
+- **Run & Notify**: Execute code or commands with automatic notifications when they complete
+- **Live Status Bar Timer**: Monitor elapsed time while commands run
+- **Context Menu Integration**: Right-click on code to run with notifications
+- **Command Palette Actions**: Quick access to telert commands
+- **Notification Threshold**: Only notify for commands that take longer than X seconds
+- **Multi-Provider Support**: Send notifications to multiple services simultaneously
+- **Terminal Output Sharing**: Send the output of your last command as a notification
+
+## 🔧 Installation & Setup
+
+### 1. Install the telert CLI tool:
 
 ```bash
 pip install telert
 ```
 
-Configure your preferred notification provider:
+### 2. Configure your preferred notification method:
 
 ```bash
-# Example for Telegram
+# Send notifications to your phone via Telegram
 telert config telegram --token "<your-token>" --chat-id "<your-chat-id>" --set-default
 
-# Example for Slack
+# Or use Slack for team notifications
 telert config slack --webhook-url "<webhook-url>" --set-default
 
-# Or use desktop notifications
+# Or simple desktop notifications (no additional setup)
 telert config desktop --app-name "VS Code" --set-default
 ```
 
-## Extension Settings
+### 3. Verify your setup:
 
-This extension contributes the following settings:
+```bash
+telert status
+```
 
-* `telert.defaultProvider`: Set the default notification provider to use
-* `telert.notificationThreshold`: Minimum execution time in seconds before sending notification
-* `telert.environmentVariables`: Environment variables for telert configuration
-* `telert.statusBarTimer`: Show timer in status bar while command is running
+## 💻 Usage Examples
 
-## Usage
+### For Data Scientists & ML Engineers
+
+Run your long model training sessions and get notified when they complete:
+
+```python
+# Train a model for hours and get notified when done
+python train_model.py --epochs 100
+```
+
+### For DevOps & Cloud Engineers
+
+Get notified when your infrastructure deployments or cloud operations finish:
+
+```bash
+# Deploy to cloud and get notified
+terraform apply -auto-approve
+```
+
+### For Web Developers
+
+Get notified when your builds, tests or deployments complete:
+
+```bash
+# Build your frontend and get notified
+npm run build
+```
+
+## ⚙️ Configuration Options
+
+Fine-tune the extension to match your workflow:
+
+* `telert.defaultProvider`: Choose your notification method (telegram, slack, teams, discord, pushover, desktop, audio)
+* `telert.notificationThreshold`: Only notify for commands that take longer than X seconds
+* `telert.environmentVariables`: Configure your notification services
+* `telert.statusBarTimer`: Show/hide the live timer while commands run
+
+## 🧩 Using the Extension
 
 ### Running Code with Notifications
 
-1. Select code in your editor (or position cursor in a file)
+1. Select code in your editor (or position cursor on a line)
 2. Right-click and select "Telert: Run in Integrated Terminal and Notify"
-   - Or use Command Palette (Ctrl+Shift+P / Cmd+Shift+P) to find the command
-3. The code will run in the integrated terminal
-4. When complete, you'll receive a notification via your configured provider
-5. A timer in the status bar shows the elapsed time
+   - Or use Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Telert"
+3. Your code will run in the integrated terminal with a live timer
+4. When complete, you'll receive a notification with execution time and status
 
-### Sending Last Terminal Output
+### Sending Terminal Output
 
-If you've already run a command, you can send its output:
+If you've already run a command:
 
-1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Select "Telert: Send Last Terminal Output"
-3. Enter a message to include with the output
-4. The last terminal output will be sent as a notification
+3. Enter an optional message
+4. Get a notification with the terminal output
 
-## Configuration Examples
+## 🔗 Related Resources
 
-### Environment Variables
+- [Telert GitHub Repository](https://github.com/navig-me/telert)
+- [Telert on PyPI](https://pypi.org/project/telert/)
+- [Documentation](https://github.com/navig-me/telert/blob/main/README.md)
 
-Configure environment variables for your notification providers:
-
-```json
-"telert.environmentVariables": {
-    "TELERT_TOKEN": "your-telegram-token",
-    "TELERT_CHAT_ID": "your-telegram-chat-id"
-}
-```
-
-### Multiple Providers
-
-Configure multiple notification providers:
-
-```json
-"telert.defaultProvider": "telegram,desktop",
-```
-
-## Related Links
-
-- [telert on GitHub](https://github.com/navig-me/telert)
-- [telert on PyPI](https://pypi.org/project/telert/)
-
-## License
+## 📝 License
 
 This extension is licensed under the MIT License.

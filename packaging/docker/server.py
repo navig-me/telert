@@ -5,18 +5,29 @@ Allows sending notifications to any configured provider via a simple REST API.
 
 from typing import Dict, List, Optional, Union, Any
 import os
+from pathlib import Path
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 
 from telert import send, is_configured, list_providers, get_config
+
+# Check if static directory exists and create mount
+static_dir = Path(__file__).parent / "static"
+has_static = static_dir.exists()
 
 app = FastAPI(
     title="Telert API",
     description="Send notifications from HTTP requests to various messaging services",
-    version="0.1.0"
+    version="0.1.27"
 )
+
+# Serve static files if directory exists
+if has_static:
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Configure CORS for API access
 app.add_middleware(
@@ -43,9 +54,12 @@ class ProviderInfo(BaseModel):
     is_default: bool
     config: Dict[str, Any]
 
-@app.get("/", tags=["Info"])
+@app.get("/", tags=["Info"], response_class=HTMLResponse)
 async def root():
-    """Get API information and status."""
+    """Get API information and status. Serves HTML if static files exist."""
+    if has_static and (static_dir / "index.html").exists():
+        with open(static_dir / "index.html", "r") as f:
+            return f.read()
     return {"status": "ok", "message": "Telert API is running"}
 
 @app.get("/status", tags=["Info"])

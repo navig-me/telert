@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.27 (2025-04-30)
+- Introduced consistent logo design with telert.png
+- Updated VS Code extension icon and notification icons
+- Enhanced Docker API with a professional web interface
+- Improved API with static file serving and better user experience
+- Included telert.png in package distribution
+- Updated VS Code extension to version 0.1.1
+
 ## 0.1.26 (2025-04-29)
 - Added Docker image with server and CLI modes
 - Added GitHub Action for running commands with notifications

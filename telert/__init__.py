@@ -18,7 +18,7 @@ __all__ = [
     "set_default_providers",
     "list_providers",
 ]
-__version__ = "0.1.26"  # Added Docker image, GitHub Action, shell completions, and VS Code extension
+__version__ = "0.1.27"  # Updated with telert.png logo and improved Docker API
 
 from telert.api import (
     configure,

@@ -19,7 +19,10 @@ Telert is a lightweight utility that sends notifications when your terminal comm
 
 Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
-Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
+Use it as a CLI tool, Python library, or a notification API. Telert is available:
+- As a Python package: `pip install telert`
+- As a Docker image: `docker pull ghcr.io/navig-me/telert:latest`
+- As a cloud-hosted API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
 
 
 <img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="600">
@@ -41,6 +44,7 @@ Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Te
 - [Usage Guide](#-usage-guide)
   - [Command Line Interface](#command-line-interface-cli)
   - [Python API](#python-api)
+  - [Docker Usage](#docker-usage)
 - [API Deployment to Cloud Platforms](#-api-deployment-to-cloud-platforms)
 - [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
@@ -574,6 +578,47 @@ def send_to_discord():
 def send_to_api():
     return "This will send to your configured HTTP endpoint when done"
 ```
+
+### Docker Usage
+
+Telert is available as a Docker image that can be used in both CLI and server modes.
+
+#### Pull the Official Image
+
+```bash
+docker pull ghcr.io/navig-me/telert:latest
+```
+
+#### CLI Mode Examples
+
+```bash
+# Test telert status
+docker run --rm ghcr.io/navig-me/telert:latest status
+
+# Configure and send a notification
+docker run --rm \
+  -e TELERT_TELEGRAM_TOKEN=your_token \
+  -e TELERT_TELEGRAM_CHAT_ID=your_chat_id \
+  ghcr.io/navig-me/telert:latest send "Hello from Docker!"
+```
+
+#### Server Mode Example
+
+```bash
+# Run telert as a notification API server
+docker run -d --name telert-server \
+  -p 8000:8000 \
+  -e TELERT_TELEGRAM_TOKEN=your_token \
+  -e TELERT_TELEGRAM_CHAT_ID=your_chat_id \
+  ghcr.io/navig-me/telert:latest serve
+
+# Send a notification via the API
+curl -X POST http://localhost:8000/send \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello from the API!"}'
+```
+
+For more detailed information on Docker usage, including configuration persistence and API endpoints, see the [Docker documentation](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md).
 
 ## 🌐 API Deployment to Cloud Platforms
 

@@ -14,12 +14,6 @@
 - Developed CircleCI orb for notification support
 - Added detailed CI/CD integration documentation
 
-### Shell Completions
-- Added shell completion generation command (telert completions)
-- Implemented completions for Bash, Zsh, and Fish shells
-- Created installation scripts for easy setup
-- Added documentation for shell completions
-
 ### VS Code Extension
 - Added VS Code extension for "Run in Terminal & Notify"
 - Implemented status bar timer for running commands
@@ -49,11 +43,6 @@ docker run -d -p 8000:8000 ghcr.io/navig-me/telert:latest serve
     chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
 ```
 
-### Shell Completions
-```bash
-# Generate and install completions
-telert completions --shell bash > ~/.local/share/bash-completion/completions/telert
-```
 
 ### VS Code Extension
 The extension can be installed from the VS Code marketplace and provides:

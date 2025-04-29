@@ -1041,10 +1041,485 @@ def main():
 
     def do_help(_):
         p.print_help()
+        
+def do_completions(a):
+    """Generate shell completions."""
+    import os
+    import pathlib
+    
+    # Store completions content
+    bash_completion = '''#!/usr/bin/env bash
+# Bash completion for telert
+
+_telert_completion() {
+    local cur prev words cword
+    _init_completion || return
+
+    # List of primary commands
+    local commands="run send config status hook help completions"
+    
+    # List of providers
+    local providers="telegram teams slack discord pushover audio desktop endpoint"
+    
+    # List of config commands
+    local config_commands="telegram teams slack discord pushover audio desktop endpoint set-defaults"
+    
+    # Standard options for most commands
+    local options="--provider --all-providers --verbose --help"
+
+    # Handle different positions in the command line
+    if [[ $cword -eq 1 ]]; then
+        # Complete primary commands
+        COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+        return 0
+    fi
+
+    # Handle subcommands
+    case "${words[1]}" in
+        run)
+            # Options for 'run'
+            COMPREPLY=($(compgen -W "$options --label --only-fail --message" -- "$cur"))
+            ;;
+        send)
+            # Options for 'send'
+            COMPREPLY=($(compgen -W "$options" -- "$cur"))
+            ;;
+        config)
+            if [[ $cword -eq 2 ]]; then
+                # Complete config subcommands
+                COMPREPLY=($(compgen -W "$config_commands" -- "$cur"))
+            elif [[ $cword -ge 3 ]]; then
+                # Options based on the provider
+                case "${words[2]}" in
+                    telegram)
+                        COMPREPLY=($(compgen -W "--token --chat-id --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    teams|slack|discord)
+                        COMPREPLY=($(compgen -W "--webhook-url --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    pushover)
+                        COMPREPLY=($(compgen -W "--token --user --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    audio)
+                        COMPREPLY=($(compgen -W "--sound-file --volume --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    desktop)
+                        COMPREPLY=($(compgen -W "--app-name --icon-path --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    endpoint)
+                        COMPREPLY=($(compgen -W "--url --method --header --payload-template --name --timeout --set-default --add-to-defaults" -- "$cur"))
+                        ;;
+                    set-defaults)
+                        COMPREPLY=($(compgen -W "--providers" -- "$cur"))
+                        ;;
+                esac
+            fi
+            ;;
+        hook)
+            # Options for 'hook'
+            COMPREPLY=($(compgen -W "--long -l --provider --all-providers" -- "$cur"))
+            ;;
+        status)
+            # Options for 'status'
+            COMPREPLY=($(compgen -W "--provider --all-providers" -- "$cur"))
+            ;;
+        completions)
+            # Options for 'completions'
+            COMPREPLY=($(compgen -W "--shell --output-dir" -- "$cur"))
+            ;;
+        help)
+            # Complete primary commands for help
+            COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+            ;;
+    esac
+
+    # Handle options that expect a provider as value
+    if [[ "$prev" == "--provider" ]]; then
+        COMPREPLY=($(compgen -W "$providers" -- "$cur"))
+        return 0
+    fi
+
+    return 0
+}
+
+complete -F _telert_completion telert
+'''
+
+    zsh_completion = '''#compdef telert
+# Zsh completion for telert
+
+_telert() {
+    local state line context
+    local -a commands providers config_commands options
+
+    # List of primary commands
+    commands=(
+        'run:Run a command and send notification on completion'
+        'send:Send a notification message'
+        'config:Configure notification providers'
+        'status:Check notification configuration status'
+        'hook:Generate shell hooks for long-running commands'
+        'completions:Generate shell completions'
+        'help:Show help'
+    )
+    
+    # List of providers
+    providers=(
+        'telegram:Telegram messaging'
+        'teams:Microsoft Teams messaging'
+        'slack:Slack messaging'
+        'discord:Discord messaging'
+        'pushover:Pushover mobile notifications'
+        'audio:Audio notifications'
+        'desktop:Desktop notifications'
+        'endpoint:Custom HTTP endpoint'
+    )
+    
+    # List of config commands
+    config_commands=(
+        'telegram:Configure Telegram'
+        'teams:Configure Microsoft Teams'
+        'slack:Configure Slack'
+        'discord:Configure Discord'
+        'pushover:Configure Pushover'
+        'audio:Configure audio notifications'
+        'desktop:Configure desktop notifications'
+        'endpoint:Configure HTTP endpoint'
+        'set-defaults:Set default providers'
+    )
+    
+    # Standard options for most commands
+    options=(
+        '--provider:Specify notification provider'
+        '--all-providers:Use all configured providers'
+        '--verbose:Show verbose output'
+        '--help:Show help'
+    )
+
+    _arguments -C \\
+        '1: :->command' \\
+        '2: :->subcommand' \\
+        '*: :->args' && ret=0
+
+    case $state in
+        command)
+            _describe -t commands 'telert commands' commands
+            ;;
+        subcommand)
+            case "$line[1]" in
+                run)
+                    _arguments \\
+                        '--label:Label for the command' \\
+                        '--provider:Specify notification provider:($providers)' \\
+                        '--all-providers:Use all configured providers' \\
+                        '--only-fail:Only notify on failure' \\
+                        '--message:Custom notification message' \\
+                        '--verbose:Show verbose output'
+                    ;;
+                send)
+                    _arguments \\
+                        '--provider:Specify notification provider:($providers)' \\
+                        '--all-providers:Use all configured providers' \\
+                        '--verbose:Show verbose output'
+                    ;;
+                config)
+                    _describe -t commands 'config commands' config_commands
+                    ;;
+                hook)
+                    _arguments \\
+                        '(-l --long)'{-l,--long}':Threshold in seconds for notification' \\
+                        '--provider:Specify notification provider:($providers)' \\
+                        '--all-providers:Use all configured providers'
+                    ;;
+                status)
+                    _arguments \\
+                        '--provider:Specify notification provider:($providers)' \\
+                        '--all-providers:Show status for all providers'
+                    ;;
+                completions)
+                    _arguments \\
+                        '--shell:Shell to generate completions for:(bash zsh fish all)' \\
+                        '--output-dir:Directory to save completion files'
+                    ;;
+                help)
+                    _describe -t commands 'commands' commands
+                    ;;
+            esac
+            ;;
+        args)
+            case "$line[1]" in
+                config)
+                    case "$line[2]" in
+                        telegram)
+                            _arguments \\
+                                '--token:Telegram bot token' \\
+                                '--chat-id:Telegram chat ID' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        teams|slack|discord)
+                            _arguments \\
+                                '--webhook-url:Webhook URL' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        pushover)
+                            _arguments \\
+                                '--token:Pushover application token' \\
+                                '--user:Pushover user key' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        audio)
+                            _arguments \\
+                                '--sound-file:Path to sound file' \\
+                                '--volume:Volume level (0.0-1.0)' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        desktop)
+                            _arguments \\
+                                '--app-name:Application name' \\
+                                '--icon-path:Path to icon file' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        endpoint)
+                            _arguments \\
+                                '--url:HTTP endpoint URL' \\
+                                '--method:HTTP method (GET, POST, etc.)' \\
+                                '--header:HTTP headers' \\
+                                '--payload-template:Payload template' \\
+                                '--name:Friendly name for endpoint' \\
+                                '--timeout:Request timeout in seconds' \\
+                                '--set-default:Set as default provider' \\
+                                '--add-to-defaults:Add to default providers'
+                            ;;
+                        set-defaults)
+                            _arguments \\
+                                '--providers:Comma-separated list of providers'
+                            ;;
+                    esac
+                    ;;
+                run)
+                    if [[ "$line[2]" == "--provider" ]]; then
+                        _describe -t providers 'notification providers' providers
+                    elif [[ "$words[(($CURRENT - 1))]" == "--provider" ]]; then
+                        _describe -t providers 'notification providers' providers
+                    fi
+                    ;;
+                send)
+                    if [[ "$line[2]" == "--provider" ]]; then
+                        _describe -t providers 'notification providers' providers
+                    elif [[ "$words[(($CURRENT - 1))]" == "--provider" ]]; then
+                        _describe -t providers 'notification providers' providers
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_telert "$@"
+'''
+
+    fish_completion = '''# Fish completion for telert
+
+# Main commands
+complete -c telert -f
+complete -c telert -n "__fish_use_subcommand" -a "run" -d "Run a command and send notification on completion"
+complete -c telert -n "__fish_use_subcommand" -a "send" -d "Send a notification message"
+complete -c telert -n "__fish_use_subcommand" -a "config" -d "Configure notification providers"
+complete -c telert -n "__fish_use_subcommand" -a "status" -d "Check notification configuration status"
+complete -c telert -n "__fish_use_subcommand" -a "hook" -d "Generate shell hooks for long-running commands"
+complete -c telert -n "__fish_use_subcommand" -a "completions" -d "Generate shell completions"
+complete -c telert -n "__fish_use_subcommand" -a "help" -d "Show help"
+
+# Provider options
+set -l telert_providers telegram teams slack discord pushover audio desktop endpoint
+
+# Run command options
+complete -c telert -n "__fish_seen_subcommand_from run" -l "label" -d "Label for the command" -r
+complete -c telert -n "__fish_seen_subcommand_from run" -l "provider" -d "Specify notification provider" -r -a "$telert_providers"
+complete -c telert -n "__fish_seen_subcommand_from run" -l "all-providers" -d "Use all configured providers"
+complete -c telert -n "__fish_seen_subcommand_from run" -l "only-fail" -d "Only notify on failure"
+complete -c telert -n "__fish_seen_subcommand_from run" -l "message" -d "Custom notification message" -r
+complete -c telert -n "__fish_seen_subcommand_from run" -l "verbose" -d "Show verbose output"
+
+# Send command options
+complete -c telert -n "__fish_seen_subcommand_from send" -l "provider" -d "Specify notification provider" -r -a "$telert_providers"
+complete -c telert -n "__fish_seen_subcommand_from send" -l "all-providers" -d "Use all configured providers"
+complete -c telert -n "__fish_seen_subcommand_from send" -l "verbose" -d "Show verbose output"
+
+# Config command subcommands
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "telegram" -d "Configure Telegram"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "teams" -d "Configure Microsoft Teams"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "slack" -d "Configure Slack"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "discord" -d "Configure Discord"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "pushover" -d "Configure Pushover"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "audio" -d "Configure audio notifications"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "desktop" -d "Configure desktop notifications"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "endpoint" -d "Configure HTTP endpoint"
+complete -c telert -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from $telert_providers set-defaults" -a "set-defaults" -d "Set default providers"
+
+# Completions command options
+complete -c telert -n "__fish_seen_subcommand_from completions" -l "shell" -d "Shell to generate completions for" -r -a "bash zsh fish all"
+complete -c telert -n "__fish_seen_subcommand_from completions" -l "output-dir" -d "Directory to save completion files" -r
+
+# Provider-specific options
+# Telegram
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from telegram" -l "token" -d "Telegram bot token" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from telegram" -l "chat-id" -d "Telegram chat ID" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from telegram" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from telegram" -l "add-to-defaults" -d "Add to default providers"
+
+# Teams
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from teams" -l "webhook-url" -d "Teams webhook URL" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from teams" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from teams" -l "add-to-defaults" -d "Add to default providers"
+
+# Slack
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from slack" -l "webhook-url" -d "Slack webhook URL" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from slack" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from slack" -l "add-to-defaults" -d "Add to default providers"
+
+# Discord
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from discord" -l "webhook-url" -d "Discord webhook URL" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from discord" -l "username" -d "Discord webhook username" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from discord" -l "avatar-url" -d "Discord webhook avatar URL" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from discord" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from discord" -l "add-to-defaults" -d "Add to default providers"
+
+# Pushover
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from pushover" -l "token" -d "Pushover application token" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from pushover" -l "user" -d "Pushover user key" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from pushover" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from pushover" -l "add-to-defaults" -d "Add to default providers"
+
+# Audio
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from audio" -l "sound-file" -d "Path to sound file" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from audio" -l "volume" -d "Volume level (0.0-1.0)" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from audio" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from audio" -l "add-to-defaults" -d "Add to default providers"
+
+# Desktop
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from desktop" -l "app-name" -d "Application name" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from desktop" -l "icon-path" -d "Path to icon file" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from desktop" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from desktop" -l "add-to-defaults" -d "Add to default providers"
+
+# Endpoint
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "url" -d "HTTP endpoint URL" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "method" -d "HTTP method (GET, POST, etc.)" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "header" -d "HTTP headers" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "payload-template" -d "Payload template" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "name" -d "Friendly name for endpoint" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "timeout" -d "Request timeout in seconds" -r
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "set-default" -d "Set as default provider"
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from endpoint" -l "add-to-defaults" -d "Add to default providers"
+
+# Set-defaults
+complete -c telert -n "__fish_seen_subcommand_from config; and __fish_seen_subcommand_from set-defaults" -l "providers" -d "Comma-separated list of providers" -r
+
+# Hook options
+complete -c telert -n "__fish_seen_subcommand_from hook" -s "l" -l "long" -d "Threshold in seconds for notification" -r
+complete -c telert -n "__fish_seen_subcommand_from hook" -l "provider" -d "Specify notification provider" -r -a "$telert_providers"
+complete -c telert -n "__fish_seen_subcommand_from hook" -l "all-providers" -d "Use all configured providers"
+
+# Status options
+complete -c telert -n "__fish_seen_subcommand_from status" -l "provider" -d "Specify notification provider" -r -a "$telert_providers"
+complete -c telert -n "__fish_seen_subcommand_from status" -l "all-providers" -d "Show status for all providers"
+
+# Help options
+complete -c telert -n "__fish_seen_subcommand_from help" -a "run send config status hook" -d "Command to get help for"
+'''
+
+    # Function to get installation instructions
+    def get_install_instructions(shell_type, output_path):
+        if shell_type == "bash":
+            return f'''To enable Bash completions, add the following to your ~/.bashrc:
+
+echo 'source "{output_path}"' >> ~/.bashrc
+# or
+echo 'source "{output_path}"' >> ~/.bash_profile
+'''
+        elif shell_type == "zsh":
+            return f'''To enable Zsh completions, add the following to your ~/.zshrc:
+
+fpath=("{os.path.dirname(output_path)}" $fpath)
+autoload -U compinit && compinit
+'''
+        elif shell_type == "fish":
+            return f'''Fish completions should be automatically loaded once placed in:
+{output_path}
+'''
+        return ""
+
+    # Handle output based on shell type
+    if a.shell == "all" or a.shell == "bash":
+        if a.output_dir:
+            output_path = os.path.join(a.output_dir, "telert")
+            os.makedirs(a.output_dir, exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write(bash_completion)
+            print(f"✓ Bash completion saved to: {output_path}")
+            print(get_install_instructions("bash", output_path))
+        else:
+            print("# Bash completion for telert")
+            print("# Save this to ~/.local/share/bash-completion/completions/telert")
+            print(bash_completion)
+            
+    if a.shell == "all" or a.shell == "zsh":
+        if a.output_dir:
+            zsh_dir = os.path.join(a.output_dir, "zsh")
+            os.makedirs(zsh_dir, exist_ok=True)
+            output_path = os.path.join(zsh_dir, "_telert")
+            with open(output_path, "w") as f:
+                f.write(zsh_completion)
+            print(f"✓ Zsh completion saved to: {output_path}")
+            print(get_install_instructions("zsh", output_path))
+        else:
+            print("# Zsh completion for telert")
+            print("# Save this to ~/.zsh/completions/_telert")
+            print(zsh_completion)
+            
+    if a.shell == "all" or a.shell == "fish":
+        if a.output_dir:
+            fish_dir = os.path.join(a.output_dir, "fish/completions")
+            os.makedirs(fish_dir, exist_ok=True)
+            output_path = os.path.join(fish_dir, "telert.fish")
+            with open(output_path, "w") as f:
+                f.write(fish_completion)
+            print(f"✓ Fish completion saved to: {output_path}")
+            print(get_install_instructions("fish", output_path))
+        else:
+            print("# Fish completion for telert")
+            print("# Save this to ~/.config/fish/completions/telert.fish")
+            print(fish_completion)
+            
+    if not a.output_dir:
+        print("\n# For automated installation, run:")
+        print("telert completions --output-dir ~/.local/share/bash-completion/completions  # For Bash")
+        print("telert completions --shell zsh --output-dir ~/.zsh/completions              # For Zsh")
+        print("telert completions --shell fish --output-dir ~/.config/fish/completions     # For Fish")
 
     # help alias
     hp = sp.add_parser("help", help="show global help")
     hp.set_defaults(func=do_help)
+    
+    # completions generation
+    comp = sp.add_parser("completions", help="generate shell completions")
+    comp.add_argument(
+        "--shell", 
+        choices=["bash", "zsh", "fish", "all"],
+        default="all",
+        help="which shell completion to generate"
+    )
+    comp.add_argument(
+        "--output-dir",
+        help="directory to save completion files (default: print to stdout)"
+    )
+    comp.set_defaults(func=do_completions)
 
     args = p.parse_args()
 

@@ -224,6 +224,7 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
+| **Shell Completions** | Tab completions for commands and options in Bash, Zsh, and Fish. | `telert completions --shell bash` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
 | **GitHub Action** | Run commands in GitHub Actions with notifications. | `uses: navig-me/telert/actions/run@v1` |
 | **CI Integration** | GitLab CI templates and CircleCI orbs for notifications. | `extends: .telert-notify` |
@@ -622,6 +623,24 @@ curl -X POST http://localhost:8000/send \
 ```
 
 For more detailed information on Docker usage, including configuration persistence and API endpoints, see the [Docker documentation](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md).
+
+### Shell Completions
+
+Telert supports tab completions for Bash, Zsh, and Fish shells to make the CLI easier to use:
+
+```bash
+# Generate completion scripts
+telert completions --shell bash > ~/.local/share/bash-completion/completions/telert
+telert completions --shell zsh > ~/.zsh/completions/_telert
+telert completions --shell fish > ~/.config/fish/completions/telert.fish
+
+# Or install all completions at once with output directory
+telert completions --output-dir ~/.local/share/bash-completion/completions  # For Bash
+telert completions --shell zsh --output-dir ~/.zsh/completions              # For Zsh
+telert completions --shell fish --output-dir ~/.config/fish/completions     # For Fish
+```
+
+For detailed installation instructions and configuration for each shell, see the [Shell Completions Guide](https://github.com/navig-me/telert/blob/main/docs/COMPLETIONS.md).
 
 ### GitHub Actions Integration
 

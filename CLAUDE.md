@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Do not Commit CLAUDE.md
+Do not Commit CLAUDE.md ans other instructional files. Do not mention Claude Code in your commits.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

@@ -9,7 +9,7 @@ Telert offers a ready-to-deploy Railway template that provides an HTTP API for s
 
 ## Quick Deploy
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/telert)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/template/A_kYXt?referralCode=vj4bEA)
 
 With one click, you'll get a fully functional API for sending Telert notifications from any system that can make HTTP requests.
 

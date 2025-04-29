@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.25 (2025-04-29)
+- Clean docs folder
+
 ## 0.1.24 (2025-04-29)
 - Added Discord as supported provider
 - Additional handling for desktop notifications and error handling

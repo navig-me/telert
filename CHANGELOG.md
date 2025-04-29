@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.21 (2025-04-29)
+- Added custom HTTP endpoint provider with configurable URLs, methods, headers, and payload templates
+- Added support for variable substitution in endpoint URLs and payloads ({message}, {status_code}, etc.)
+- Added configurable timeout for endpoint requests
+- Added documentation for endpoint configuration via CLI and Python API
+
 ## 0.1.20 (2024-04-26)
 - Added links for Replit, GitHub Actions to README and DigitalOcean, Vultr links
 

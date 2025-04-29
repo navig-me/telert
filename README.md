@@ -1,6 +1,6 @@
-# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop)
+# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop, Custom HTTP Endpoints)
 
-**Version 0.1.20** 
+**Version 0.1.21** 
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 
-Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), custom HTTP endpoints, plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 [![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
 
@@ -21,6 +21,7 @@ Telert is a lightweight utility that sends notifications to Telegram, Microsoft 
   - [Microsoft Teams Setup](#microsoft-teams-setup)
   - [Slack Setup](#slack-setup)
   - [Pushover Setup](#pushover-setup)
+  - [Custom HTTP Endpoint Setup](#custom-http-endpoint-setup)
   - [Audio Alerts Setup](#audio-alerts-setup)
   - [Desktop Notifications Setup](#desktop-notifications-setup)
   - [Managing Multiple Providers](#managing-multiple-providers)
@@ -123,6 +124,39 @@ telert status  # Test your configuration
 ```
 
 [**Detailed Pushover Setup Guide**](https://github.com/navig-me/telert/blob/main/PUSHOVER.md)
+
+### Custom HTTP Endpoint Setup
+
+Custom endpoints allow you to send notifications to any HTTP service with fully configurable URL, headers, and payload templates.
+
+1. **Choose an endpoint**: This could be a webhook URL for a service like Discord, a custom notification service, or your own API
+2. **Configure**:
+
+```bash
+# Basic configuration with default POST method
+telert config endpoint --url "https://api.example.com/notify" --set-default
+
+# Advanced configuration with all options
+telert config endpoint \
+  --url "https://api.example.com/notify/{status_code}" \
+  --method POST \
+  --header "Authorization: Bearer abc123" \
+  --header "X-Custom: Value" \
+  --payload-template '{"text": "{message}", "status": "{status_code}", "time": "{duration_seconds}"}' \
+  --name "My Notification Service" \
+  --timeout 30 \
+  --set-default
+
+telert status  # Test your configuration
+```
+
+The endpoint provider supports these placeholders in both URL and payload templates:
+- `{message}` - The notification message
+- `{status_code}` - Exit status of the command (when using run mode)
+- `{duration_seconds}` - Time taken by the command in seconds (when using run mode)
+- `{timestamp}` - Current Unix timestamp
+
+For non-JSON payloads, provide a plain text template or customize the content type with appropriate headers.
 
 ### Audio Alerts Setup
 
@@ -380,6 +414,18 @@ configure_pushover("<app-token>", "<user-key>")
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
 
+# Configure custom HTTP endpoint
+from telert.messaging import Provider, configure_provider
+configure_provider(
+    Provider.ENDPOINT,
+    url="https://api.example.com/notify",
+    method="POST",
+    headers={"Authorization": "Bearer abc123"},
+    payload_template='{"text": "{message}"}',
+    name="My API",
+    timeout=30
+)
+
 # Configure provider and add to existing defaults (without replacing them)
 configure_desktop("My App", add_to_defaults=True)  # Uses built-in icon
 
@@ -430,6 +476,7 @@ send("Major system error", all_providers=True)
 send("Send to mobile device", provider="pushover")
 send("Play a sound alert", provider="audio")
 send("Show a desktop notification", provider="desktop")
+send("Send to custom HTTP endpoint", provider="endpoint")
 
 # Check delivery results
 results = send("Important message", provider=["slack", "telegram"])
@@ -489,6 +536,11 @@ with telert("Database backup", provider="desktop"):
 with telert("Long-running task", provider="pushover"):
     # This will send to Pushover when done
     time.sleep(60)
+    
+# Send to custom HTTP endpoint
+with telert("API operation", provider="endpoint"):
+    # This will send to your configured HTTP endpoint when done
+    api_operation()
 ```
 
 #### Function Decorator
@@ -543,6 +595,11 @@ def show_desktop_notification():
 @notify("Mobile alert", provider="pushover")
 def send_mobile_notification():
     return "This will send to Pushover when done"
+    
+# Send to custom HTTP endpoint
+@notify("API alert", provider="endpoint")
+def send_to_api():
+    return "This will send to your configured HTTP endpoint when done"
 ```
 
 ---
@@ -564,6 +621,12 @@ def send_mobile_notification():
 | `TELERT_AUDIO_VOLUME`     | Volume level for audio notifications (0.0-1.0) |
 | `TELERT_DESKTOP_APP_NAME` | Application name for desktop notifications  |
 | `TELERT_DESKTOP_ICON`     | Path to icon file for desktop notifications |
+| `TELERT_ENDPOINT_URL`     | URL for custom HTTP endpoint notifications   |
+| `TELERT_ENDPOINT_METHOD`  | HTTP method to use (default: POST)           |
+| `TELERT_ENDPOINT_HEADERS` | JSON string of headers for HTTP requests      |
+| `TELERT_ENDPOINT_PAYLOAD` | Payload template for HTTP requests           |
+| `TELERT_ENDPOINT_NAME`    | Friendly name for the custom endpoint        |
+| `TELERT_ENDPOINT_TIMEOUT` | Request timeout in seconds (default: 20)     |
 
 ### Runtime Variables
 

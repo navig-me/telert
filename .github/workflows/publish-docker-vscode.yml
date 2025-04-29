@@ -30,6 +30,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
             type=raw,value=latest,enable={{is.default}}
+          flavor: |
+            latest=auto
       
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -67,14 +69,24 @@ jobs:
         id: extract_version
         run: |
           VERSION=$(node -p "require('./vscode-telert/package.json').version")
-          TAG_VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//')
-          # Update vscode extension version to match tag if needed
-          if [ "$VERSION" != "$TAG_VERSION" ]; then
-            echo "Updating VS Code extension version from $VERSION to $TAG_VERSION"
-            cd vscode-telert
-            npm version $TAG_VERSION --no-git-tag-version
+          
+          # Check if running from a tag or branch
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Running from a tag - extract version from tag
+            TAG_VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//')
+            
+            # Update vscode extension version to match tag if needed
+            if [ "$VERSION" != "$TAG_VERSION" ]; then
+              echo "Updating VS Code extension version from $VERSION to $TAG_VERSION"
+              cd vscode-telert
+              npm version $TAG_VERSION --no-git-tag-version
+            fi
+            echo "version=$TAG_VERSION" >> $GITHUB_OUTPUT
+          else
+            # Running from a branch - use existing package.json version
+            echo "Using existing version $VERSION (running from branch)"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
-          echo "version=$TAG_VERSION" >> $GITHUB_OUTPUT
       
       - name: Build & Package Extension
         run: |

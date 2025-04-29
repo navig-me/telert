@@ -186,6 +186,19 @@ cython_debug/
 ehthumbs.db
 Thumbs.db
 
+# VS Code Extension
+vscode-telert/*.vsix
+vscode-telert/node_modules/
+vscode-telert/.vscode-test/
+vscode-telert/out/
+vscode-telert/.vs/
+vscode-telert/package-lock.json
+vscode-telert/coverage/
+vscode-telert/dist/
+vscode-telert/.nyc_output/
+vscode-telert/npm-debug.log
+vscode-telert/.eslintcache
+
 # Local configuration
 config.json
 .internaldocs

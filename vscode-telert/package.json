@@ -3,10 +3,10 @@
   "displayName": "Telert - Terminal Command Notifications",
   "description": "Run commands in integrated terminal and get notifications when they complete",
   "version": "0.1.0",
-  "publisher": "navig-me",
+  "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.99.0"
   },
   "categories": [
     "Other"

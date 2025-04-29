@@ -1,0 +1,71 @@
+name: 'Telert Action'
+description: 'Run commands with telert notification support'
+branding:
+  icon: 'bell'
+  color: 'blue'
+
+inputs:
+  command:
+    description: 'Command to run with telert notifications'
+    required: true
+  label:
+    description: 'Friendly label for the command'
+    required: false
+    default: ''
+  message:
+    description: 'Custom notification message'
+    required: false
+    default: ''
+  provider:
+    description: 'Notification provider to use (telegram, slack, teams, discord, pushover, desktop, audio)'
+    required: false
+    default: ''
+  only_fail:
+    description: 'Only notify on failure'
+    required: false
+    default: 'false'
+  all_providers:
+    description: 'Send to all configured providers'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install telert
+      shell: bash
+      run: pip install telert
+
+    - name: Run command with telert
+      shell: bash
+      run: |
+        # Prepare options
+        OPTIONS=""
+        
+        if [ ! -z "${{ inputs.label }}" ]; then
+          OPTIONS="$OPTIONS --label \"${{ inputs.label }}\""
+        fi
+        
+        if [ ! -z "${{ inputs.message }}" ]; then
+          OPTIONS="$OPTIONS --message \"${{ inputs.message }}\""
+        fi
+        
+        if [ ! -z "${{ inputs.provider }}" ]; then
+          OPTIONS="$OPTIONS --provider \"${{ inputs.provider }}\""
+        fi
+        
+        if [ "${{ inputs.only_fail }}" = "true" ]; then
+          OPTIONS="$OPTIONS --only-fail"
+        fi
+        
+        if [ "${{ inputs.all_providers }}" = "true" ]; then
+          OPTIONS="$OPTIONS --all-providers"
+        fi
+        
+        # Execute the command with telert
+        eval "telert run $OPTIONS ${{ inputs.command }}"

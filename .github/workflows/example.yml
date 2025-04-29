@@ -1,0 +1,48 @@
+name: Example Telert Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      uses: navig-me/telert/actions/run@v1
+      with:
+        command: pip install -r requirements.txt
+        label: Install Dependencies
+        provider: telegram
+        token: ${{ secrets.TELERT_TOKEN }}
+        chat-id: ${{ secrets.TELERT_CHAT_ID }}
+    
+    - name: Run tests
+      uses: navig-me/telert/actions/run@v1
+      with:
+        command: python -m pytest
+        label: Run Tests
+        provider: telegram
+        token: ${{ secrets.TELERT_TOKEN }}
+        chat-id: ${{ secrets.TELERT_CHAT_ID }}
+        only-fail: true
+    
+    - name: Build package
+      uses: navig-me/telert/actions/run@v1
+      with:
+        command: python -m build
+        label: Build Package
+        provider: telegram
+        token: ${{ secrets.TELERT_TOKEN }}
+        chat-id: ${{ secrets.TELERT_CHAT_ID }}

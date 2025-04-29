@@ -1,0 +1,72 @@
+# GitLab CI template for telert
+# Include this template in your .gitlab-ci.yml file:
+#
+# include:
+#   - remote: 'https://raw.githubusercontent.com/navig-me/telert/main/.github/actions/run/gitlab-ci-template.yml'
+#
+# Then use the telert-notify job in your pipeline:
+#
+# my-job:
+#   extends: .telert-notify
+#   variables:
+#     TELERT_COMMAND: "npm run build"
+#     TELERT_LABEL: "Build completed"
+#     TELERT_PROVIDER: "telegram"  # Optional, also supports slack, teams, discord, etc.
+#   script:
+#     - npm run build  # Your actual command
+
+.telert-setup:
+  before_script:
+    - pip install telert
+    - |
+      # Configure telert based on provided variables
+      if [[ -n "$TELERT_PROVIDER" ]]; then
+        if [[ "$TELERT_PROVIDER" == "telegram" && -n "$TELERT_TOKEN" && -n "$TELERT_CHAT_ID" ]]; then
+          telert config telegram --token "$TELERT_TOKEN" --chat-id "$TELERT_CHAT_ID" --set-default
+        elif [[ "$TELERT_PROVIDER" == "teams" && -n "$TELERT_TEAMS_WEBHOOK" ]]; then
+          telert config teams --webhook-url "$TELERT_TEAMS_WEBHOOK" --set-default
+        elif [[ "$TELERT_PROVIDER" == "slack" && -n "$TELERT_SLACK_WEBHOOK" ]]; then
+          telert config slack --webhook-url "$TELERT_SLACK_WEBHOOK" --set-default
+        elif [[ "$TELERT_PROVIDER" == "discord" && -n "$TELERT_DISCORD_WEBHOOK" ]]; then
+          telert config discord --webhook-url "$TELERT_DISCORD_WEBHOOK" --set-default
+        elif [[ "$TELERT_PROVIDER" == "pushover" && -n "$TELERT_PUSHOVER_TOKEN" && -n "$TELERT_PUSHOVER_USER" ]]; then
+          telert config pushover --token "$TELERT_PUSHOVER_TOKEN" --user "$TELERT_PUSHOVER_USER" --set-default
+        fi
+      fi
+
+.telert-notify:
+  extends: .telert-setup
+  after_script:
+    - |
+      # Only run if TELERT_COMMAND is defined
+      if [[ -n "$TELERT_COMMAND" ]]; then
+        cmd="telert send"
+        
+        # Add options based on variables
+        if [[ -n "$TELERT_PROVIDER" ]]; then
+          cmd="$cmd --provider $TELERT_PROVIDER"
+        fi
+        
+        if [[ "$TELERT_ALL_PROVIDERS" == "true" ]]; then
+          cmd="$cmd --all-providers"
+        fi
+        
+        # Determine job status message
+        if [[ "$CI_JOB_STATUS" == "success" ]]; then
+          status_emoji="✅"
+        else
+          status_emoji="❌"
+        fi
+        
+        # Create message
+        job_name="${TELERT_LABEL:-$CI_JOB_NAME}"
+        message="$status_emoji GitLab CI: $job_name ($CI_JOB_STATUS)"
+        
+        # Add build info
+        message="$message\n\nProject: $CI_PROJECT_NAME"
+        message="$message\nBranch: $CI_COMMIT_REF_NAME"
+        message="$message\nCommit: $CI_COMMIT_SHORT_SHA"
+        
+        # Send the notification
+        $cmd "$message"
+      fi

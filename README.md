@@ -225,6 +225,9 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
+| **GitHub Action** | Run commands in GitHub Actions with notifications. | `uses: navig-me/telert/actions/run@v1` |
+| **CI Integration** | GitLab CI templates and CircleCI orbs for notifications. | `extends: .telert-notify` |
+| **Docker** | Run as CLI tool or notification API server in Docker. | `docker run ghcr.io/navig-me/telert:latest` |
 | **Multi-provider** | Configure and use multiple notification services (Telegram, Teams, Slack, Pushover, Audio, Desktop). | `telert config desktop --app-name "My App"` |
 
 ---
@@ -619,6 +622,77 @@ curl -X POST http://localhost:8000/send \
 ```
 
 For more detailed information on Docker usage, including configuration persistence and API endpoints, see the [Docker documentation](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md).
+
+### GitHub Actions Integration
+
+Telert can be used in GitHub Actions workflows to run commands and receive notifications when they complete:
+
+```yaml
+- name: Run tests with notification
+  uses: navig-me/telert/actions/run@v1
+  with:
+    command: npm test
+    label: Run Tests
+    provider: telegram
+    token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+```
+
+#### Inputs
+
+| Input | Description | Required |
+|-------|-------------|----------|
+| `command` | The command to run | Yes |
+| `label` | Label to identify the command | No |
+| `provider` | Notification provider to use | No |
+| `all-providers` | Send to all configured providers | No |
+| `only-fail` | Only notify on failure | No |
+| `message` | Custom notification message | No |
+| `token` | Telegram/Pushover token | No |
+| `chat-id` | Telegram chat ID | No |
+| `webhook-url` | Webhook URL for Teams/Slack/Discord | No |
+| `user-key` | Pushover user key | No |
+
+For more examples and detailed usage, see the [CI/CD Integrations documentation](https://github.com/navig-me/telert/blob/main/docs/CI-CD.md).
+
+### GitLab CI Integration
+
+Telert provides a GitLab CI template for easy integration:
+
+```yaml
+include:
+  - remote: 'https://raw.githubusercontent.com/navig-me/telert/main/.github/actions/run/gitlab-ci-template.yml'
+
+build:
+  extends: .telert-notify
+  variables:
+    TELERT_COMMAND: "npm run build"
+    TELERT_LABEL: "Build Project"
+    TELERT_PROVIDER: "telegram"
+  script:
+    - npm run build
+```
+
+### CircleCI Orb
+
+Telert is also available as a CircleCI Orb:
+
+```yaml
+version: 2.1
+orbs:
+  telert: telert/notify@1.0.0
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:16.13
+    steps:
+      - checkout
+      - telert/run-notify:
+          command: "npm run build"
+          label: "Build Project"
+          provider: "telegram"
+```
 
 ## 🌐 API Deployment to Cloud Platforms
 

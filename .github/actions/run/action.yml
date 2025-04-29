@@ -1,0 +1,118 @@
+name: 'Telert Run'
+description: 'Run a command and send a notification when it completes'
+author: 'Mihir Khandekar'
+branding:
+  icon: 'bell'
+  color: 'blue'
+
+inputs:
+  command:
+    description: 'The command to run'
+    required: true
+  label:
+    description: 'Label to identify the command in the notification'
+    required: false
+  provider:
+    description: 'Notification provider to use (telegram, teams, slack, discord, pushover, desktop, audio)'
+    required: false
+  all-providers:
+    description: 'Send to all configured providers (true/false)'
+    required: false
+    default: 'false'
+  only-fail:
+    description: 'Only send notification on failure (true/false)'
+    required: false
+    default: 'false'
+  message:
+    description: 'Custom notification message (otherwise auto-generated)'
+    required: false
+  token:
+    description: 'Telegram/Pushover token (or use TELERT_TOKEN env var)'
+    required: false
+  chat-id:
+    description: 'Telegram chat ID (or use TELERT_CHAT_ID env var)'
+    required: false
+  webhook-url:
+    description: 'Webhook URL for Teams/Slack/Discord (or use env vars)'
+    required: false
+  user-key:
+    description: 'Pushover user key (or use TELERT_PUSHOVER_USER env var)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install telert
+      shell: bash
+      run: pip install telert
+
+    - name: Configure telert (if credentials provided)
+      shell: bash
+      env:
+        TELERT_TOKEN: ${{ inputs.token }}
+        TELERT_CHAT_ID: ${{ inputs.chat-id }}
+        TELERT_TEAMS_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_SLACK_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_DISCORD_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_PUSHOVER_TOKEN: ${{ inputs.token }}
+        TELERT_PUSHOVER_USER: ${{ inputs.user-key }}
+      run: |
+        # Configure the provider if credentials are provided
+        if [ -n "${{ inputs.provider }}" ]; then
+          if [[ "${{ inputs.provider }}" == "telegram" && -n "$TELERT_TOKEN" && -n "$TELERT_CHAT_ID" ]]; then
+            telert config telegram --token "$TELERT_TOKEN" --chat-id "$TELERT_CHAT_ID" --set-default
+          elif [[ "${{ inputs.provider }}" == "teams" && -n "$TELERT_TEAMS_WEBHOOK" ]]; then
+            telert config teams --webhook-url "$TELERT_TEAMS_WEBHOOK" --set-default
+          elif [[ "${{ inputs.provider }}" == "slack" && -n "$TELERT_SLACK_WEBHOOK" ]]; then
+            telert config slack --webhook-url "$TELERT_SLACK_WEBHOOK" --set-default
+          elif [[ "${{ inputs.provider }}" == "discord" && -n "$TELERT_DISCORD_WEBHOOK" ]]; then
+            telert config discord --webhook-url "$TELERT_DISCORD_WEBHOOK" --set-default
+          elif [[ "${{ inputs.provider }}" == "pushover" && -n "$TELERT_PUSHOVER_TOKEN" && -n "$TELERT_PUSHOVER_USER" ]]; then
+            telert config pushover --token "$TELERT_PUSHOVER_TOKEN" --user "$TELERT_PUSHOVER_USER" --set-default
+          elif [[ "${{ inputs.provider }}" == "desktop" ]]; then
+            telert config desktop --app-name "GitHub Action" --set-default
+          elif [[ "${{ inputs.provider }}" == "audio" ]]; then
+            telert config audio --set-default
+          fi
+        fi
+
+    - name: Run command with telert
+      shell: bash
+      env:
+        TELERT_TOKEN: ${{ inputs.token }}
+        TELERT_CHAT_ID: ${{ inputs.chat-id }}
+        TELERT_TEAMS_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_SLACK_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_DISCORD_WEBHOOK: ${{ inputs.webhook-url }}
+        TELERT_PUSHOVER_TOKEN: ${{ inputs.token }}
+        TELERT_PUSHOVER_USER: ${{ inputs.user-key }}
+      run: |
+        # Build the telert run command
+        cmd="telert run"
+        
+        # Add options based on inputs
+        if [ -n "${{ inputs.label }}" ]; then
+          cmd="$cmd --label \"${{ inputs.label }}\""
+        fi
+        
+        if [ -n "${{ inputs.provider }}" ]; then
+          cmd="$cmd --provider \"${{ inputs.provider }}\""
+        fi
+        
+        if [ "${{ inputs.all-providers }}" == "true" ]; then
+          cmd="$cmd --all-providers"
+        fi
+        
+        if [ "${{ inputs.only-fail }}" == "true" ]; then
+          cmd="$cmd --only-fail"
+        fi
+        
+        if [ -n "${{ inputs.message }}" ]; then
+          cmd="$cmd --message \"${{ inputs.message }}\""
+        fi
+        
+        # Add the command to run
+        cmd="$cmd -- ${{ inputs.command }}"
+        
+        # Execute the command
+        eval "$cmd"

@@ -1,0 +1,192 @@
+version: 2.1
+description: "Run commands and send notifications when they complete"
+
+commands:
+  notify:
+    description: "Send a notification after a job completes"
+    parameters:
+      message:
+        type: string
+        default: ""
+        description: "The message to send (defaults to auto-generated based on job status)"
+      provider:
+        type: string
+        default: ""
+        description: "The provider to send to (telegram, teams, slack, discord, pushover)"
+      all_providers:
+        type: boolean
+        default: false
+        description: "Send to all configured providers"
+    steps:
+      - run:
+          name: Install telert
+          command: pip install telert
+      - run:
+          name: Configure and send notification
+          command: |
+            # Configure telert based on environment variables
+            if [[ -n "<< parameters.provider >>" ]]; then
+              if [[ "<< parameters.provider >>" == "telegram" && -n "$TELERT_TOKEN" && -n "$TELERT_CHAT_ID" ]]; then
+                telert config telegram --token "$TELERT_TOKEN" --chat-id "$TELERT_CHAT_ID" --set-default
+              elif [[ "<< parameters.provider >>" == "teams" && -n "$TELERT_TEAMS_WEBHOOK" ]]; then
+                telert config teams --webhook-url "$TELERT_TEAMS_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "slack" && -n "$TELERT_SLACK_WEBHOOK" ]]; then
+                telert config slack --webhook-url "$TELERT_SLACK_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "discord" && -n "$TELERT_DISCORD_WEBHOOK" ]]; then
+                telert config discord --webhook-url "$TELERT_DISCORD_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "pushover" && -n "$TELERT_PUSHOVER_TOKEN" && -n "$TELERT_PUSHOVER_USER" ]]; then
+                telert config pushover --token "$TELERT_PUSHOVER_TOKEN" --user "$TELERT_PUSHOVER_USER" --set-default
+              fi
+            fi
+            
+            # Build the telert command
+            cmd="telert send"
+            
+            # Add options
+            if [[ -n "<< parameters.provider >>" ]]; then
+              cmd="$cmd --provider << parameters.provider >>"
+            fi
+            
+            if [[ "<< parameters.all_providers >>" == "true" ]]; then
+              cmd="$cmd --all-providers"
+            fi
+            
+            # Determine message
+            if [[ -n "<< parameters.message >>" ]]; then
+              message="<< parameters.message >>"
+            else
+              # Create default message with job info
+              message="CircleCI: $CIRCLE_JOB completed"
+              message="$message\n\nProject: $CIRCLE_PROJECT_REPONAME"
+              message="$message\nBranch: $CIRCLE_BRANCH"
+              
+              if [[ -n "$CIRCLE_SHA1" ]]; then
+                commit_short=${CIRCLE_SHA1:0:7}
+                message="$message\nCommit: $commit_short"
+              fi
+            fi
+            
+            # Send the notification
+            $cmd "$message"
+
+  run-notify:
+    description: "Run a command and notify on completion"
+    parameters:
+      command:
+        type: string
+        description: "The command to run"
+      label:
+        type: string
+        default: ""
+        description: "Label to identify the command"
+      provider:
+        type: string
+        default: ""
+        description: "Notification provider to use"
+      all_providers:
+        type: boolean
+        default: false
+        description: "Send to all configured providers"
+      only_fail:
+        type: boolean
+        default: false
+        description: "Only notify on failure"
+      message:
+        type: string
+        default: ""
+        description: "Custom notification message"
+    steps:
+      - run:
+          name: Install telert
+          command: pip install telert
+      - run:
+          name: Run command with telert notification
+          command: |
+            # Configure telert based on environment variables
+            if [[ -n "<< parameters.provider >>" ]]; then
+              if [[ "<< parameters.provider >>" == "telegram" && -n "$TELERT_TOKEN" && -n "$TELERT_CHAT_ID" ]]; then
+                telert config telegram --token "$TELERT_TOKEN" --chat-id "$TELERT_CHAT_ID" --set-default
+              elif [[ "<< parameters.provider >>" == "teams" && -n "$TELERT_TEAMS_WEBHOOK" ]]; then
+                telert config teams --webhook-url "$TELERT_TEAMS_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "slack" && -n "$TELERT_SLACK_WEBHOOK" ]]; then
+                telert config slack --webhook-url "$TELERT_SLACK_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "discord" && -n "$TELERT_DISCORD_WEBHOOK" ]]; then
+                telert config discord --webhook-url "$TELERT_DISCORD_WEBHOOK" --set-default
+              elif [[ "<< parameters.provider >>" == "pushover" && -n "$TELERT_PUSHOVER_TOKEN" && -n "$TELERT_PUSHOVER_USER" ]]; then
+                telert config pushover --token "$TELERT_PUSHOVER_TOKEN" --user "$TELERT_PUSHOVER_USER" --set-default
+              fi
+            fi
+            
+            # Build the telert command
+            cmd="telert run"
+            
+            # Add options
+            if [[ -n "<< parameters.label >>" ]]; then
+              cmd="$cmd --label \"<< parameters.label >>\""
+            fi
+            
+            if [[ -n "<< parameters.provider >>" ]]; then
+              cmd="$cmd --provider << parameters.provider >>"
+            fi
+            
+            if [[ "<< parameters.all_providers >>" == "true" ]]; then
+              cmd="$cmd --all-providers"
+            fi
+            
+            if [[ "<< parameters.only_fail >>" == "true" ]]; then
+              cmd="$cmd --only-fail"
+            fi
+            
+            if [[ -n "<< parameters.message >>" ]]; then
+              cmd="$cmd --message \"<< parameters.message >>\""
+            fi
+            
+            # Add CircleCI context info to message if no custom message
+            if [[ -z "<< parameters.message >>" ]]; then
+              project_info="Project: $CIRCLE_PROJECT_REPONAME, Branch: $CIRCLE_BRANCH"
+              if [[ -n "$CIRCLE_SHA1" ]]; then
+                commit_short=${CIRCLE_SHA1:0:7}
+                project_info="$project_info, Commit: $commit_short"
+              fi
+              cmd="$cmd --message \"CircleCI: << parameters.command >> ($project_info)\""
+            fi
+            
+            # Run the command
+            eval "$cmd -- << parameters.command >>"
+
+examples:
+  run-with-notification:
+    description: Run a command and get notified when it completes
+    usage:
+      version: 2.1
+      orbs:
+        telert: telert/notify@1.0.0
+      
+      jobs:
+        build:
+          docker:
+            - image: cimg/base:2023.03
+          steps:
+            - checkout
+            - telert/run-notify:
+                command: "npm run build"
+                label: "Build"
+                provider: "telegram"
+
+  send-notification:
+    description: Send a custom notification at any point in your workflow
+    usage:
+      version: 2.1
+      orbs:
+        telert: telert/notify@1.0.0
+      
+      jobs:
+        deploy:
+          docker:
+            - image: cimg/base:2023.03
+          steps:
+            - checkout
+            - run: ./deploy.sh
+            - telert/notify:
+                message: "Deployment complete!"
+                provider: "slack"

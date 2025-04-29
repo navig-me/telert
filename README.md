@@ -5,7 +5,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
-[![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/docs/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 
 ## 📱 Overview
@@ -21,7 +21,7 @@ Perfect for long-running tasks, remote servers, CI pipelines, or monitoring crit
 
 Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
 
-<img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
+<img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="600">
 
 ## 📋 Table of Contents
 - [Installation & Quick Start](#-installation--quick-start)
@@ -86,7 +86,7 @@ telert config telegram --token "<token>" --chat-id "<chat-id>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Telegram Setup Guide**](https://github.com/navig-me/telert/blob/main/TELEGRAM.md)
+[**Detailed Telegram Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md)
 
 ### Microsoft Teams Setup
 
@@ -98,7 +98,7 @@ telert config teams --webhook-url "<flow-http-url>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Microsoft Teams Setup Guide**](https://github.com/navig-me/telert/blob/main/TEAMS.md)
+[**Detailed Microsoft Teams Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/TEAMS.md)
 
 ### Slack Setup
 
@@ -110,7 +110,7 @@ telert config slack --webhook-url "<webhook-url>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
+[**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/SLACK.md)
 
 ### Discord Setup
 
@@ -125,7 +125,7 @@ telert status  # Test your configuration
 telert config discord --webhook-url "<webhook-url>" --username "My Bot" --avatar-url "<avatar-image-url>" --set-default
 ```
 
-[**Detailed Discord Setup Guide**](https://github.com/navig-me/telert/blob/main/DISCORD.md)
+[**Detailed Discord Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/DISCORD.md)
 
 ### Pushover Setup
 
@@ -137,7 +137,7 @@ telert config pushover --token "<app-token>" --user "<user-key>" --set-default
 telert status  # Test your configuration
 ```
 
-[**Detailed Pushover Setup Guide**](https://github.com/navig-me/telert/blob/main/PUSHOVER.md)
+[**Detailed Pushover Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md)
 
 ### Custom HTTP Endpoint Setup
 
@@ -157,7 +157,7 @@ telert config endpoint \
   --set-default
 ```
 
-[**Detailed Custom Endpoint Guide**](https://github.com/navig-me/telert/blob/main/ENDPOINT.md)
+[**Detailed Custom Endpoint Guide**](https://github.com/navig-me/telert/blob/main/docs/ENDPOINT.md)
 
 ### Audio Alerts Setup
 

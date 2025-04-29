@@ -102,7 +102,26 @@ def do_config(a):
             return
 
         # Single provider configuration
-        if provider == "telegram":
+        if provider == "discord":
+            if not hasattr(a, "webhook_url"):
+                sys.exit("❌ Discord configuration requires --webhook-url")
+                
+            config_params = {
+                "webhook_url": a.webhook_url,
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
+            
+            if hasattr(a, "username") and a.username:
+                config_params["username"] = a.username
+                
+            if hasattr(a, "avatar_url") and a.avatar_url:
+                config_params["avatar_url"] = a.avatar_url
+                
+            configure_provider(Provider.DISCORD, **config_params)
+            print("✔ Discord configuration saved")
+            
+        elif provider == "telegram":
             if not (hasattr(a, "token") and hasattr(a, "chat_id")):
                 sys.exit("❌ Telegram configuration requires --token and --chat-id")
 
@@ -381,6 +400,29 @@ def do_status(a):
             f"- {name}{default_marker}: url={url[:30]}…, method={method}, timeout={timeout}s"
         )
 
+    # Check Discord
+    discord_config = config.get_provider_config(Provider.DISCORD)
+    if discord_config:
+        # Mark as default if in default providers list
+        if Provider.DISCORD.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.DISCORD.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+
+        webhook = discord_config["webhook_url"]
+        username = discord_config.get("username", "Telert")
+        avatar_info = (
+            f", avatar={discord_config['avatar_url'][:20]}…"
+            if "avatar_url" in discord_config
+            else ""
+        )
+        print(f"- Discord{default_marker}: webhook={webhook[:20]}…, username={username}{avatar_info}")
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -390,6 +432,7 @@ def do_status(a):
         or desktop_config
         or pushover_config
         or endpoint_config
+        or discord_config
     ):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
@@ -806,6 +849,26 @@ def main():
         "--set-default", action="store_true", help="set as the only default provider"
     )
     slack_parser.add_argument(
+        "--add-to-defaults",
+        action="store_true",
+        help="add to existing default providers",
+    )
+    
+    # Discord config
+    discord_parser = c_subparsers.add_parser("discord", help="configure Discord")
+    discord_parser.add_argument(
+        "--webhook-url", required=True, help="incoming webhook URL"
+    )
+    discord_parser.add_argument(
+        "--username", help="name to display for the webhook bot (default: Telert)"
+    )
+    discord_parser.add_argument(
+        "--avatar-url", help="URL for the webhook bot's avatar image"
+    )
+    discord_parser.add_argument(
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    discord_parser.add_argument(
         "--add-to-defaults",
         action="store_true",
         help="add to existing default providers",

@@ -45,6 +45,7 @@ class Provider(enum.Enum):
     DESKTOP = "desktop"
     PUSHOVER = "pushover"
     ENDPOINT = "endpoint"
+    DISCORD = "discord"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -107,6 +108,18 @@ class MessagingConfig:
             user = os.environ.get("TELERT_PUSHOVER_USER")
             if token and user:
                 return {"token": token, "user": user}
+        elif provider == Provider.DISCORD:
+            webhook_url = os.environ.get("TELERT_DISCORD_WEBHOOK")
+            username = os.environ.get("TELERT_DISCORD_USERNAME")
+            avatar_url = os.environ.get("TELERT_DISCORD_AVATAR_URL")
+            config = {}
+            if webhook_url:
+                config["webhook_url"] = webhook_url
+                if username:
+                    config["username"] = username
+                if avatar_url:
+                    config["avatar_url"] = avatar_url
+                return config
         elif provider == Provider.AUDIO:
             sound_file = os.environ.get("TELERT_AUDIO_FILE")
             volume_str = os.environ.get("TELERT_AUDIO_VOLUME")
@@ -631,15 +644,9 @@ class DesktopProvider:
                 # Use a robust approach for macOS that works more consistently across terminal apps
                 try:
                     # First try terminal-notifier if available (works well with many terminal apps)
+                    # Try terminal-notifier if it exists (don't check with "which" as it can fail)
                     try:
-                        subprocess.run(
-                            ["which", "terminal-notifier"],
-                            check=True,
-                            capture_output=True,
-                            timeout=1
-                        )
-                        
-                        # terminal-notifier exists, use it
+                        # Attempt to use terminal-notifier directly
                         subprocess.run(
                             [
                                 "terminal-notifier",
@@ -656,9 +663,7 @@ class DesktopProvider:
                         )
                         return True
                     except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError):
-                        # terminal-notifier not found or failed, suggest installation
-                        print("Hint: For better desktop notifications on macOS, install terminal-notifier:")
-                        print("      brew install terminal-notifier")
+                        # terminal-notifier not found or failed - continue to next method
                         pass
 
                     # Try with direct AppleScript
@@ -671,13 +676,16 @@ class DesktopProvider:
                     
                     # Use a smaller timeout for this command to avoid hanging
                     try:
-                        subprocess.run(
+                        result = subprocess.run(
                             ["osascript", "-e", direct_script],
-                            check=True,
+                            check=False,  # Don't raise exception on non-zero exit
                             capture_output=True,
                             timeout=timeout_seconds
                         )
-                        return True
+                        # Check if command actually succeeded
+                        if result.returncode == 0:
+                            return True
+                        # Otherwise try next approach
                     except (subprocess.SubprocessError, subprocess.TimeoutExpired):
                         # Continue to next approach
                         pass
@@ -689,17 +697,39 @@ class DesktopProvider:
                     end tell
                     '''
                     
-                    subprocess.run(
-                        ["osascript", "-e", apple_script],
-                        check=True,
-                        capture_output=True,
-                        timeout=timeout_seconds
-                    )
+                    try:
+                        result = subprocess.run(
+                            ["osascript", "-e", apple_script],
+                            check=False,
+                            capture_output=True,
+                            timeout=timeout_seconds
+                        )
+                        if result.returncode == 0:
+                            return True
+                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
+                        pass
+                        
+                    # Final fallback - try the simplest possible AppleScript notification
+                    simple_script = f'display notification "{escaped_message}"'
+                    try:
+                        subprocess.run(
+                            ["osascript", "-e", simple_script],
+                            check=False,
+                            capture_output=True,
+                            timeout=timeout_seconds
+                        )
+                        # Even if this fails, we'll continue and return True
+                        return True
+                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
+                        pass
+                        
                     return True
                     
                 except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
                     # All notification methods failed, but don't block the program
                     print(f"Warning: Desktop notification could not be displayed: {str(e)}")
+                    print("Hint: Make sure notification permissions are enabled for your terminal app")
+                    print("      in System Preferences → Notifications")
                     # Return True anyway since we don't want to block the program
                     return True
 
@@ -804,6 +834,88 @@ class PushoverProvider:
         except requests.exceptions.ConnectionError:
             raise RuntimeError(
                 "Pushover API connection error - please check your network connection"
+            )
+
+
+class DiscordProvider:
+    """Provider for Discord messaging via webhooks."""
+
+    def __init__(self, webhook_url: Optional[str] = None, username: Optional[str] = None, avatar_url: Optional[str] = None):
+        self.webhook_url = webhook_url
+        self.username = username or "Telert"  # Default username if not provided
+        self.avatar_url = avatar_url
+
+    def configure_from_env(self) -> bool:
+        """Configure from environment variables."""
+        self.webhook_url = os.environ.get("TELERT_DISCORD_WEBHOOK")
+        
+        # These are optional
+        if os.environ.get("TELERT_DISCORD_USERNAME"):
+            self.username = os.environ.get("TELERT_DISCORD_USERNAME")
+            
+        if os.environ.get("TELERT_DISCORD_AVATAR_URL"):
+            self.avatar_url = os.environ.get("TELERT_DISCORD_AVATAR_URL")
+            
+        return bool(self.webhook_url)
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        """Configure from stored configuration."""
+        provider_config = config.get_provider_config(Provider.DISCORD)
+        if provider_config:
+            self.webhook_url = provider_config.get("webhook_url")
+            self.username = provider_config.get("username", "Telert")
+            self.avatar_url = provider_config.get("avatar_url")
+            return bool(self.webhook_url)
+        return False
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        if self.webhook_url:
+            config_data = {"webhook_url": self.webhook_url}
+            
+            # Only add these if they're not default values
+            if self.username and self.username != "Telert":
+                config_data["username"] = self.username
+                
+            if self.avatar_url:
+                config_data["avatar_url"] = self.avatar_url
+                
+            config.set_provider_config(Provider.DISCORD, config_data)
+
+    def send(self, message: str) -> bool:
+        """Send a message via Discord webhook."""
+        if not self.webhook_url:
+            raise ValueError("Discord provider not configured")
+
+        # Format message for Discord webhook
+        payload = {
+            "content": message,
+        }
+        
+        # Add optional parameters if provided
+        if self.username:
+            payload["username"] = self.username
+            
+        if self.avatar_url:
+            payload["avatar_url"] = self.avatar_url
+
+        try:
+            response = requests.post(
+                self.webhook_url,
+                json=payload,
+                timeout=20,  # 20 second timeout
+            )
+
+            if response.status_code not in (200, 201, 204):  # Discord returns 204 on success
+                error_msg = f"Discord API error {response.status_code}: {response.text}"
+                raise RuntimeError(error_msg)
+
+            return True
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Discord API request timed out after 20 seconds")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(
+                "Discord API connection error - please check your network connection"
             )
 
 
@@ -982,7 +1094,7 @@ class EndpointProvider:
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
 ) -> Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider, DiscordProvider
 ]:
     """Get a configured messaging provider (single provider mode for backward compatibility)."""
     providers = get_providers(provider_name)
@@ -993,7 +1105,7 @@ def get_provider(
 def get_providers(
     provider_name: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
 ) -> List[Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider
+    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider, DiscordProvider
 ]]:
     """Get a list of configured messaging providers.
     
@@ -1049,6 +1161,8 @@ def get_providers(
                 provider = DesktopProvider()
             elif provider_enum == Provider.ENDPOINT:
                 provider = EndpointProvider()
+            elif provider_enum == Provider.DISCORD:
+                provider = DiscordProvider()
             else:
                 continue  # Skip unsupported providers
             
@@ -1099,6 +1213,11 @@ def get_providers(
             provider = EndpointProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
+                
+        if os.environ.get("TELERT_DISCORD_WEBHOOK", None) is not None:
+            provider = DiscordProvider()
+            if provider.configure_from_env():
+                env_providers.append(provider)
         
         # If multiple providers are configured via env vars, check for preference order
         if env_providers:
@@ -1126,7 +1245,8 @@ def get_providers(
                                 Provider.PUSHOVER: PushoverProvider,
                                 Provider.AUDIO: AudioProvider,
                                 Provider.DESKTOP: DesktopProvider,
-                                Provider.ENDPOINT: EndpointProvider
+                                Provider.ENDPOINT: EndpointProvider,
+                                Provider.DISCORD: DiscordProvider
                             }[p_type]):
                                 result_providers.append(provider)
                                 break
@@ -1356,6 +1476,20 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
 
         provider_instance = PushoverProvider(kwargs["token"], kwargs["user"])
 
+    elif provider == Provider.DISCORD:
+        if "webhook_url" not in kwargs:
+            raise ValueError("Discord provider requires 'webhook_url'")
+            
+        # Validate webhook URL format
+        _validate_webhook_url(kwargs["webhook_url"])
+        
+        # Create the provider instance
+        provider_instance = DiscordProvider(
+            webhook_url=kwargs["webhook_url"],
+            username=kwargs.get("username"),
+            avatar_url=kwargs.get("avatar_url")
+        )
+        
     elif provider == Provider.ENDPOINT:
         if "url" not in kwargs:
             raise ValueError("Endpoint provider requires 'url'")

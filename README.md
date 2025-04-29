@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal
 
-**Version 0.1.22** 
+**Version 0.1.23** 
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -12,7 +12,7 @@
 
 Telert is a lightweight utility that sends notifications when your terminal commands or Python code completes. It supports multiple notification channels:
 
-- **Messaging Apps**: Telegram, Microsoft Teams, Slack
+- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
 - **Mobile Devices**: Pushover (Android & iOS)
 - **Local Notifications**: Desktop notifications, Audio alerts
 - **Custom Integrations**: HTTP endpoints for any service
@@ -29,6 +29,7 @@ Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Te
   - [Telegram](#telegram-setup)
   - [Microsoft Teams](#microsoft-teams-setup)
   - [Slack](#slack-setup)
+  - [Discord](#discord-setup)
   - [Pushover](#pushover-setup)
   - [Custom HTTP Endpoints](#custom-http-endpoint-setup)
   - [Audio Alerts](#audio-alerts-setup)
@@ -110,6 +111,21 @@ telert status  # Test your configuration
 ```
 
 [**Detailed Slack Setup Guide**](https://github.com/navig-me/telert/blob/main/SLACK.md)
+
+### Discord Setup
+
+Discord integration uses webhooks to send messages to channels.
+
+```bash
+# After creating a webhook in Discord
+telert config discord --webhook-url "<webhook-url>" --set-default
+telert status  # Test your configuration
+
+# Optionally customize the bot name and avatar
+telert config discord --webhook-url "<webhook-url>" --username "My Bot" --avatar-url "<avatar-image-url>" --set-default
+```
+
+[**Detailed Discord Setup Guide**](https://github.com/navig-me/telert/blob/main/DISCORD.md)
 
 ### Pushover Setup
 
@@ -341,7 +357,7 @@ telert-wrapper run source deploy.sh
 #### Configuration
 ```python
 from telert import (
-    configure_telegram, configure_teams, configure_slack, configure_pushover,
+    configure_telegram, configure_teams, configure_slack, configure_discord, configure_pushover,
     configure_audio, configure_desktop, configure_providers,
     set_default_provider, set_default_providers, 
     is_configured, get_config, list_providers
@@ -351,6 +367,9 @@ from telert import (
 configure_telegram("<token>", "<chat-id>")
 configure_teams("<webhook-url>")
 configure_slack("<webhook-url>")
+configure_discord("<webhook-url>")  # Basic Discord configuration
+# Or with custom bot name and avatar
+configure_discord("<webhook-url>", username="My Bot", avatar_url="https://example.com/avatar.png")
 configure_pushover("<app-token>", "<user-key>")
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
@@ -417,6 +436,7 @@ send("Major system error", all_providers=True)
 send("Send to mobile device", provider="pushover")
 send("Play a sound alert", provider="audio")
 send("Show a desktop notification", provider="desktop")
+send("Send to Discord channel", provider="discord") 
 send("Send to custom HTTP endpoint", provider="endpoint")
 
 # Check delivery results
@@ -478,6 +498,11 @@ with telert("Long-running task", provider="pushover"):
     # This will send to Pushover when done
     time.sleep(60)
     
+# Send to Discord channel
+with telert("Discord notification", provider="discord"):
+    # This will notify via Discord when done
+    discord_specific_operation()
+    
 # Send to custom HTTP endpoint
 with telert("API operation", provider="endpoint"):
     # This will send to your configured HTTP endpoint when done
@@ -536,6 +561,11 @@ def show_desktop_notification():
 @notify("Mobile alert", provider="pushover")
 def send_mobile_notification():
     return "This will send to Pushover when done"
+    
+# Send to Discord
+@notify("Discord alert", provider="discord")
+def send_to_discord():
+    return "This will send to Discord when done"
     
 # Send to custom HTTP endpoint
 @notify("API alert", provider="endpoint")
@@ -607,6 +637,9 @@ For more details on deployment options and configuration, see the [telert-notifi
 | `TELERT_CHAT_ID` or `TELERT_TELEGRAM_CHAT_ID` | Telegram chat ID       |
 | `TELERT_TEAMS_WEBHOOK`    | Microsoft Teams Power Automate HTTP URL     |
 | `TELERT_SLACK_WEBHOOK`    | Slack webhook URL                           |
+| `TELERT_DISCORD_WEBHOOK`  | Discord webhook URL                         |
+| `TELERT_DISCORD_USERNAME` | Discord webhook bot name (default: Telert)  |
+| `TELERT_DISCORD_AVATAR_URL` | Discord webhook bot avatar URL           |
 | `TELERT_PUSHOVER_TOKEN`   | Pushover application token                  |
 | `TELERT_PUSHOVER_USER`    | Pushover user key                           |
 | `TELERT_AUDIO_FILE`       | Path to sound file for audio notifications  |
@@ -639,6 +672,10 @@ export TELERT_TELEGRAM_CHAT_ID="your-chat-id"
 
 # Configure Slack
 export TELERT_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+
+# Configure Discord
+export TELERT_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
+export TELERT_DISCORD_USERNAME="Alert Bot"  # Optional
 
 # Configure desktop notifications
 export TELERT_DESKTOP_APP_NAME="MyApp"

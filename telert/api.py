@@ -169,6 +169,40 @@ def configure_pushover(token: str, user: str, set_default: bool = True) -> None:
     configure_provider(Provider.PUSHOVER, token=token, user=user, set_default=set_default)
 
 
+def configure_discord(webhook_url: str, username: Optional[str] = None, avatar_url: Optional[str] = None, set_default: bool = True) -> None:
+    """
+    Configure Telert for Discord notifications.
+
+    Args:
+        webhook_url: The Discord webhook URL
+        username: Optional custom name for the webhook bot (default: "Telert")
+        avatar_url: Optional URL for the webhook bot's avatar image
+        set_default: Whether to set Discord as the default provider
+
+    Examples:
+        from telert import configure_discord
+
+        # Basic configuration
+        configure_discord("https://discord.com/api/webhooks/...")
+
+        # With custom bot name and avatar
+        configure_discord(
+            "https://discord.com/api/webhooks/...",
+            username="Alert Bot", 
+            avatar_url="https://example.com/avatar.png"
+        )
+    """
+    config = {"webhook_url": webhook_url, "set_default": set_default}
+    
+    if username:
+        config["username"] = username
+        
+    if avatar_url:
+        config["avatar_url"] = avatar_url
+        
+    configure_provider(Provider.DISCORD, **config)
+
+
 # Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """
@@ -277,6 +311,8 @@ def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
         if os.environ.get("TELERT_TEAMS_WEBHOOK"):
             return True
         if os.environ.get("TELERT_SLACK_WEBHOOK"):
+            return True
+        if os.environ.get("TELERT_DISCORD_WEBHOOK"):
             return True
 
         return False
@@ -401,6 +437,9 @@ def send(
         TELERT_TOKEN, TELERT_CHAT_ID: Override Telegram configuration
         TELERT_TEAMS_WEBHOOK: Override Teams configuration
         TELERT_SLACK_WEBHOOK: Override Slack configuration
+        TELERT_DISCORD_WEBHOOK: Override Discord webhook URL
+        TELERT_DISCORD_USERNAME: Override Discord bot name
+        TELERT_DISCORD_AVATAR_URL: Override Discord bot avatar URL
         TELERT_PUSHOVER_TOKEN, TELERT_PUSHOVER_USER: Override Pushover configuration
         TELERT_AUDIO_FILE, TELERT_AUDIO_VOLUME: Override Audio configuration
         TELERT_DESKTOP_APP_NAME, TELERT_DESKTOP_ICON: Override Desktop configuration

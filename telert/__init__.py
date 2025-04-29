@@ -7,6 +7,7 @@ __all__ = [
     "configure_telegram",
     "configure_teams",
     "configure_slack",
+    "configure_discord",
     "configure_audio",
     "configure_desktop",
     "configure_pushover",
@@ -17,7 +18,7 @@ __all__ = [
     "set_default_providers",
     "list_providers"
 ]
-__version__ = "0.1.22"  # Fixed macOS desktop notifications issue #3, improved documentation
+__version__ = "0.1.23"  # Fixed macOS desktop notifications issue #3, improved documentation
 
 from telert.api import (
     telert, 
@@ -27,6 +28,7 @@ from telert.api import (
     configure_telegram,
     configure_teams,
     configure_slack,
+    configure_discord,
     configure_audio,
     configure_desktop,
     configure_pushover,

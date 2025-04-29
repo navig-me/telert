@@ -18,7 +18,7 @@ __all__ = [
     "set_default_providers",
     "list_providers"
 ]
-__version__ = "0.1.23"  # Fixed macOS desktop notifications issue #3, improved documentation
+__version__ = "0.1.24"  # Added Discord as supported provider, improved desktop notifications and error handling
 
 from telert.api import (
     telert, 

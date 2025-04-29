@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.24 (2025-04-29)
+- Added Discord as supported provider
+- Additional handling for desktop notifications and error handling
+- Fixed macOS desktop notifications (Issue #3)
+
 ## 0.1.22 (2025-04-29)
 - Fixed macOS desktop notifications not appearing in WezTerm and some other terminal apps (Issue #3)
 - Improved notification reliability on macOS by trying multiple methods with timeouts

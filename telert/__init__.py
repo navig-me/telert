@@ -18,7 +18,7 @@ __all__ = [
     "set_default_providers",
     "list_providers",
 ]
-__version__ = "0.1.25"  # Added Discord as supported provider, improved desktop notifications and error handling
+__version__ = "0.1.26"  # Added Docker image, GitHub Action, shell completions, and VS Code extension
 
 from telert.api import (
     configure,

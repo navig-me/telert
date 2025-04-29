@@ -12,6 +12,7 @@ Telert is a lightweight utility that sends notifications to Telegram, Microsoft 
 
 [![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/A_kYXt?referralCode=vj4bEA)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier)
 
 
 <img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">

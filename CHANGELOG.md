@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.22 (2025-04-29)
+- Fixed macOS desktop notifications not appearing in WezTerm and some other terminal apps (Issue #3)
+- Improved notification reliability on macOS by trying multiple methods with timeouts
+- Added recommendation to use terminal-notifier on macOS for the best experience
+- Enhanced error handling to prevent hangs when notification systems are unresponsive
+- Added ENDPOINT.md file with detailed documentation for custom HTTP endpoints
+- Improved documentation structure and readability in README.md
+
 ## 0.1.21 (2025-04-29)
 - Added custom HTTP endpoint provider with configurable URLs, methods, headers, and payload templates
 - Added support for variable substitution in endpoint URLs and payloads ({message}, {status_code}, etc.)

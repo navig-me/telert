@@ -1,6 +1,6 @@
-# telert – Alerts for Your Terminal (Telegram, Teams, Slack, Pushover, Audio, Desktop, Custom HTTP Endpoints)
+# telert – Alerts for Your Terminal
 
-**Version 0.1.21** 
+**Version 0.1.22** 
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -8,76 +8,79 @@
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 
-Telert is a lightweight utility that sends notifications to Telegram, Microsoft Teams, Slack, Pushover (Android & iOS), custom HTTP endpoints, plays audio alerts, or shows desktop notifications when your terminal commands or Python code completes. Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code. 
+## 📱 Overview
 
-Telert can also be deployed as a API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio). These services supported by single click deployments and [configuring the environment variables](https://github.com/navig-me/telert-notifier).
+Telert is a lightweight utility that sends notifications when your terminal commands or Python code completes. It supports multiple notification channels:
 
+- **Messaging Apps**: Telegram, Microsoft Teams, Slack
+- **Mobile Devices**: Pushover (Android & iOS)
+- **Local Notifications**: Desktop notifications, Audio alerts
+- **Custom Integrations**: HTTP endpoints for any service
+
+Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+
+Telert can also be deployed as an API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
 
 <img src="https://github.com/navig-me/telert/raw/main/telert-demo.svg" alt="telert demo" width="800">
 
-## Table of Contents
-- [Quick Start](#-quick-install)
-- [Setup Guide](#-quick-setup-guide)
-  - [Telegram Setup](#telegram-setup)
-  - [Microsoft Teams Setup](#microsoft-teams-setup)
-  - [Slack Setup](#slack-setup)
-  - [Pushover Setup](#pushover-setup)
-  - [Custom HTTP Endpoint Setup](#custom-http-endpoint-setup)
-  - [Audio Alerts Setup](#audio-alerts-setup)
-  - [Desktop Notifications Setup](#desktop-notifications-setup)
+## 📋 Table of Contents
+- [Installation & Quick Start](#-installation--quick-start)
+- [Notification Providers](#-notification-providers)
+  - [Telegram](#telegram-setup)
+  - [Microsoft Teams](#microsoft-teams-setup)
+  - [Slack](#slack-setup)
+  - [Pushover](#pushover-setup)
+  - [Custom HTTP Endpoints](#custom-http-endpoint-setup)
+  - [Audio Alerts](#audio-alerts-setup)
+  - [Desktop Notifications](#desktop-notifications-setup)
   - [Managing Multiple Providers](#managing-multiple-providers)
 - [Features](#-features)
 - [Usage Guide](#-usage-guide)
   - [Command Line Interface](#command-line-interface-cli)
   - [Python API](#python-api)
-- [API Deployment to Cloud Platforms](#api-deployment-to-cloud-platforms-railway-replit-render-or-flyio)
+- [API Deployment to Cloud Platforms](#-api-deployment-to-cloud-platforms)
+- [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
-- [Use Cases and Tips](#-use-cases-and-tips)
-- [Contributing / License](#-contributing--license)
+- [Use Cases](#-use-cases-and-tips)
+- [Contributing](#-contributing--license)
 
-**Quick start:**
-```bash
-# Install
-pip install telert
-
-# After quick setup (see below)
-long_running_command | telert "Command finished!"
-```
-
-If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
-
-✅ **Key benefits:**
-- Know instantly when your commands finish (even when away from your computer)
-- See exactly how long commands or code took to run
-- Capture success/failure status codes and tracebacks
-- View command output snippets directly in your notifications
-- Works with shell commands, pipelines, and Python code
-
----
-
-## 🚀 Quick Install
+## 🚀 Installation & Quick Start
 
 ```bash
 # Install from PyPI (works on any OS with Python 3.8+)
 pip install telert
+
+# Configure a notification provider (example with desktop notifications)
+telert config desktop --app-name "My App" --set-default
+
+# Test your configuration
+telert status
+
+# Basic usage - pipe command output
+long_running_command | telert "Command finished!"
+
+# Or wrap a command to capture status and timing
+telert run --label "Database Backup" pg_dump -U postgres mydb > backup.sql
 ```
 
----
+### Key benefits
 
-## 🤖 Quick Setup Guide
+- 📱 Get notified when commands finish (even when away from your computer)
+- ⏱️ See exactly how long commands or code took to run
+- 🚦 Capture success/failure status codes and tracebacks
+- 📃 View command output snippets directly in your notifications
+- 🔄 Works with shell commands, pipelines, and Python code
+
+## 📲 Notification Providers
 
 Telert supports multiple notification services. Choose one or more based on your needs:
 
 ### Telegram Setup
 
-Telegram is the original and most fully featured provider for Telert. It uses official Bot API with reliable delivery.
-
-1. **Create Bot**: Chat with `@BotFather` in Telegram, send `/newbot`, follow prompts and save your token
-2. **Initialize**: Send any message to your new bot
-3. **Get Chat ID**: Run `curl -s "https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates"` and find your chat ID
-4. **Configure**:
+Telegram uses the official Bot API for reliable delivery.
 
 ```bash
+# After creating a bot with @BotFather and getting your chat ID
 telert config telegram --token "<token>" --chat-id "<chat-id>" --set-default
 telert status  # Test your configuration
 ```
@@ -86,12 +89,10 @@ telert status  # Test your configuration
 
 ### Microsoft Teams Setup
 
-Teams integration uses Power Automate (Microsoft Flow) to deliver notifications to any Teams channel.
-
-1. **Create Flow**: Use Power Automate to create an HTTP trigger flow that posts to Teams
-2. **Configure**:
+Teams integration uses Power Automate (Microsoft Flow) to deliver notifications.
 
 ```bash
+# After creating a HTTP trigger flow in Power Automate
 telert config teams --webhook-url "<flow-http-url>" --set-default
 telert status  # Test your configuration
 ```
@@ -100,12 +101,10 @@ telert status  # Test your configuration
 
 ### Slack Setup
 
-Slack integration uses incoming webhooks to deliver notifications to channels or direct messages.
-
-1. **Create Webhook**: Create app at api.slack.com → Incoming Webhooks → Add to Workspace
-2. **Configure**:
+Slack integration uses incoming webhooks for channel notifications.
 
 ```bash
+# After creating a webhook at api.slack.com
 telert config slack --webhook-url "<webhook-url>" --set-default
 telert status  # Test your configuration
 ```
@@ -114,13 +113,10 @@ telert status  # Test your configuration
 
 ### Pushover Setup
 
-Pushover (Android & iOS) provides simple mobile notifications to your Android and iOS devices with a one-time purchase app.
-
-1. **Create Account**: Sign up at [pushover.net](https://pushover.net/) to get your user key
-2. **Create App**: Create an application at pushover.net to get your app token
-3. **Configure**:
+Pushover provides mobile notifications to Android and iOS devices.
 
 ```bash
+# After signing up at pushover.net and creating an app
 telert config pushover --token "<app-token>" --user "<user-key>" --set-default
 telert status  # Test your configuration
 ```
@@ -129,64 +125,37 @@ telert status  # Test your configuration
 
 ### Custom HTTP Endpoint Setup
 
-Custom endpoints allow you to send notifications to any HTTP service with fully configurable URL, headers, and payload templates.
-
-1. **Choose an endpoint**: This could be a webhook URL for a service like Discord, a custom notification service, or your own API
-2. **Configure**:
+Send to any HTTP service with configurable URLs, headers, and payload templates.
 
 ```bash
-# Basic configuration with default POST method
+# Basic configuration
 telert config endpoint --url "https://api.example.com/notify" --set-default
 
-# Advanced configuration with all options
+# Advanced configuration example
 telert config endpoint \
   --url "https://api.example.com/notify/{status_code}" \
   --method POST \
   --header "Authorization: Bearer abc123" \
-  --header "X-Custom: Value" \
-  --payload-template '{"text": "{message}", "status": "{status_code}", "time": "{duration_seconds}"}' \
-  --name "My Notification Service" \
-  --timeout 30 \
+  --payload-template '{"text": "{message}"}' \
+  --name "My Service" \
   --set-default
-
-telert status  # Test your configuration
 ```
 
-The endpoint provider supports these placeholders in both URL and payload templates:
-- `{message}` - The notification message
-- `{status_code}` - Exit status of the command (when using run mode)
-- `{duration_seconds}` - Time taken by the command in seconds (when using run mode)
-- `{timestamp}` - Current Unix timestamp
-
-For non-JSON payloads, provide a plain text template or customize the content type with appropriate headers.
+[**Detailed Custom Endpoint Guide**](https://github.com/navig-me/telert/blob/main/ENDPOINT.md)
 
 ### Audio Alerts Setup
 
 Play a sound notification when your command completes.
 
 ```bash
-# Basic installation
-pip install telert
-
-# Install with audio dependencies (optional, for playsound support)
-pip install telert[audio]
-
-# Configure with default sound (uses platform-specific audio players)
+# Use the built-in sound
 telert config audio --set-default
-telert status  # Test your configuration
 
-# Or with custom sound file
+# Or use a custom sound file with volume control
 telert config audio --sound-file "/path/to/alert.wav" --volume 0.8 --set-default
 ```
 
-Audio notifications work on:
-- **macOS**: Uses built-in `afplay` command (supports MP3 and WAV)
-- **Linux**: Tries `mpg123` (for MP3s), `paplay` (PulseAudio), or `aplay` (ALSA)
-- **Windows**: 
-  - For WAV files: Uses built-in `winsound` module
-  - For MP3 files: Tries `playsound` library (install with `pip install telert[audio]`)
-
-Telert includes a built-in MP3 notification sound, so you don't need to provide your own sound file.
+Works on all platforms; for MP3 support on Windows: `pip install telert[audio]`
 
 ### Desktop Notifications Setup
 
@@ -195,63 +164,33 @@ Show notifications in your operating system's notification center.
 ```bash
 # Configure with default icon
 telert config desktop --app-name "My App" --set-default
-telert status  # Test your configuration
 
 # Or with custom icon
 telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-default
 ```
 
-Desktop notifications work on:
-- **macOS**: 
-  - Uses AppleScript with sound alert to improve visibility
-  - On newer macOS versions (Catalina+), you may need to grant notification permissions:
-    - Go to System Preferences → Notifications → Terminal (or iTerm2) and enable notifications
-  - Alternative: Install `terminal-notifier` (`brew install terminal-notifier`) as a fallback
-- **Linux**: Uses `notify-send` (install with `sudo apt install libnotify-bin` on Debian/Ubuntu)
-- **Windows**: Uses PowerShell on Windows 10+
-
-Telert includes a built-in notification icon, so you don't need to provide your own icon.
+**macOS users**: Install terminal-notifier for better reliability: `brew install terminal-notifier`  
+**Linux users**: Install notify-send: `sudo apt install libnotify-bin` (Debian/Ubuntu)
 
 ### Managing Multiple Providers
 
-Telert lets you configure multiple providers with enhanced flexibility:
+Configure and use multiple notification services at once:
 
 ```bash
-# List configured providers
-telert status
-
-# Set a provider as default
-telert config telegram --token "<your-token>" --chat-id "<your-chat-id>" --set-default
-
 # Set multiple default providers in priority order
 telert config set-defaults --providers "slack,desktop,audio"
 
-# When configuring a provider, add it to existing defaults
+# Add a provider to existing defaults without replacing them
 telert config audio --sound-file "/path/to/sound.mp3" --add-to-defaults
 
-# Use a specific provider rather than default
-telert send --provider desktop "Via desktop notification"
-
-# Send to multiple providers at once
+# Send to multiple providers 
 telert send --provider "slack,telegram" "Multi-provider message"
 
 # Send to all configured providers
-telert send --all-providers "Important message to all channels"
-
-# Python API for defaults
-from telert import set_default_provider, set_default_providers
-set_default_provider("audio")  # Single provider
-set_default_providers(["slack", "desktop"])  # Multiple providers in priority order
-
-# Python API for sending
-from telert import send
-send("Message to default provider(s)")
-send("Message to specific provider", provider="telegram")
-send("Message to multiple providers", provider=["slack", "audio"])
-send("Message to all providers", all_providers=True)
+telert send --all-providers "Important alert!"
 ```
 
-Telert securely stores all configuration in `~/.config/telert/config.json` but supports environment variable overrides for all settings.
+Configuration is stored in `~/.config/telert/config.json` and can be overridden with environment variables.
 
 ---
 
@@ -604,21 +543,56 @@ def send_to_api():
     return "This will send to your configured HTTP endpoint when done"
 ```
 
----
+## 🌐 API Deployment to Cloud Platforms
 
-## API Deployment to Cloud Platforms (Railway, Replit, Render or Fly.io)
-To deploy an API that hosts the notification services on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio), click on the below links or use any of the [Deployment Templates](https://github.com/navig-me/telert-notifier).
+Telert can be deployed as a notification API on cloud platforms like [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio). This is useful for CI/CD pipelines or services that can make HTTP requests but can't install Python.
 
 [![Run on Replit](https://replit.com/badge/github/navig-me/telert-replit)](https://replit.com/@mihir95/Telert-CLI-Notifier)
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/A_kYXt?referralCode=vj4bEA)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier)
 
-### Need a VPS for Your Projects?
+Click on any of the buttons above or use the [Deployment Templates](https://github.com/navig-me/telert-notifier) to deploy your own instance.
 
-Try these providers with generous free credits:
+Once deployed, you can send notifications by making HTTP requests to your API:
 
-- [Vultr](https://www.vultr.com/?ref=9752934-9J) — $100 free credits
-- [DigitalOcean](https://m.do.co/c/cdf2b5a182f2) — $200 free credits
+```bash
+curl -X POST https://your-deployment-url.example.com/send \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Build complete!"}'
+```
+
+For more details on deployment options and configuration, see the [telert-notifier repository](https://github.com/navig-me/telert-notifier).
+
+## 🔧 Troubleshooting
+
+### Desktop Notifications Issues
+
+- **macOS**: If desktop notifications aren't working:
+  - Install terminal-notifier: `brew install terminal-notifier`
+  - Check notification permissions in System Preferences → Notifications
+  - Ensure your terminal app (iTerm2, Terminal, VS Code) has notification permissions
+
+- **Linux**: 
+  - Install notify-send: `sudo apt install libnotify-bin` (Debian/Ubuntu)
+  - Ensure your desktop environment supports notifications
+
+- **Windows**:
+  - PowerShell must be allowed to run scripts
+  - Check Windows notification settings
+
+### Connection Issues
+
+- If you're getting connection errors with Telegram, Teams, or Slack:
+  - Verify network connectivity
+  - Check if your token/webhook URLs are correct
+  - Ensure firewall rules allow outbound connections
+
+### Audio Issues
+
+- **No sound playing**:
+  - Check if your system's volume is muted
+  - Install required audio players (macOS: built-in, Linux: mpg123/paplay/aplay, Windows: winsound/playsound)
+  - For MP3 support on Windows: `pip install telert[audio]`
 
 
 ---
@@ -755,6 +729,11 @@ Licensed under the MIT License – see `LICENSE`.
 
 ## 👏 Acknowledgements
 
-This project has been improved with help from all contributors who provide feedback and feature suggestions.
+This project has been improved with help from all contributors who provide feedback and feature suggestions. If you find this tool useful, consider [supporting the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
 
-If you find this tool useful, you can [support the project on Buy Me a Coffee](https://www.buymeacoffee.com/mihirk) ☕
+### Need a VPS for Your Projects?
+
+Try these providers with generous free credits:
+
+- [Vultr](https://www.vultr.com/?ref=9752934-9J) — $100 free credits
+- [DigitalOcean](https://m.do.co/c/cdf2b5a182f2) — $200 free credits

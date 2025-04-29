@@ -17,7 +17,7 @@ __all__ = [
     "set_default_providers",
     "list_providers"
 ]
-__version__ = "0.1.21"  # Added improved feedback messages and README TOC
+__version__ = "0.1.22"  # Fixed macOS desktop notifications issue #3, improved documentation
 
 from telert.api import (
     telert, 

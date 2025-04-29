@@ -626,48 +626,82 @@ class DesktopProvider:
             if system == "Darwin":
                 # Escape quotes and special characters in message
                 escaped_message = message.replace('"', '\\"').replace("$", "\\$")
+                timeout_seconds = 5  # Set a reasonable timeout for notification commands
 
-                # Enhanced AppleScript for better visibility
-                # Use system sound to increase chances of notification being noticed
-                apple_script = f'''
-                display notification "{escaped_message}" with title "{self.app_name}" sound name "Submarine"
-                '''
-
+                # Use a robust approach for macOS that works more consistently across terminal apps
                 try:
+                    # First try terminal-notifier if available (works well with many terminal apps)
+                    try:
+                        subprocess.run(
+                            ["which", "terminal-notifier"],
+                            check=True,
+                            capture_output=True,
+                            timeout=1
+                        )
+                        
+                        # terminal-notifier exists, use it
+                        subprocess.run(
+                            [
+                                "terminal-notifier",
+                                "-title",
+                                self.app_name,
+                                "-message",
+                                message,
+                                "-sound",
+                                "default"
+                            ],
+                            check=True,
+                            capture_output=True,
+                            timeout=timeout_seconds
+                        )
+                        return True
+                    except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError):
+                        # terminal-notifier not found or failed, suggest installation
+                        print("Hint: For better desktop notifications on macOS, install terminal-notifier:")
+                        print("      brew install terminal-notifier")
+                        pass
+
+                    # Try with direct AppleScript
+                    # NSUserNotification through AppleScript
+                    direct_script = f'''
+                    on run argv
+                        display notification "{escaped_message}" with title "{self.app_name}" sound name "Submarine"
+                    end run
+                    '''
+                    
+                    # Use a smaller timeout for this command to avoid hanging
+                    try:
+                        subprocess.run(
+                            ["osascript", "-e", direct_script],
+                            check=True,
+                            capture_output=True,
+                            timeout=timeout_seconds
+                        )
+                        return True
+                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
+                        # Continue to next approach
+                        pass
+
+                    # Fallback to System Events with explicit timeout
+                    apple_script = f'''
+                    tell application "System Events"
+                        display notification "{escaped_message}" with title "{self.app_name}"
+                    end tell
+                    '''
+                    
                     subprocess.run(
                         ["osascript", "-e", apple_script],
                         check=True,
                         capture_output=True,
+                        timeout=timeout_seconds
                     )
                     return True
-                except subprocess.SubprocessError:
-                    # Fallback to simpler notification if the enhanced one fails
-                    try:
-                        simple_script = f'display notification "{escaped_message}" with title "{self.app_name}"'
-                        subprocess.run(
-                            ["osascript", "-e", simple_script],
-                            check=True,
-                            capture_output=True,
-                        )
-                        return True
-                    except subprocess.SubprocessError:
-                        # Ultimate fallback - use terminal-notifier if available
-                        try:
-                            subprocess.run(
-                                [
-                                    "terminal-notifier",
-                                    "-title",
-                                    self.app_name,
-                                    "-message",
-                                    message,
-                                ],
-                                check=True,
-                            )
-                            return True
-                        except (subprocess.SubprocessError, FileNotFoundError):
-                            raise RuntimeError(
-                                "Could not show desktop notification on macOS"
-                            )
+                    
+                except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
+                    # All notification methods failed, but don't block the program
+                    print(f"Warning: Desktop notification could not be displayed: {str(e)}")
+                    # Return True anyway since we don't want to block the program
+                    return True
 
             # Linux
             elif system == "Linux":

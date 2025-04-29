@@ -17,9 +17,8 @@ import json
 import os
 import pathlib
 import platform
+import shutil
 import subprocess
-import re
-import string
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -33,6 +32,8 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
 DEFAULT_SOUND_FILE = DATA_DIR / "notification.mp3"  # Simple notification sound
 DEFAULT_ICON_FILE = DATA_DIR / "notification-icon.png"  # Bell icon
+
+NOTIFY_TIMEOUT = 5  # seconds
 
 
 class Provider(enum.Enum):
@@ -88,11 +89,15 @@ class MessagingConfig:
         """Get configuration for a specific provider."""
         if isinstance(provider, str):
             provider = Provider.from_string(provider)
-        
+
         # Check environment variables first
         if provider == Provider.TELEGRAM:
-            token = os.environ.get("TELERT_TELEGRAM_TOKEN") or os.environ.get("TELERT_TOKEN")
-            chat_id = os.environ.get("TELERT_TELEGRAM_CHAT_ID") or os.environ.get("TELERT_CHAT_ID")
+            token = os.environ.get("TELERT_TELEGRAM_TOKEN") or os.environ.get(
+                "TELERT_TOKEN"
+            )
+            chat_id = os.environ.get("TELERT_TELEGRAM_CHAT_ID") or os.environ.get(
+                "TELERT_CHAT_ID"
+            )
             if token and chat_id:
                 return {"token": token, "chat_id": chat_id}
         elif provider == Provider.TEAMS:
@@ -143,7 +148,7 @@ class MessagingConfig:
                 if icon_path:
                     config["icon_path"] = icon_path
                 return config or self._config.get(provider.value, {})
-                
+
         # Fall back to config file
         return self._config.get(provider.value, {})
 
@@ -163,7 +168,7 @@ class MessagingConfig:
 
     def get_default_providers(self) -> List[Provider]:
         """Get the default providers if configured.
-        
+
         Returns a list of Provider enums in priority order.
         """
         # Check environment variable first
@@ -187,7 +192,7 @@ class MessagingConfig:
             except ValueError:
                 # Invalid provider, fall through to config
                 pass
-        
+
         # Next check config file for "defaults" array (new format)
         defaults = self._config.get("defaults", [])
         if defaults and isinstance(defaults, list):
@@ -197,7 +202,7 @@ class MessagingConfig:
                     providers.append(Provider.from_string(p))
             if providers:
                 return providers
-                
+
         # Finally check for legacy "default" string
         default = self._config.get("default")
         if default and default in [p.value for p in Provider]:
@@ -209,10 +214,10 @@ class MessagingConfig:
             return [configured[0]]
 
         return []
-    
+
     def get_default_provider(self) -> Optional[Provider]:
         """Get the default provider if configured (legacy support).
-        
+
         Returns the first default provider or None if none configured.
         """
         providers = self.get_default_providers()
@@ -235,7 +240,7 @@ class MessagingConfig:
             self._config.pop("defaults", None)
             self._config.pop("default", None)
         self.save()
-    
+
     def set_default_provider(self, provider: Union[Provider, str]):
         """Set a single default provider (legacy support)."""
         if isinstance(provider, str):
@@ -590,6 +595,79 @@ class DesktopProvider:
         self.app_name = app_name or "Telert"
         self.icon_path = icon_path or str(DEFAULT_ICON_FILE)
 
+    def _notify_macos(self, message: str) -> bool:
+        """Send a macOS notification, trying 3 helpers in order.
+
+        • terminal-notifier  (best UX; brew install terminal-notifier)
+        • osascript 'display notification …'            (fast)
+        • osascript 'tell application "System Events"'  (older Macs / stricter setups)
+
+        We surface every stderr line so you can see why it failed.
+        """
+
+        def _run(cmd: list[str]) -> bool:
+            try:
+                res = subprocess.run(
+                    cmd,
+                    timeout=NOTIFY_TIMEOUT,
+                    text=True,
+                    capture_output=True,
+                )
+                if res.returncode == 0:
+                    return True
+                # Non-zero exit: show why
+                if res.stderr:
+                    print("macOS-notify stderr:", res.stderr.strip())
+            except subprocess.TimeoutExpired:
+                print("macOS-notify timed-out on:", " ".join(cmd[:2]), "…")
+            except FileNotFoundError:
+                pass  # helper not installed
+            return False
+
+        # 1️⃣ terminal-notifier
+        if shutil.which("terminal-notifier"):
+            tn_cmd = [
+                "terminal-notifier",
+                "-title",
+                self.app_name,
+                "-message",
+                message,
+                "-sound",
+                "default",
+            ]
+            if self.icon_path and os.path.exists(self.icon_path):
+                tn_cmd += ["-appIcon", self.icon_path]
+            if _run(tn_cmd):
+                return True
+            print(
+                "Warning: Desktop notification could not be displayed using "
+                "terminal-notifier. Falling back to AppleScript."
+            )
+
+        # Helper to build AppleScript command safely
+        def _osascript(expr: str) -> bool:
+            return _run(["osascript", "-e", expr])
+
+        # 2️⃣ plain 'display notification'
+        if _osascript(
+            f"display notification {json.dumps(message)} "
+            f"with title {json.dumps(self.app_name)}"
+        ):
+            return True
+
+        # 3️⃣ older fallback via System Events
+        if _osascript(
+            f'tell application "System Events" to display notification '
+            f"{json.dumps(message)} with title {json.dumps(self.app_name)}"
+        ):
+            return True
+
+        print(
+            "Hint: Make sure “osascript” (or your terminal app if you use terminal-notifier) "
+            "has permission in  System Settings → Notifications."
+        )
+        return False
+
     def configure_from_env(self) -> bool:
         """Configure from environment variables."""
         self.app_name = os.environ.get("TELERT_DESKTOP_APP_NAME") or "Telert"
@@ -635,147 +713,56 @@ class DesktopProvider:
                 icon = None  # No icon if default is also missing
 
         try:
-            # macOS
             if system == "Darwin":
-                # Escape quotes and special characters in message
-                escaped_message = message.replace('"', '\\"').replace("$", "\\$")
-                timeout_seconds = 5  # Set a reasonable timeout for notification commands
-
-                # Use a robust approach for macOS that works more consistently across terminal apps
-                try:
-                    # First try terminal-notifier if available (works well with many terminal apps)
-                    # Try terminal-notifier if it exists (don't check with "which" as it can fail)
-                    try:
-                        # Attempt to use terminal-notifier directly
-                        subprocess.run(
-                            [
-                                "terminal-notifier",
-                                "-title",
-                                self.app_name,
-                                "-message",
-                                message,
-                                "-sound",
-                                "default"
-                            ],
-                            check=True,
-                            capture_output=True,
-                            timeout=timeout_seconds
-                        )
-                        return True
-                    except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError):
-                        # terminal-notifier not found or failed - continue to next method
-                        pass
-
-                    # Try with direct AppleScript
-                    # NSUserNotification through AppleScript
-                    direct_script = f'''
-                    on run argv
-                        display notification "{escaped_message}" with title "{self.app_name}" sound name "Submarine"
-                    end run
-                    '''
-                    
-                    # Use a smaller timeout for this command to avoid hanging
-                    try:
-                        result = subprocess.run(
-                            ["osascript", "-e", direct_script],
-                            check=False,  # Don't raise exception on non-zero exit
-                            capture_output=True,
-                            timeout=timeout_seconds
-                        )
-                        # Check if command actually succeeded
-                        if result.returncode == 0:
-                            return True
-                        # Otherwise try next approach
-                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
-                        # Continue to next approach
-                        pass
-
-                    # Fallback to System Events with explicit timeout
-                    apple_script = f'''
-                    tell application "System Events"
-                        display notification "{escaped_message}" with title "{self.app_name}"
-                    end tell
-                    '''
-                    
-                    try:
-                        result = subprocess.run(
-                            ["osascript", "-e", apple_script],
-                            check=False,
-                            capture_output=True,
-                            timeout=timeout_seconds
-                        )
-                        if result.returncode == 0:
-                            return True
-                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
-                        pass
-                        
-                    # Final fallback - try the simplest possible AppleScript notification
-                    simple_script = f'display notification "{escaped_message}"'
-                    try:
-                        subprocess.run(
-                            ["osascript", "-e", simple_script],
-                            check=False,
-                            capture_output=True,
-                            timeout=timeout_seconds
-                        )
-                        # Even if this fails, we'll continue and return True
-                        return True
-                    except (subprocess.SubprocessError, subprocess.TimeoutExpired):
-                        pass
-                        
+                if self._notify_macos(message):
                     return True
-                    
-                except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
-                    # All notification methods failed, but don't block the program
-                    print(f"Warning: Desktop notification could not be displayed: {str(e)}")
-                    print("Hint: Make sure notification permissions are enabled for your terminal app")
-                    print("      in System Preferences → Notifications")
-                    # Return True anyway since we don't want to block the program
-                    return True
+                # fall through to raise below
 
-            # Linux
             elif system == "Linux":
-                # Try using notify-send (Linux)
+                if shutil.which("notify-send") is None:
+                    print("Warning: Desktop notifications require notify-send on Linux")
+                    return True  # keep old behaviour – don’t break the program
+
+                cmd = ["notify-send", self.app_name, message]
+                if self.icon_path:
+                    cmd += ["--icon", self.icon_path]
+
                 try:
-                    cmd = ["notify-send", self.app_name, message]
-                    if icon and os.path.exists(icon):
-                        cmd.extend(["--icon", icon])
-                    subprocess.run(cmd, check=True)
+                    subprocess.run(cmd, timeout=NOTIFY_TIMEOUT, check=True)
                     return True
-                except (subprocess.SubprocessError, FileNotFoundError):
-                    raise RuntimeError(
-                        "Desktop notifications require notify-send on Linux"
-                    )
+                except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
+                    print(f"Warning: Desktop notification could not be displayed: {e}")
+                    return True
 
-            # Windows
             elif system == "Windows":
-                # Use PowerShell for Windows 10+
                 ps_script = f"""
-                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]  < /dev/null |  Out-Null
-                [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
-
-                $app = '{self.app_name}'
-                $template = [Windows.UI.Notifications.ToastTemplateType]::ToastText02
-                $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($template)
-                $text = $xml.GetElementsByTagName('text')
-                $text[0].AppendChild($xml.CreateTextNode($app))
-                $text[1].AppendChild($xml.CreateTextNode('{message}'))
-                $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+                [Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications] > $null
+                $app='{self.app_name}'
+                $xml=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(
+                    [Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+                $text=$xml.GetElementsByTagName('text')
+                $text[0].AppendChild($xml.CreateTextNode($app))   | Out-Null
+                $text[1].AppendChild($xml.CreateTextNode({json.dumps(message)})) | Out-Null
+                $toast=[Windows.UI.Notifications.ToastNotification]::new($xml)
                 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show($toast)
                 """
-
                 try:
-                    subprocess.run(["powershell", "-Command", ps_script], check=True)
-                    return True
-                except (subprocess.SubprocessError, FileNotFoundError):
-                    raise RuntimeError(
-                        "Desktop notifications on Windows require PowerShell"
+                    subprocess.run(
+                        ["powershell", "-NoProfile", "-Command", ps_script],
+                        timeout=NOTIFY_TIMEOUT,
+                        check=True,
                     )
-            else:
-                raise RuntimeError(f"Desktop notifications not supported on {system}")
+                    return True
+                except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
+                    print(f"Warning: Desktop notification could not be displayed: {e}")
+                    return True
 
-        except Exception as e:
-            raise RuntimeError(f"Desktop notification error: {str(e)}")
+            # If we reach here the platform is unsupported or macOS branch failed
+            raise RuntimeError(f"Desktop notifications not supported on {system}")
+
+        except Exception as exc:
+            # Preserve old behaviour: re-raise with same wording
+            raise RuntimeError(f"Desktop notification error: {str(exc)}") from exc
 
 
 class PushoverProvider:
@@ -825,7 +812,9 @@ class PushoverProvider:
             )
 
             if response.status_code != 200:
-                error_msg = f"Pushover API error {response.status_code}: {response.text}"
+                error_msg = (
+                    f"Pushover API error {response.status_code}: {response.text}"
+                )
                 raise RuntimeError(error_msg)
 
             return True
@@ -840,7 +829,12 @@ class PushoverProvider:
 class DiscordProvider:
     """Provider for Discord messaging via webhooks."""
 
-    def __init__(self, webhook_url: Optional[str] = None, username: Optional[str] = None, avatar_url: Optional[str] = None):
+    def __init__(
+        self,
+        webhook_url: Optional[str] = None,
+        username: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+    ):
         self.webhook_url = webhook_url
         self.username = username or "Telert"  # Default username if not provided
         self.avatar_url = avatar_url
@@ -848,14 +842,14 @@ class DiscordProvider:
     def configure_from_env(self) -> bool:
         """Configure from environment variables."""
         self.webhook_url = os.environ.get("TELERT_DISCORD_WEBHOOK")
-        
+
         # These are optional
         if os.environ.get("TELERT_DISCORD_USERNAME"):
             self.username = os.environ.get("TELERT_DISCORD_USERNAME")
-            
+
         if os.environ.get("TELERT_DISCORD_AVATAR_URL"):
             self.avatar_url = os.environ.get("TELERT_DISCORD_AVATAR_URL")
-            
+
         return bool(self.webhook_url)
 
     def configure_from_config(self, config: MessagingConfig) -> bool:
@@ -872,14 +866,14 @@ class DiscordProvider:
         """Save configuration."""
         if self.webhook_url:
             config_data = {"webhook_url": self.webhook_url}
-            
+
             # Only add these if they're not default values
             if self.username and self.username != "Telert":
                 config_data["username"] = self.username
-                
+
             if self.avatar_url:
                 config_data["avatar_url"] = self.avatar_url
-                
+
             config.set_provider_config(Provider.DISCORD, config_data)
 
     def send(self, message: str) -> bool:
@@ -891,11 +885,11 @@ class DiscordProvider:
         payload = {
             "content": message,
         }
-        
+
         # Add optional parameters if provided
         if self.username:
             payload["username"] = self.username
-            
+
         if self.avatar_url:
             payload["avatar_url"] = self.avatar_url
 
@@ -906,7 +900,11 @@ class DiscordProvider:
                 timeout=20,  # 20 second timeout
             )
 
-            if response.status_code not in (200, 201, 204):  # Discord returns 204 on success
+            if response.status_code not in (
+                200,
+                201,
+                204,
+            ):  # Discord returns 204 on success
                 error_msg = f"Discord API error {response.status_code}: {response.text}"
                 raise RuntimeError(error_msg)
 
@@ -941,30 +939,32 @@ class EndpointProvider:
     def configure_from_env(self) -> bool:
         """Configure from environment variables."""
         self.url = os.environ.get("TELERT_ENDPOINT_URL")
-        
+
         if os.environ.get("TELERT_ENDPOINT_METHOD"):
             self.method = os.environ.get("TELERT_ENDPOINT_METHOD")
-            
+
         if os.environ.get("TELERT_ENDPOINT_HEADERS"):
             try:
-                self.headers = json.loads(os.environ.get("TELERT_ENDPOINT_HEADERS", "{}"))
+                self.headers = json.loads(
+                    os.environ.get("TELERT_ENDPOINT_HEADERS", "{}")
+                )
             except json.JSONDecodeError:
                 # Invalid JSON, fallback to empty headers
                 self.headers = {}
-                
+
         if os.environ.get("TELERT_ENDPOINT_PAYLOAD"):
             self.payload_template = os.environ.get("TELERT_ENDPOINT_PAYLOAD")
-            
+
         if os.environ.get("TELERT_ENDPOINT_NAME"):
             self.name = os.environ.get("TELERT_ENDPOINT_NAME")
-            
+
         if os.environ.get("TELERT_ENDPOINT_TIMEOUT"):
             try:
                 self.timeout = int(os.environ.get("TELERT_ENDPOINT_TIMEOUT", "20"))
             except ValueError:
                 # Invalid timeout, use default
                 self.timeout = 20
-        
+
         return bool(self.url)
 
     def configure_from_config(self, config: MessagingConfig) -> bool:
@@ -974,7 +974,9 @@ class EndpointProvider:
             self.url = provider_config.get("url")
             self.method = provider_config.get("method", "POST")
             self.headers = provider_config.get("headers", {})
-            self.payload_template = provider_config.get("payload_template", '{"text": "{message}"}')
+            self.payload_template = provider_config.get(
+                "payload_template", '{"text": "{message}"}'
+            )
             self.name = provider_config.get("name", "Custom Endpoint")
             self.timeout = provider_config.get("timeout", 20)
             return bool(self.url)
@@ -1003,16 +1005,16 @@ class EndpointProvider:
             "status_code": "0",  # Default values for non-run contexts
             "duration_seconds": "0",
         }
-        
+
         # Get current timestamp
         replacements["timestamp"] = str(int(time.time()))
-        
+
         # Use a safer string formatting approach than direct format()
         result = template
         for key, value in replacements.items():
             placeholder = "{" + key + "}"
             result = result.replace(placeholder, value)
-            
+
         return result
 
     def send(self, message: str) -> bool:
@@ -1022,7 +1024,7 @@ class EndpointProvider:
 
         # Format URL if it contains placeholders
         url = self._replace_placeholders(self.url, message)
-        
+
         # Prepare payload from template
         if self.payload_template:
             try:
@@ -1077,12 +1079,16 @@ class EndpointProvider:
 
             # Check for successful response (2xx status codes)
             if response.status_code < 200 or response.status_code >= 300:
-                error_msg = f"Endpoint API error {response.status_code}: {response.text}"
+                error_msg = (
+                    f"Endpoint API error {response.status_code}: {response.text}"
+                )
                 raise RuntimeError(error_msg)
 
             return True
         except requests.exceptions.Timeout:
-            raise RuntimeError(f"Endpoint API request timed out after {self.timeout} seconds")
+            raise RuntimeError(
+                f"Endpoint API request timed out after {self.timeout} seconds"
+            )
         except requests.exceptions.ConnectionError:
             raise RuntimeError(
                 "Endpoint API connection error - please check your network connection"
@@ -1094,7 +1100,14 @@ class EndpointProvider:
 def get_provider(
     provider_name: Optional[Union[Provider, str]] = None,
 ) -> Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider, DiscordProvider
+    TelegramProvider,
+    TeamsProvider,
+    SlackProvider,
+    "AudioProvider",
+    "DesktopProvider",
+    PushoverProvider,
+    EndpointProvider,
+    DiscordProvider,
 ]:
     """Get a configured messaging provider (single provider mode for backward compatibility)."""
     providers = get_providers(provider_name)
@@ -1102,27 +1115,37 @@ def get_provider(
         raise ValueError("No messaging provider configured")
     return providers[0]  # Return first provider for compatibility
 
+
 def get_providers(
     provider_name: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
-) -> List[Union[
-    TelegramProvider, TeamsProvider, SlackProvider, "AudioProvider", "DesktopProvider", PushoverProvider, EndpointProvider, DiscordProvider
-]]:
+) -> List[
+    Union[
+        TelegramProvider,
+        TeamsProvider,
+        SlackProvider,
+        "AudioProvider",
+        "DesktopProvider",
+        PushoverProvider,
+        EndpointProvider,
+        DiscordProvider,
+    ]
+]:
     """Get a list of configured messaging providers.
-    
+
     Args:
         provider_name: Optional specific provider(s) to use.
                       Can be a single Provider or string, or a list of Providers/strings.
                       If None, will use default providers.
-    
+
     Returns:
         A list of configured provider instances in priority order.
     """
     config = MessagingConfig()
     result_providers = []
-    
+
     # Convert input to list of Provider enums
     provider_names = []
-    
+
     if provider_name is None:
         # Use default providers if none specified
         provider_names = config.get_default_providers()
@@ -1142,7 +1165,7 @@ def get_providers(
         if isinstance(provider_name, str):
             provider_name = Provider.from_string(provider_name)
         provider_names = [provider_name]
-    
+
     # If we have specific providers to use, create and configure them
     if provider_names:
         for provider_enum in provider_names:
@@ -1165,60 +1188,68 @@ def get_providers(
                 provider = DiscordProvider()
             else:
                 continue  # Skip unsupported providers
-            
+
             # Try to configure from environment first
             if provider.configure_from_env():
                 result_providers.append(provider)
             # Fall back to saved config
             elif provider.configure_from_config(config):
                 result_providers.append(provider)
-    
+
     # If no providers have been specified or successfully configured,
     # check environment variables to create providers on-the-fly
     if not result_providers:
         env_providers = []
-        
+
         # Check each provider's environment variables
         if os.environ.get("TELERT_TOKEN") and os.environ.get("TELERT_CHAT_ID"):
             provider = TelegramProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
+
         if os.environ.get("TELERT_TEAMS_WEBHOOK"):
             provider = TeamsProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
+
         if os.environ.get("TELERT_SLACK_WEBHOOK"):
             provider = SlackProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
-        if os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
+
+        if os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get(
+            "TELERT_PUSHOVER_USER"
+        ):
             provider = PushoverProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
-        if os.environ.get("TELERT_AUDIO_FILE", None) is not None or os.environ.get("TELERT_AUDIO_VOLUME", None) is not None:
+
+        if (
+            os.environ.get("TELERT_AUDIO_FILE", None) is not None
+            or os.environ.get("TELERT_AUDIO_VOLUME", None) is not None
+        ):
             provider = AudioProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
-        if os.environ.get("TELERT_DESKTOP_APP_NAME", None) is not None or os.environ.get("TELERT_DESKTOP_ICON", None) is not None:
+
+        if (
+            os.environ.get("TELERT_DESKTOP_APP_NAME", None) is not None
+            or os.environ.get("TELERT_DESKTOP_ICON", None) is not None
+        ):
             provider = DesktopProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
+
         if os.environ.get("TELERT_ENDPOINT_URL", None) is not None:
             provider = EndpointProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-                
+
         if os.environ.get("TELERT_DISCORD_WEBHOOK", None) is not None:
             provider = DiscordProvider()
             if provider.configure_from_env():
                 env_providers.append(provider)
-        
+
         # If multiple providers are configured via env vars, check for preference order
         if env_providers:
             # If TELERT_DEFAULT_PROVIDER is set, reorder the providers accordingly
@@ -1231,26 +1262,29 @@ def get_providers(
                         ordered_types.append(Provider.from_string(p.strip()))
                     except ValueError:
                         pass
-                
+
                 # Reorder providers based on the specified order
                 if ordered_types:
                     result_providers = []
                     # First add providers in the specified order
                     for p_type in ordered_types:
                         for provider in env_providers:
-                            if isinstance(provider, {
-                                Provider.TELEGRAM: TelegramProvider,
-                                Provider.TEAMS: TeamsProvider,
-                                Provider.SLACK: SlackProvider,
-                                Provider.PUSHOVER: PushoverProvider,
-                                Provider.AUDIO: AudioProvider,
-                                Provider.DESKTOP: DesktopProvider,
-                                Provider.ENDPOINT: EndpointProvider,
-                                Provider.DISCORD: DiscordProvider
-                            }[p_type]):
+                            if isinstance(
+                                provider,
+                                {
+                                    Provider.TELEGRAM: TelegramProvider,
+                                    Provider.TEAMS: TeamsProvider,
+                                    Provider.SLACK: SlackProvider,
+                                    Provider.PUSHOVER: PushoverProvider,
+                                    Provider.AUDIO: AudioProvider,
+                                    Provider.DESKTOP: DesktopProvider,
+                                    Provider.ENDPOINT: EndpointProvider,
+                                    Provider.DISCORD: DiscordProvider,
+                                }[p_type],
+                            ):
                                 result_providers.append(provider)
                                 break
-                    
+
                     # Then add any remaining providers not in the specified order
                     for provider in env_providers:
                         if provider not in result_providers:
@@ -1258,24 +1292,24 @@ def get_providers(
             else:
                 # Use providers in the order they were discovered
                 result_providers = env_providers
-    
+
     return result_providers
 
 
 def send_message(
-    message: str, 
+    message: str,
     provider: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
-    all_providers: bool = False
+    all_providers: bool = False,
 ) -> Dict[str, bool]:
     """Send a message using the specified or default provider(s).
-    
+
     Args:
         message: The message to send
         provider: Optional specific provider(s) to use
                  Can be a single Provider/string or a list of Providers/strings
         all_providers: If True, sends to all configured providers
                       If False (default), uses specified provider(s) or default provider(s)
-    
+
     Returns:
         A dictionary mapping provider names to success status
     """
@@ -1294,19 +1328,19 @@ def send_message(
     else:
         # Otherwise use specified or default providers
         providers_to_use = get_providers(provider)
-    
+
     if not providers_to_use:
         raise ValueError("No messaging provider configured")
-    
+
     # For backward compatibility, if there's only one provider, just call send
     if len(providers_to_use) == 1:
         result = providers_to_use[0].send(message)
         return {providers_to_use[0].__class__.__name__: result}
-    
+
     # Send to all specified providers and collect results
     results = {}
     exceptions = []
-    
+
     for provider_instance in providers_to_use:
         provider_name = provider_instance.__class__.__name__
         try:
@@ -1315,11 +1349,11 @@ def send_message(
         except Exception as e:
             results[provider_name] = False
             exceptions.append(f"{provider_name}: {str(e)}")
-    
+
     # If all providers failed, raise an exception with details
     if not any(results.values()):
         raise RuntimeError(f"All providers failed: {'; '.join(exceptions)}")
-    
+
     return results
 
 
@@ -1340,21 +1374,20 @@ def _validate_webhook_url(url: str) -> bool:
 
 
 def configure_providers(
-    providers: List[Union[Provider, str, Dict[str, Any]]],
-    set_as_defaults: bool = False
+    providers: List[Union[Provider, str, Dict[str, Any]]], set_as_defaults: bool = False
 ) -> bool:
     """Configure multiple messaging providers at once.
-    
+
     Args:
         providers: A list of providers to configure. Each item can be:
                  - A Provider enum
                  - A provider name string
                  - A dict with "provider" key and provider-specific options
         set_as_defaults: If True, sets these providers as defaults in the order provided
-    
+
     Returns:
         True if successful
-        
+
     Example:
         configure_providers([
             {"provider": "telegram", "token": "123", "chat_id": "456"},
@@ -1364,17 +1397,17 @@ def configure_providers(
     """
     config = MessagingConfig()
     configured_providers = []
-    
+
     for p in providers:
         provider_enum = None
         provider_config = {}
-        
+
         # Parse the provider specifications
         if isinstance(p, dict):
             # Dict format: {"provider": "name", ...options}
             if "provider" not in p:
                 continue
-                
+
             provider_name = p.pop("provider")
             try:
                 if isinstance(provider_name, str):
@@ -1383,7 +1416,7 @@ def configure_providers(
                     provider_enum = provider_name
             except ValueError:
                 continue  # Skip invalid providers
-                
+
             provider_config = p  # Remaining options
         else:
             # Simple provider name or enum
@@ -1394,7 +1427,7 @@ def configure_providers(
                     provider_enum = p
             except ValueError:
                 continue  # Skip invalid providers
-        
+
         # Configure this provider
         try:
             configure_provider(provider_enum, **provider_config)
@@ -1402,12 +1435,13 @@ def configure_providers(
         except Exception:
             # Skip providers that fail to configure
             pass
-    
+
     # Set as defaults if requested
     if set_as_defaults and configured_providers:
         config.set_default_providers(configured_providers)
-    
+
     return len(configured_providers) > 0
+
 
 def configure_provider(provider: Union[Provider, str], **kwargs):
     """Configure a messaging provider."""
@@ -1465,7 +1499,7 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
             raise ValueError(f"Icon file not found: {icon_path}")
 
         provider_instance = DesktopProvider(app_name=app_name, icon_path=icon_path)
-        
+
     elif provider == Provider.PUSHOVER:
         if "token" not in kwargs or "user" not in kwargs:
             raise ValueError("Pushover provider requires 'token' and 'user'")
@@ -1479,42 +1513,42 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
     elif provider == Provider.DISCORD:
         if "webhook_url" not in kwargs:
             raise ValueError("Discord provider requires 'webhook_url'")
-            
+
         # Validate webhook URL format
         _validate_webhook_url(kwargs["webhook_url"])
-        
+
         # Create the provider instance
         provider_instance = DiscordProvider(
             webhook_url=kwargs["webhook_url"],
             username=kwargs.get("username"),
-            avatar_url=kwargs.get("avatar_url")
+            avatar_url=kwargs.get("avatar_url"),
         )
-        
+
     elif provider == Provider.ENDPOINT:
         if "url" not in kwargs:
             raise ValueError("Endpoint provider requires 'url'")
 
         # Validate URL format
         _validate_webhook_url(kwargs["url"])
-        
+
         # Build the provider instance with all optional parameters
         method = kwargs.get("method", "POST")
         headers = kwargs.get("headers", {})
         payload_template = kwargs.get("payload_template", '{"text": "{message}"}')
         name = kwargs.get("name", "Custom Endpoint")
         timeout = kwargs.get("timeout", 20)
-        
+
         # Validate method
         if method not in ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]:
             raise ValueError(f"Invalid HTTP method: {method}")
-            
+
         provider_instance = EndpointProvider(
             url=kwargs["url"],
             method=method,
             headers=headers,
             payload_template=payload_template,
             name=name,
-            timeout=timeout
+            timeout=timeout,
         )
 
     else:

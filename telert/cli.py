@@ -25,6 +25,7 @@ from telert.messaging import (
     configure_provider,
     send_message,
 )
+from telert import __version__
 
 CFG_DIR = CONFIG_DIR
 CFG_FILE = CFG_DIR / "config.json"
@@ -784,6 +785,10 @@ def piped_mode():
 
 def main():
     """Main entry point for the CLI."""
+    # Early version flag handling (bypass pipeline mode)
+    if len(sys.argv) >= 2 and sys.argv[1] == '--version':
+        print(f'telert {__version__}')
+        return
     if not sys.stdin.isatty():
         piped_mode()
         return
@@ -792,6 +797,13 @@ def main():
         prog="telert",
         description="Send alerts when commands finish (supports multiple messaging providers).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    # Show version and exit
+    p.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s ' + __version__,
+        help='show program version and exit'
     )
     sp = p.add_subparsers(dest="cmd", required=True)
 

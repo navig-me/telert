@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.1.29 (2025-05-02)
+## 0.1.29 (2025-04-30)
 - Dockerfile: add python3-setuptools and python3-wheel; use --no-build-isolation for pip install
 - Bump project versions and references to 0.1.29 across codebase
 
-## 0.1.28 (2025-05-01)
+## 0.1.28 (2025-04-30)
 - Added Quick Pick configuration UI in the VS Code extension for notification providers
 - VS Code extension now auto-installs and auto-updates the telert CLI
 - Dockerfile: install python3-distutils to enable building wheels in slim images

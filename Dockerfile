@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     alsa-utils \
     pulseaudio \
     libnotify-bin \
+    python3-distutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory

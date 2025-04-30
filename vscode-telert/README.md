@@ -28,30 +28,40 @@ Receive notifications through various channels:
 - **Live Status Bar Timer**: Monitor elapsed time while commands run
 - **Context Menu Integration**: Right-click on code to run with notifications
 - **Command Palette Actions**: Quick access to telert commands
+- **Quick Pick Configuration**: Guided UI to select your default provider and enter credentials without manually editing JSON
 - **Notification Threshold**: Only notify for commands that take longer than X seconds
 - **Multi-Provider Support**: Send notifications to multiple services simultaneously
 - **Terminal Output Sharing**: Send the output of your last command as a notification
 
 ## 🔧 Installation & Setup
 
-### 1. Install the telert CLI tool:
+### 1. Install the telert CLI tool (optional — the extension will auto-install/update it for you):
 
 ```bash
+# Optional if you plan to use the CLI only; the VS Code extension will auto-install/update it
 pip install telert
 ```
 
-### 2. Configure your preferred notification method:
+### 2. Configure your preferred notification method
+
+You can set up your notification provider either via the telert CLI (for global use) or directly in VS Code settings (extension-only).
 
 ```bash
-# Send notifications to your phone via Telegram
+# CLI: Send notifications to your phone via Telegram (global config)
 telert config telegram --token "<your-token>" --chat-id "<your-chat-id>" --set-default
-
-# Or use Slack for team notifications
-telert config slack --webhook-url "<webhook-url>" --set-default
-
-# Or simple desktop notifications (no additional setup)
-telert config desktop --app-name "VS Code" --set-default
 ```
+
+Or, in your VS Code `settings.json`:
+
+```json
+"telert.defaultProvider": "telegram",
+"telert.environmentVariables": {
+  "TELERT_TELEGRAM_TOKEN": "<your-token>",
+  "TELERT_TELEGRAM_CHAT_ID": "<your-chat-id>"
+}
+```
+
+For Slack, Pushover, Teams, Discord, etc., replace the above keys with the corresponding `TELERT_*` variables (e.g. `TELERT_SLACK_WEBHOOK`, `TELERT_PUSHOVER_TOKEN`, `TELERT_PUSHOVER_USER`, `TELERT_TEAMS_WEBHOOK`, `TELERT_DISCORD_WEBHOOK`, etc.).
 
 ### 3. Verify your setup:
 
@@ -101,9 +111,8 @@ Fine-tune the extension to match your workflow:
      "telert.defaultProvider": "slack"
      ```
 * `telert.notificationThreshold`: Only notify for commands that take longer than X seconds
-* `telert.environmentVariables`: An object mapping TELERT_* environment variables to values needed for your notification provider(s).
-  For example, to configure Slack and Telegram providers:
-
+* `telert.environmentVariables`: An object mapping any required `TELERT_*` environment variables to values for your chosen provider(s). The extension will inject these into the shell before running the `telert` command.
+  Example (Slack + Telegram):
   ```json
   "telert.environmentVariables": {
     "TELERT_SLACK_WEBHOOK": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
@@ -111,7 +120,7 @@ Fine-tune the extension to match your workflow:
     "TELERT_TELEGRAM_CHAT_ID": "<your-chat-id>"
   }
   ```
-  Supported variables include (but are not limited to):
+  Supported keys include (but are not limited to):
   `TELERT_DEFAULT_PROVIDER`, `TELERT_TELEGRAM_TOKEN`, `TELERT_TELEGRAM_CHAT_ID`,
   `TELERT_SLACK_WEBHOOK`, `TELERT_TEAMS_WEBHOOK`, `TELERT_DISCORD_WEBHOOK`,
   `TELERT_DISCORD_USERNAME`, `TELERT_DISCORD_AVATAR_URL`, `TELERT_PUSHOVER_TOKEN`,
@@ -138,6 +147,12 @@ If you've already run a command:
 2. Select "Telert: Send Last Terminal Output"
 3. Enter an optional message
 4. Get a notification with the terminal output
+
+### Configuring Notifications via Quick Pick
+
+1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Select **Telert: Configure Notification Provider**
+3. Choose your desired provider and enter any required tokens/webhooks when prompted
 
 ## 🔗 Related Resources
 

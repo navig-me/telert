@@ -202,66 +202,37 @@ function activate(context) {
             telertCommand += ` --provider ${provider}`;
         }
         
-        // Run the command in the integrated terminal
-        const terminal = vscode.window.createTerminal('Telert');
-        
-        // Set environment variables if configured
+        // Run the command via VS Code Tasks API so we can track completion
+        const args = `${telertCommand} ${command}`;
+        const options = {};
         if (envVars && Object.keys(envVars).length > 0) {
-            const isWindows = os.platform() === 'win32';
-            
-            for (const [key, value] of Object.entries(envVars)) {
-                if (isWindows) {
-                    terminal.sendText(`$env:${key}="${value}"`);
-                } else {
-                    terminal.sendText(`export ${key}="${value}"`);
-                }
-            }
+            options.env = envVars;
         }
-        
-        terminal.show();
-        
-        // Start timer if enabled
-        let startTime = Date.now();
-        let timerId = null;
-        let commandId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-        
-        if (showTimer) {
-            statusBarItem.text = `$(clock) Telert: 0s`;
-            statusBarItem.tooltip = `Running: ${command}`;
-            statusBarItem.show();
-            
-            timerId = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                statusBarItem.text = `$(clock) Telert: ${elapsed}s`;
-            }, 1000);
-            
-            runningTimers.set(commandId, {
-                timerId,
-                command,
-                startTime
-            });
-        }
-        
-        // Send the telert command
-        terminal.sendText(`${telertCommand} ${command}`);
-        
-        // Set up to capture output for the "Send Last Output" command
-        const terminalData = [];
-        
-        // Clean up the timer when the terminal is closed
-        const disposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
-            if (closedTerminal === terminal) {
-                if (timerId) {
-                    clearInterval(timerId);
-                    runningTimers.delete(commandId);
-                    
-                    // Hide status bar if no more running timers
-                    if (runningTimers.size === 0) {
+
+        const shellExec = new vscode.ShellExecution(args, options);
+        const taskDef = { type: 'telert' };
+        const taskName = `Telert: ${command}`;
+        const task = new vscode.Task(taskDef, vscode.TaskScope.Workspace, taskName, 'telert', shellExec);
+
+        vscode.tasks.executeTask(task).then((exec) => {
+            if (showTimer) {
+                const startTime = Date.now();
+                statusBarItem.text = `$(clock) Telert: 0s`;
+                statusBarItem.tooltip = `Running: ${command}`;
+                statusBarItem.show();
+
+                const timerId = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    statusBarItem.text = `$(clock) Telert: ${elapsed}s`;
+                }, 1000);
+
+                const endDisposable = vscode.tasks.onDidEndTaskProcess((e) => {
+                    if (e.execution === exec) {
+                        clearInterval(timerId);
                         statusBarItem.hide();
+                        endDisposable.dispose();
                     }
-                }
-                
-                disposable.dispose();
+                });
             }
         });
     });

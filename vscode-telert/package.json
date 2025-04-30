@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Terminal Command Notifications",
   "description": "Run commands in integrated terminal and get notifications when they complete",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
@@ -20,7 +20,8 @@
   ],
   "activationEvents": [
     "onCommand:telert.runInTerminal",
-    "onCommand:telert.sendLastOutput"
+    "onCommand:telert.sendLastOutput",
+    "onCommand:telert.configureProviders"
   ],
   "main": "./extension.js",
   "icon": "images/icon.png",
@@ -34,6 +35,11 @@
         "command": "telert.sendLastOutput",
         "title": "Telert: Send Last Terminal Output"
       }
+    ,
+    {
+      "command": "telert.configureProviders",
+      "title": "Telert: Configure Notification Provider"
+    }
     ],
     "menus": {
       "editor/context": [
@@ -43,12 +49,9 @@
         }
       ],
       "commandPalette": [
-        {
-          "command": "telert.runInTerminal"
-        },
-        {
-          "command": "telert.sendLastOutput"
-        }
+        { "command": "telert.runInTerminal" },
+        { "command": "telert.sendLastOutput" },
+        { "command": "telert.configureProviders" }
       ]
     },
     "configuration": {
@@ -101,5 +104,8 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.99.1"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/navig-me"
   }
 }

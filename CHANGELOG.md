@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.28 (2025-05-01)
+- Added Quick Pick configuration UI in the VS Code extension for notification providers
+- VS Code extension now auto-installs and auto-updates the telert CLI
+- Dockerfile: install python3-distutils to enable building wheels in slim images
+- Bumped version numbers across project for release
+
 ## 0.1.27 (2025-04-30)
 - Introduced consistent logo design with telert.png
 - Updated VS Code extension icon and notification icons

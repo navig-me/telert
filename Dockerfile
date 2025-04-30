@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio \
     libnotify-bin \
     python3-distutils \
+    python3-setuptools \
+    python3-wheel \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory
@@ -16,7 +18,7 @@ WORKDIR /app
 COPY . .
 
 # Install telert with optional dependencies and FastAPI for server mode
-RUN pip install --no-cache-dir -e .[audio,desktop] fastapi uvicorn
+RUN pip install --no-cache-dir --no-build-isolation -e .[audio,desktop] fastapi uvicorn
 
 # Create a directory for config
 RUN mkdir -p /root/.config/telert

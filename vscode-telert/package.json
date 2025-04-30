@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Terminal Command Notifications",
   "description": "Run commands in integrated terminal and get notifications when they complete",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {

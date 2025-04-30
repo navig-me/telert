@@ -10,48 +10,53 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    
+
     - name: Install telert
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        
+
     - name: Install dependencies
       run: |
         if [ -f requirements.txt ]; then
           pip install -r requirements.txt
         fi
-    
+
     - name: Send notification using telert
       run: |
-        # Configure telert with environment variables
-        telert config set-defaults --providers "telegram"
-        telert send "Workflow started: Example Telert Workflow"
+        if [ -n "${{ secrets.TELERT_TOKEN }}" ]; then
+          telert config set-defaults --providers "telegram"
+          telert send "Workflow started: Example Telert Workflow"
+        else
+          echo "Secret TELERT_TOKEN not set. Skipping notification."
+        fi
       env:
         TELERT_TELEGRAM_TOKEN: ${{ secrets.TELERT_TOKEN }}
         TELERT_TELEGRAM_CHAT_ID: ${{ secrets.TELERT_CHAT_ID }}
-      if: success() && secrets.TELERT_TOKEN != ''
-    
+
     - name: Run tests
       run: |
         python -m pytest || true
-        
+
     - name: Build package
       run: |
         python -m build
-        
+
     - name: Send completion notification
       run: |
-        telert send "✅ Workflow completed: Example Telert Workflow"
+        if [ -n "${{ secrets.TELERT_TOKEN }}" ]; then
+          telert send "✅ Workflow completed: Example Telert Workflow"
+        else
+          echo "Secret TELERT_TOKEN not set. Skipping notification."
+        fi
       env:
         TELERT_TELEGRAM_TOKEN: ${{ secrets.TELERT_TOKEN }}
         TELERT_TELEGRAM_CHAT_ID: ${{ secrets.TELERT_CHAT_ID }}
-      if: always() && secrets.TELERT_TOKEN != ''

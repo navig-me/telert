@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-wheel \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip install --upgrade --no-cache-dir pip setuptools wheel build
+
 # Set up working directory
 WORKDIR /app
 
@@ -18,7 +20,7 @@ WORKDIR /app
 COPY . .
 
 # Install telert with optional dependencies and FastAPI for server mode
-RUN pip install --no-cache-dir --no-build-isolation -e .[audio,desktop] fastapi uvicorn
+RUN pip install --no-cache-dir -e ".[audio,desktop]" fastapi uvicorn
 
 # Create a directory for config
 RUN mkdir -p /root/.config/telert

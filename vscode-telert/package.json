@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Terminal Command Notifications",
   "description": "Run commands in integrated terminal and get notifications when they complete",
-  "version": "0.1.1",
+  "version": "0.1.27",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
@@ -56,8 +56,18 @@
       "properties": {
         "telert.defaultProvider": {
           "type": "string",
-          "default": "",
-          "description": "Default notification provider to use (e.g., telegram, slack, teams, discord, pushover, audio, desktop)"
+          "default": "desktop",
+          "enum": ["telegram", "slack", "teams", "discord", "pushover", "desktop", "audio"],
+          "enumDescriptions": [
+            "Telegram Bot notifications",
+            "Slack channel notifications",
+            "Microsoft Teams via webhook",
+            "Discord server via webhook",
+            "Pushover mobile notifications",
+            "Desktop native notifications",
+            "Audio sound alert"
+          ],
+          "description": "Default notification provider to use."
         },
         "telert.notificationThreshold": {
           "type": "number",
@@ -67,7 +77,7 @@
         "telert.environmentVariables": {
           "type": "object",
           "default": {},
-          "description": "Environment variables for telert configuration (e.g., TELERT_TOKEN, TELERT_CHAT_ID)"
+          "description": "Environment variables for telert configuration. Provide any TELERT_* variables required by your notification provider (e.g., TELERT_TELEGRAM_TOKEN, TELERT_TELEGRAM_CHAT_ID, TELERT_SLACK_WEBHOOK, TELERT_DISCORD_WEBHOOK, TELERT_PUSHOVER_TOKEN, TELERT_PUSHOVER_USER, TELERT_DESKTOP_APP_NAME, etc.)"
         },
         "telert.statusBarTimer": {
           "type": "boolean",

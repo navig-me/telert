@@ -1,6 +1,6 @@
 # Telert - Notifications for Your VS Code Terminal
 
-Never stare at a terminal waiting for your commands to finish again! Telert sends you instant notifications when long-running tasks complete, so you can focus on other work while waiting for builds, tests, or deployments.
+Never stare at a terminal waiting for your commands to finish again! Telert sends you instant notifications when long-running tasks complete, so you can focus on other work while waiting for builds, tests, or deployments. Telert works with desktop notifications, mobile devices, messaging apps (Telegram, Microsoft Teams, Slack, Discord), Pushover, and custom HTTP endpoints.
 
 ![Telert Demo](https://raw.githubusercontent.com/navig-me/telert/main/docs/telert-demo.gif)
 
@@ -92,9 +92,32 @@ npm run build
 
 Fine-tune the extension to match your workflow:
 
-* `telert.defaultProvider`: Choose your notification method (telegram, slack, teams, discord, pushover, desktop, audio)
+* `telert.defaultProvider`: Choose your notification method. Default is `desktop`. Valid options: `telegram`, `slack`, `teams`, `discord`, `pushover`, `desktop`, `audio`.
+  To change this:
+  1. Open VS Code Settings (Ctrl+, / Cmd+,), search for **Telert Default Provider**, and select your preferred option from the dropdown list of providers.
+  2. Or in your `settings.json`, add:
+
+     ```json
+     "telert.defaultProvider": "slack"
+     ```
 * `telert.notificationThreshold`: Only notify for commands that take longer than X seconds
-* `telert.environmentVariables`: Configure your notification services
+* `telert.environmentVariables`: An object mapping TELERT_* environment variables to values needed for your notification provider(s).
+  For example, to configure Slack and Telegram providers:
+
+  ```json
+  "telert.environmentVariables": {
+    "TELERT_SLACK_WEBHOOK": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
+    "TELERT_TELEGRAM_TOKEN": "<your-telegram-bot-token>",
+    "TELERT_TELEGRAM_CHAT_ID": "<your-chat-id>"
+  }
+  ```
+  Supported variables include (but are not limited to):
+  `TELERT_DEFAULT_PROVIDER`, `TELERT_TELEGRAM_TOKEN`, `TELERT_TELEGRAM_CHAT_ID`,
+  `TELERT_SLACK_WEBHOOK`, `TELERT_TEAMS_WEBHOOK`, `TELERT_DISCORD_WEBHOOK`,
+  `TELERT_DISCORD_USERNAME`, `TELERT_DISCORD_AVATAR_URL`, `TELERT_PUSHOVER_TOKEN`,
+  `TELERT_PUSHOVER_USER`, `TELERT_DESKTOP_APP_NAME`, `TELERT_DESKTOP_ICON`,
+  `TELERT_AUDIO_FILE`, `TELERT_AUDIO_VOLUME`, `TELERT_ENDPOINT_URL`, etc.
+  See the main telert CLI documentation [(Environment Variables section)](https://github.com/navig-me/telert/?tab=readme-ov-file#-environment-variables) for a full list.
 * `telert.statusBarTimer`: Show/hide the live timer while commands run
 
 ## 🧩 Using the Extension

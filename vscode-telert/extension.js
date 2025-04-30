@@ -104,6 +104,31 @@ function activate(context) {
     // Create status bar item for timer
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
     context.subscriptions.push(statusBarItem);
+    
+    // Create main Telert status bar menu button
+    const mainStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    mainStatusItem.text = '$(bell) Telert';
+    mainStatusItem.tooltip = 'Telert: Run & Notify, Send Output, Configure Provider';
+    mainStatusItem.command = 'telert.showMenu';
+    mainStatusItem.show();
+    context.subscriptions.push(mainStatusItem);
+    
+    // Register command to show Telert quick menu
+    const showMenuDisposable = vscode.commands.registerCommand('telert.showMenu', async () => {
+        const items = [
+            { label: 'Run in Terminal and Notify', command: 'telert.runInTerminal' },
+            { label: 'Send Last Terminal Output', command: 'telert.sendLastOutput' },
+            { label: 'Configure Notification Provider', command: 'telert.configureProviders' }
+        ];
+        const pick = await vscode.window.showQuickPick(items.map(i => i.label), { placeHolder: 'Telert Commands' });
+        if (pick) {
+            const selected = items.find(i => i.label === pick);
+            if (selected) {
+                vscode.commands.executeCommand(selected.command);
+            }
+        }
+    });
+    context.subscriptions.push(showMenuDisposable);
 
     // Register the command to run in terminal and notify
     let runDisposable = vscode.commands.registerCommand('telert.runInTerminal', async function () {

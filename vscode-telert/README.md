@@ -26,25 +26,60 @@ Receive notifications through various channels:
 
 - **Run & Notify**: Execute code or commands with automatic notifications when they complete
 - **Live Status Bar Timer**: Monitor elapsed time while commands run
-- **Context Menu Integration**: Right-click on code to run with notifications
+- **Context Menu Integration**: Right-click on code in the editor or files in the Explorer to run with notifications
+- **One-Click Status Bar Menu**: Click the Telert bell icon in the status bar to quickly access Run, Send Output, and Configure commands
 - **Command Palette Actions**: Quick access to telert commands
 - **Quick Pick Configuration**: Guided UI to select your default provider and enter credentials without manually editing JSON
 - **Notification Threshold**: Only notify for commands that take longer than X seconds
 - **Multi-Provider Support**: Send notifications to multiple services simultaneously
 - **Terminal Output Sharing**: Send the output of your last command as a notification
 
+## ⚡ Quick Start
+
+1. Configure your notification provider:
+   - Click the Telert bell icon in the status bar and select **Configure Notification Provider**
+   - Choose your provider (Telegram, Slack, Teams, etc.) and enter credentials when prompted
+   - For detailed setup instructions, see the main Telert docs:
+     - [Telegram](https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md)
+     - [Slack](https://github.com/navig-me/telert/blob/main/docs/SLACK.md)
+     - [Microsoft Teams](https://github.com/navig-me/telert/blob/main/docs/TEAMS.md)
+     - [Discord](https://github.com/navig-me/telert/blob/main/docs/DISCORD.md)
+     - [Pushover](https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md)
+
+2. Run a command with notifications:
+   - Click the Telert bell icon and select **Run in Integrated Terminal and Notify**
+   - Or right-click in the editor or Explorer and choose **Telert: Run in Integrated Terminal and Notify**
+   - Or use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for **Telert: Run in Integrated Terminal and Notify**
+
+3. (Optional) Install the Telert CLI locally (the extension will auto-install/update it for you):
+   ```bash
+   pip install --upgrade telert
+   ```
+
+4. View results & receive notifications on your desktop or mobile device.
+
+---
 ## 🔧 Installation & Setup
 
 ### 1. Install the telert CLI tool (optional — the extension will auto-install/update it for you):
 
 ```bash
 # Optional if you plan to use the CLI only; the VS Code extension will auto-install/update it
-pip install telert
+pip install --upgrade telert
 ```
+See the Telert CLI documentation for additional commands and configuration:
+[Telert CLI Docs](https://github.com/navig-me/telert#commands)
 
 ### 2. Configure your preferred notification method
 
 You can set up your notification provider either via the telert CLI (for global use) or directly in VS Code settings (extension-only).
+
+For detailed provider setup and required environment variables, see the main Telert documentation:
+- Telegram: https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md
+- Slack: https://github.com/navig-me/telert/blob/main/docs/SLACK.md
+- Microsoft Teams: https://github.com/navig-me/telert/blob/main/docs/TEAMS.md
+- Discord: https://github.com/navig-me/telert/blob/main/docs/DISCORD.md
+- Pushover: https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md
 
 ```bash
 # CLI: Send notifications to your phone via Telegram (global config)
@@ -134,8 +169,9 @@ Fine-tune the extension to match your workflow:
 ### Running Code with Notifications
 
 1. Select code in your editor (or position cursor on a line)
-2. Right-click and select "Telert: Run in Integrated Terminal and Notify"
-   - Or use Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Telert"
+2. Right-click in the editor or on a file in the Explorer and select "Telert: Run in Integrated Terminal and Notify"
+   - Or click the Telert bell icon in the status bar and choose "Run in Integrated Terminal and Notify"
+   - Or use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for "Telert: Run in Integrated Terminal and Notify"
 3. Your code will run in the integrated terminal with a live timer
 4. When complete, you'll receive a notification with execution time and status
 

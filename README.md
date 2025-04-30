@@ -4,13 +4,15 @@
 
 # telert – Alerts for Your Terminal
 
-**Version 0.1.30**
+**Version 0.1.31**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/docs/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version/Navig.telert-vscode.svg?subject=VS%20Code%20Marketplace&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
+
 
 ## 📱 Overview
 
@@ -866,7 +868,7 @@ telert run --label "CI Build" -- npm run build
  
  1. Update version in both `pyproject.toml`, `README.md` and `telert/__init__.py`
  2. Commit the changes and push to main
- 3. Create a new GitHub release with a tag like `v0.1.30`
+ 3. Create a new GitHub release with a tag like `v0.1.31`
  4. The GitHub Actions workflow will automatically build and publish to PyPI
  
  To manually publish to PyPI if needed:

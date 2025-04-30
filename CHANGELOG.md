@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.31 (2025-04-30)
+- Bump version to 0.1.31 across the codebase.
+
 ## 0.1.30 (2025-04-30)
 - Update Docker action
 

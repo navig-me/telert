@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.30 (2025-04-30)
+- Update Docker action
+
 ## 0.1.29 (2025-04-30)
 - Dockerfile: add python3-setuptools and python3-wheel; use --no-build-isolation for pip install
 - Bump project versions and references to 0.1.29 across codebase

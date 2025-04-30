@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Terminal Command Notifications",
   "description": "Run commands in integrated terminal and get notifications when they complete",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
@@ -34,12 +34,11 @@
       {
         "command": "telert.sendLastOutput",
         "title": "Telert: Send Last Terminal Output"
+      },
+      {
+        "command": "telert.configureProviders",
+        "title": "Telert: Configure Notification Provider"
       }
-    ,
-    {
-      "command": "telert.configureProviders",
-      "title": "Telert: Configure Notification Provider"
-    }
     ],
     "menus": {
       "editor/context": [
@@ -49,9 +48,15 @@
         }
       ],
       "commandPalette": [
-        { "command": "telert.runInTerminal" },
-        { "command": "telert.sendLastOutput" },
-        { "command": "telert.configureProviders" }
+        {
+          "command": "telert.runInTerminal"
+        },
+        {
+          "command": "telert.sendLastOutput"
+        },
+        {
+          "command": "telert.configureProviders"
+        }
       ]
     },
     "configuration": {
@@ -60,7 +65,15 @@
         "telert.defaultProvider": {
           "type": "string",
           "default": "desktop",
-          "enum": ["telegram", "slack", "teams", "discord", "pushover", "desktop", "audio"],
+          "enum": [
+            "telegram",
+            "slack",
+            "teams",
+            "discord",
+            "pushover",
+            "desktop",
+            "audio"
+          ],
           "enumDescriptions": [
             "Telegram Bot notifications",
             "Slack channel notifications",

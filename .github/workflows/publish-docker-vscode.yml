@@ -1,21 +1,20 @@
 name: Build & Publish Telert (Docker + VS Code)
 
 on:
-  # ─── build Docker on every push to main AND on semver tags ────────────────
   push:
-    branches: [ main ]
-    tags:     [ "v*" ]
-  workflow_dispatch:
+    branches: [ main ]   # every commit to main
+    tags:     [ "v*" ]   # and every vX.Y.Z tag
+  workflow_dispatch:      # manual trigger
 
 jobs:
 # ─────────────────────────────────────────────────────────────────────────────
-# 1)  DOCKER  ─ build & push to GitHub Container Registry
+# 1)  Build & push Docker image to ghcr.io
 # ─────────────────────────────────────────────────────────────────────────────
   build-and-publish-docker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # needed so GITHUB_TOKEN can push to ghcr.io
+      packages: write   # allows GITHUB_TOKEN to push to GHCR
 
     steps:
     - name: Checkout source
@@ -30,20 +29,15 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository_owner }}/telert
         tags: |
-          # semver tags when the workflow is triggered by a tag
-          type=semver,pattern={{version}},enable={{is_tag}}
-          type=semver,pattern={{major}}.{{minor}},enable={{is_tag}}
-
-          # branch name for non-default branches
+          # semver tags appear automatically only on tag pushes
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          # branch name (e.g. main, feature/foo)
           type=ref,event=branch
-
-          # commit SHA (short) – always
+          # short commit SHA – always
           type=sha,format=short
-
-          # latest only on the default branch (main)
-          type=raw,value=latest,enable={{is_default_branch}}
         flavor: |
-          latest=auto
+          latest=auto        # adds :latest only on default branch
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
@@ -52,7 +46,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push Docker image
+    - name: Build & push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -63,11 +57,10 @@ jobs:
         cache-to:   type=gha,mode=max
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2)  VS CODE  ─ build & publish extension (only on semver tags or manual)
+# 2)  Build & publish VS Code extension (only on tags or manual)
 # ─────────────────────────────────────────────────────────────────────────────
   build-and-publish-vscode:
     runs-on: ubuntu-latest
-    # run only when we’re on a tag or manual trigger
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
 
     steps:
@@ -82,17 +75,14 @@ jobs:
     - name: Install vsce
       run: npm install -g @vscode/vsce
 
-    # Extract / align extension version
-    - name: Extract & sync version
+    - name: Sync extension version with tag (if needed)
       id: version
       run: |
         VERSION=$(node -p "require('./vscode-telert/package.json').version")
-
-        # If triggered by a tag, make package.json match the tag
         if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           if [[ "$VERSION" != "$TAG_VERSION" ]]; then
-            echo "Syncing VS Code extension version → $TAG_VERSION"
+            echo "Updating VS Code extension version → $TAG_VERSION"
             cd vscode-telert
             npm version "$TAG_VERSION" --no-git-tag-version
           fi
@@ -114,7 +104,7 @@ jobs:
         cd vscode-telert
         vsce publish -p "$VSCE_PAT"
 
-    - name: Upload .vsix as artifact
+    - name: Upload VSIX as artifact
       uses: actions/upload-artifact@v4
       with:
         name: telert-vscode-${{ steps.version.outputs.EXT_VERSION }}.vsix

@@ -134,7 +134,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "@types/vscode": "^1.99.1"
+    "@types/vscode": "^1.95.1"
   },
   "sponsor": {
     "url": "https://github.com/sponsors/navig-me"

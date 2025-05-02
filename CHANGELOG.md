@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.1.33 (2025-04-30)
-- Bump version to 0.1.33 across the codebase.
+## 0.1.34 (2025-05-02)
+- Fix issue with --version being sent on VS Code install
+- Bump version to 0.1.34 across the codebase.
 
 ## 0.1.31 (2025-04-30)
 - Bump version to 0.1.31 across the codebase.

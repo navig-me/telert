@@ -667,8 +667,13 @@ def do_run(a):
 
 def piped_mode():
     """Handle input from a pipeline and send notification."""
+    # Skip version-only invocations to avoid sending unwanted notifications
+    if len(sys.argv) >= 2 and sys.argv[1] == '--version':
+        # No notification for version checks
+        sys.exit(0)
     data = sys.stdin.read()
-    msg = sys.argv[1] if len(sys.argv) > 1 else "Pipeline finished"
+    # Use first argument as message if it is not a flag, else default to 'Pipeline finished'
+    msg = sys.argv[1] if (len(sys.argv) > 1 and not sys.argv[1].startswith('-')) else "Pipeline finished"
 
     # Check for provider specification
     # We support three formats:

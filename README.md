@@ -4,7 +4,7 @@
 
 # telert – Alerts for Your Terminal
 
-**Version 0.1.33**
+**Version 0.1.34**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -868,7 +868,7 @@ telert run --label "CI Build" -- npm run build
  
  1. Update version in both `pyproject.toml`, `README.md` and `telert/__init__.py`
  2. Commit the changes and push to main
-3. Create a new GitHub release with a tag like `v0.1.33`
+3. Create a new GitHub release with a tag like `v0.1.34`
  4. The GitHub Actions workflow will automatically build and publish to PyPI
  
  To manually publish to PyPI if needed:

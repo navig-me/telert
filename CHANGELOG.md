@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.35 (2025-05-02)
+- Enhanced VSCode extension with Python function monitoring capabilities
+- Added context manager and decorator right-click options in Python files
+- Removed "Send Last Terminal Output" feature
+- Improved marketing and discoverability for VSCode extension
+- Positioned extension as a complete code command center
+
 ## 0.1.34 (2025-05-02)
 - Fix issue with --version being sent on VS Code install
 - Bump version to 0.1.34 across the codebase.

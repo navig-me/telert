@@ -1,28 +1,39 @@
 {
   "name": "telert-vscode",
-  "displayName": "Telert - Your Command Companion - Notification and Timing",
-  "description": "Run and time commands in integrated terminal and get notifications when they complete",
-  "version": "0.1.34",
+  "displayName": "Telert - Alerts and Monitoring for your Terminal Commands and Python Functions",
+  "description": "Python function monitoring, terminal command alerts, and notifications for your code execution",
+  "version": "0.1.35",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
     "vscode": "^1.95.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Formatters",
+    "Snippets",
+    "Visualization",
+    "Debuggers"
   ],
   "keywords": [
-    "terminal",
+    "python",
+    "monitoring",
     "notifications",
+    "decorator",
+    "context-manager",
+    "terminal",
     "alert",
     "telegram",
-    "slack"
+    "slack",
+    "discord",
+    "command-center"
   ],
   "activationEvents": [
     "onCommand:telert.runInTerminal",
-    "onCommand:telert.sendLastOutput",
     "onCommand:telert.configureProviders",
-    "onCommand:telert.showMenu"
+    "onCommand:telert.showMenu",
+    "onCommand:telert.wrapWithTelert",
+    "onCommand:telert.wrapWithNotifyDecorator"
   ],
   "main": "./extension.js",
   "icon": "images/icon.png",
@@ -33,8 +44,12 @@
         "title": "Telert: Run in Integrated Terminal and Notify"
       },
       {
-        "command": "telert.sendLastOutput",
-        "title": "Telert: Send Last Terminal Output"
+        "command": "telert.wrapWithTelert",
+        "title": "Telert: Wrap with telert context manager"
+      },
+      {
+        "command": "telert.wrapWithNotifyDecorator",
+        "title": "Telert: Wrap with notify decorator"
       },
       {
         "command": "telert.configureProviders",
@@ -48,8 +63,14 @@
     "menus": {
       "editor/context": [
         {
-          "command": "telert.runInTerminal",
-          "group": "navigation"
+          "command": "telert.wrapWithTelert",
+          "group": "navigation",
+          "when": "editorLangId == python && editorHasSelection"
+        },
+        {
+          "command": "telert.wrapWithNotifyDecorator",
+          "group": "navigation",
+          "when": "editorLangId == python && editorHasSelection"
         }
       ],
       "commandPalette": [
@@ -57,7 +78,12 @@
           "command": "telert.runInTerminal"
         },
         {
-          "command": "telert.sendLastOutput"
+          "command": "telert.wrapWithTelert",
+          "when": "editorLangId == python"
+        },
+        {
+          "command": "telert.wrapWithNotifyDecorator",
+          "when": "editorLangId == python"
         },
         {
           "command": "telert.configureProviders"
@@ -71,9 +97,8 @@
       ],
       "terminal/context": [
         {
-          "command": "telert.sendLastOutput",
-          "group": "navigation",
-          "when": "terminalFocus"
+          "command": "telert.configureProviders",
+          "group": "navigation"
         }
       ]
     },

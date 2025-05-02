@@ -117,12 +117,19 @@ function activate(context) {
     const showMenuDisposable = vscode.commands.registerCommand('telert.showMenu', async () => {
         const items = [
             { label: 'Run in Terminal and Notify', command: 'telert.runInTerminal' },
-            { label: 'Send Last Terminal Output', command: 'telert.sendLastOutput' },
-            { label: 'Configure Notification Provider', command: 'telert.configureProviders' }
+            { label: 'Configure Notification Provider', command: 'telert.configureProviders' },
+            { label: 'Wrap with telert context manager', command: 'telert.wrapWithTelert', when: 'editorLangId == python' },
+            { label: 'Wrap with notify decorator', command: 'telert.wrapWithNotifyDecorator', when: 'editorLangId == python' }
         ];
-        const pick = await vscode.window.showQuickPick(items.map(i => i.label), { placeHolder: 'Telert Commands' });
+        
+        // Filter items based on current editor
+        const editor = vscode.window.activeTextEditor;
+        const isPython = editor && editor.document.languageId === 'python';
+        const filteredItems = items.filter(item => !item.when || (item.when === 'editorLangId == python' && isPython));
+        
+        const pick = await vscode.window.showQuickPick(filteredItems.map(i => i.label), { placeHolder: 'Telert Commands' });
         if (pick) {
-            const selected = items.find(i => i.label === pick);
+            const selected = filteredItems.find(i => i.label === pick);
             if (selected) {
                 vscode.commands.executeCommand(selected.command);
             }
@@ -237,53 +244,203 @@ function activate(context) {
         });
     });
 
-    // Register command to send the last terminal output
-    let lastOutputDisposable = vscode.commands.registerCommand('telert.sendLastOutput', async function () {
-        // Get the active terminal
-        const terminal = vscode.window.activeTerminal;
-        if (!terminal) {
-            vscode.window.showErrorMessage('No active terminal found');
+    // Register command to wrap selected code with telert context manager
+    let wrapWithTelertDisposable = vscode.commands.registerCommand('telert.wrapWithTelert', async function () {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'python') {
+            vscode.window.showErrorMessage('This command only works in Python files');
             return;
         }
         
-        // Get configuration
-        const config = vscode.workspace.getConfiguration('telert');
-        const provider = config.get('defaultProvider');
-        const envVars = config.get('environmentVariables');
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+            vscode.window.showErrorMessage('Please select a code block to wrap');
+            return;
+        }
         
-        // Prompt for message
-        const message = await vscode.window.showInputBox({
-            placeHolder: 'Enter notification message',
-            prompt: 'Message to send with the terminal output'
+        // Get selected text
+        const selectedText = editor.document.getText(selection);
+        
+        // Get label for telert context manager
+        const label = await vscode.window.showInputBox({
+            placeHolder: 'Enter label for telert context manager',
+            prompt: 'Label will appear in notifications when this code completes',
+            value: 'Code execution'
         });
         
-        if (!message) {
+        if (label === undefined) {
             return; // User cancelled
         }
         
-        // Prepare telert command
-        let telertCommand = `telert send`;
+        // Get additional options
+        const options = await vscode.window.showQuickPick([
+            { label: 'Default settings', description: 'Notify on completion or failure' },
+            { label: 'Only notify on failure', description: 'Only send notification if code fails' },
+            { label: 'Customize options', description: 'Configure additional telert parameters' }
+        ], { placeHolder: 'Select notification options' });
         
-        // Add provider if specified
-        if (provider) {
-            telertCommand += ` --provider ${provider}`;
+        if (!options) {
+            return; // User cancelled
         }
         
-        // Set environment variables if configured
-        if (envVars && Object.keys(envVars).length > 0) {
-            const isWindows = os.platform() === 'win32';
+        // Build the context manager
+        let telertOptions = '';
+        if (options.label === 'Only notify on failure') {
+            telertOptions = ', only_fail=True';
+        } else if (options.label === 'Customize options') {
+            const includeTraceback = await vscode.window.showQuickPick(
+                ['Yes', 'No'],
+                { placeHolder: 'Include traceback in error notifications?' }
+            );
             
-            for (const [key, value] of Object.entries(envVars)) {
-                if (isWindows) {
-                    terminal.sendText(`$env:${key}="${value}"`);
+            const provider = await vscode.window.showQuickPick([
+                { label: 'default', description: 'Use default provider from configuration' },
+                { label: 'telegram', description: 'Send via Telegram' },
+                { label: 'slack', description: 'Send via Slack' },
+                { label: 'teams', description: 'Send via Microsoft Teams' },
+                { label: 'discord', description: 'Send via Discord' },
+                { label: 'desktop', description: 'Show desktop notification' },
+                { label: 'pushover', description: 'Send via Pushover mobile app' },
+                { label: 'audio', description: 'Play audio alert' },
+                { label: 'all', description: 'Send to all configured providers' }
+            ], { placeHolder: 'Select notification provider' });
+            
+            if (!includeTraceback || !provider) {
+                return; // User cancelled
+            }
+            
+            telertOptions = includeTraceback === 'No' ? ', include_traceback=False' : '';
+            
+            if (provider.label !== 'default') {
+                if (provider.label === 'all') {
+                    telertOptions += ', all_providers=True';
                 } else {
-                    terminal.sendText(`export ${key}="${value}"`);
+                    telertOptions += `, provider="${provider.label}"`;
                 }
             }
         }
         
-        // Send output as a notification
-        terminal.sendText(`${telertCommand} "${message}"`);
+        // Format the wrapped code
+        const leadingWhitespace = selectedText.match(/^(\s*)/)[1];
+        const indentedCode = selectedText.split('\n').map(line => {
+            return line.startsWith(leadingWhitespace) ? 
+                '    ' + line.substring(leadingWhitespace.length) : 
+                '    ' + line;
+        }).join('\n');
+        
+        // Create the full wrapped code
+        const wrappedCode = `from telert import telert\n\nwith telert("${label}"${telertOptions}):\n${indentedCode}\n\n# Configure telert providers: https://github.com/navig-me/telert#python-api-usage`;
+        
+        // Replace the selected text
+        await editor.edit(editBuilder => {
+            editBuilder.replace(selection, wrappedCode);
+        });
+    });
+    
+    // Register command to wrap selected function with notify decorator
+    let wrapWithNotifyDecoratorDisposable = vscode.commands.registerCommand('telert.wrapWithNotifyDecorator', async function () {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'python') {
+            vscode.window.showErrorMessage('This command only works in Python files');
+            return;
+        }
+        
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+            vscode.window.showErrorMessage('Please select a function to decorate');
+            return;
+        }
+        
+        // Get selected text
+        const selectedText = editor.document.getText(selection);
+        
+        // Check if it starts with 'def ' (function definition)
+        const isFunctionDef = selectedText.trim().startsWith('def ');
+        
+        if (!isFunctionDef) {
+            const proceed = await vscode.window.showQuickPick(
+                ['Yes, continue anyway', 'No, cancel'],
+                { placeHolder: 'Selected code does not appear to be a function definition. Continue?' }
+            );
+            
+            if (proceed !== 'Yes, continue anyway') {
+                return;
+            }
+        }
+        
+        // Extract function name for the label
+        let functionName = 'Function execution';
+        const funcNameMatch = selectedText.match(/def\s+([a-zA-Z0-9_]+)\s*\(/);
+        if (funcNameMatch && funcNameMatch[1]) {
+            functionName = funcNameMatch[1];
+        }
+        
+        // Get label for notify decorator
+        const label = await vscode.window.showInputBox({
+            placeHolder: 'Enter label for notify decorator',
+            prompt: 'Label will appear in notifications when function completes',
+            value: functionName
+        });
+        
+        if (label === undefined) {
+            return; // User cancelled
+        }
+        
+        // Get additional options
+        const options = await vscode.window.showQuickPick([
+            { label: 'Default settings', description: 'Notify on completion or failure' },
+            { label: 'Only notify on failure', description: 'Only send notification if function fails' },
+            { label: 'Customize options', description: 'Configure additional notify parameters' }
+        ], { placeHolder: 'Select notification options' });
+        
+        if (!options) {
+            return; // User cancelled
+        }
+        
+        // Build the decorator
+        let notifyOptions = '';
+        if (options.label === 'Only notify on failure') {
+            notifyOptions = ', only_fail=True';
+        } else if (options.label === 'Customize options') {
+            const includeTraceback = await vscode.window.showQuickPick(
+                ['Yes', 'No'],
+                { placeHolder: 'Include traceback in error notifications?' }
+            );
+            
+            const provider = await vscode.window.showQuickPick([
+                { label: 'default', description: 'Use default provider from configuration' },
+                { label: 'telegram', description: 'Send via Telegram' },
+                { label: 'slack', description: 'Send via Slack' },
+                { label: 'teams', description: 'Send via Microsoft Teams' },
+                { label: 'discord', description: 'Send via Discord' },
+                { label: 'desktop', description: 'Show desktop notification' },
+                { label: 'pushover', description: 'Send via Pushover mobile app' },
+                { label: 'audio', description: 'Play audio alert' },
+                { label: 'all', description: 'Send to all configured providers' }
+            ], { placeHolder: 'Select notification provider' });
+            
+            if (!includeTraceback || !provider) {
+                return; // User cancelled
+            }
+            
+            notifyOptions = includeTraceback === 'No' ? ', include_traceback=False' : '';
+            
+            if (provider.label !== 'default') {
+                if (provider.label === 'all') {
+                    notifyOptions += ', all_providers=True';
+                } else {
+                    notifyOptions += `, provider="${provider.label}"`;
+                }
+            }
+        }
+        
+        // Create the decorated code
+        const decoratedCode = `from telert import notify\n\n@notify("${label}"${notifyOptions})\n${selectedText}\n\n# Configure telert providers: https://github.com/navig-me/telert#python-api-usage`;
+        
+        // Replace the selected text
+        await editor.edit(editBuilder => {
+            editBuilder.replace(selection, decoratedCode);
+        });
     });
     // Register command to configure notification provider via Quick Pick
     let configDisposable = vscode.commands.registerCommand('telert.configureProviders', async function () {
@@ -324,7 +481,8 @@ function activate(context) {
     });
 
     context.subscriptions.push(runDisposable);
-    context.subscriptions.push(lastOutputDisposable);
+    context.subscriptions.push(wrapWithTelertDisposable);
+    context.subscriptions.push(wrapWithNotifyDecoratorDisposable);
     context.subscriptions.push(configDisposable);
 }
 

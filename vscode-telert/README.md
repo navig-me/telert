@@ -7,7 +7,7 @@ It tracks your terminal commands **in real time**, measures **execution duration
 
 ✅ **Cross-platform notifications**: Get alerts via desktop pop-ups, mobile apps, messaging tools like **Telegram, Slack, Discord, Microsoft Teams**, or even custom HTTP webhooks.
 
-<img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="600">
+<img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.gif" alt="telert demo" width="600">
 
 ---
 

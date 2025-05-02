@@ -74,6 +74,7 @@ It monitors your code and commands in **real time**, tracks **execution duration
 | 🐍 Python Decorators | Add @notify to any Python function in one click for auto-notifications      |
 | 🧩 Context Managers  | Wrap any Python code block in telert() for execution tracking               |
 | 🛎️ Run & Notify      | Automatically notify when your commands or scripts complete                 |
+| 🔍 Process Monitor   | Track running Python processes and get notified when they complete          |
 | ⏱️ Live Timers       | Tracks elapsed time in the status bar during execution                      |
 | 🚨 Error Tracking    | Get detailed notifications with tracebacks when code fails                  |
 | ⚙️ Multi-provider    | Send notifications to multiple services simultaneously                      |
@@ -81,6 +82,7 @@ It monitors your code and commands in **real time**, tracks **execution duration
 | 🧠 Smart Alerting    | Choose between always notifying or only on failure                          |
 | 🖱️ Context Menu      | Right-click on Python code to instantly add monitoring                      |
 | 🎯 Cross-platform    | Works on Windows, macOS, and Linux                                          |
+| 🔄 Smart Selection   | Intelligently selects entire functions even with complex signatures         |
 
 ---
 
@@ -144,12 +146,15 @@ npm run build
 
 ## ⚙️ Configuration Options
 
-| Setting                        | Description                                                                 |
-|-------------------------------|-----------------------------------------------------------------------------|
-| `telert.defaultProvider`      | Choose notification method: `telegram`, `slack`, `teams`, etc.             |
-| `telert.notificationThreshold`| Only notify for commands longer than X seconds                             |
-| `telert.environmentVariables` | Inject TELERT_* variables for each provider                                |
-| `telert.statusBarTimer`       | Show/hide command timer in status bar                                      |
+| Setting                                | Description                                                                 |
+|---------------------------------------|-----------------------------------------------------------------------------|
+| `telert.defaultProvider`              | Choose notification method: `telegram`, `slack`, `teams`, etc.             |
+| `telert.notificationThreshold`        | Only notify for commands longer than X seconds                             |
+| `telert.environmentVariables`         | Inject TELERT_* variables for each provider                                |
+| `telert.statusBarTimer`               | Show/hide command timer in status bar                                      |
+| `telert.autoInstall`                  | Automatically install/update telert CLI when extension activates           |
+| `telert.autoUpdateIntervalHours`      | Hours between automatic update checks for telert CLI (0 to disable)        |
+| `telert.processMonitorIntervalSeconds`| Interval between checks for monitored process status                       |
 
 ---
 
@@ -157,7 +162,7 @@ npm run build
 
 ### 🔹 Add Telert to Python Code
 
-1. Select a Python function or code block
+1. Select a Python function or code block (or just place cursor in function)
 2. Right-click → _Telert: Wrap with notify decorator_ or _Telert: Wrap with telert context manager_
 3. Choose notification options and provider
 4. Get notified when your code completes or fails!
@@ -186,6 +191,13 @@ with telert("Data processing"):
 1. Right-click file → _Telert: Run in Integrated Terminal and Notify_  
 2. OR: Use Command Palette  
 3. OR: Click Telert bell icon in status bar
+
+### 🔹 Monitor Python Processes
+
+1. Right-click in a Python file → _Telert: Monitor Python Process_  
+2. OR: Use Command Palette → _Telert: Monitor Python Process_
+3. Select from running Python processes or enter a PID manually
+4. Get notified when the process completes, with exact execution time
 
 ### 🔹 Configure with Quick Pick
 

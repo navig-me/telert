@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.36 (2025-05-02)
+- Added Python process monitoring to VS Code extension
+- Fixed issues with indentation when wrapping Python code blocks
+- Enhanced smart function detection for multi-line function definitions
+- Improved telert CLI installation and update logic
+- Added configurable settings for process monitoring and CLI updates
+
 ## 0.1.35 (2025-05-02)
 - Enhanced VSCode extension with Python function monitoring capabilities
 - Added context manager and decorator right-click options in Python files

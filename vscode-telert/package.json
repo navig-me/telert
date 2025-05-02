@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Alerts and Monitoring for your Terminal Commands and Python Functions",
   "description": "Python function monitoring, terminal command alerts, and notifications for your code execution",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
@@ -33,7 +33,8 @@
     "onCommand:telert.configureProviders",
     "onCommand:telert.showMenu",
     "onCommand:telert.wrapWithTelert",
-    "onCommand:telert.wrapWithNotifyDecorator"
+    "onCommand:telert.wrapWithNotifyDecorator",
+    "onCommand:telert.monitorPythonProcess"
   ],
   "main": "./extension.js",
   "icon": "images/icon.png",
@@ -52,6 +53,10 @@
         "title": "Telert: Wrap with notify decorator"
       },
       {
+        "command": "telert.monitorPythonProcess",
+        "title": "Telert: Monitor Python Process"
+      },
+      {
         "command": "telert.configureProviders",
         "title": "Telert: Configure Notification Provider"
       },
@@ -65,12 +70,17 @@
         {
           "command": "telert.wrapWithTelert",
           "group": "navigation",
-          "when": "editorLangId == python && editorHasSelection"
+          "when": "editorLangId == python"
         },
         {
           "command": "telert.wrapWithNotifyDecorator",
           "group": "navigation",
-          "when": "editorLangId == python && editorHasSelection"
+          "when": "editorLangId == python"
+        },
+        {
+          "command": "telert.monitorPythonProcess",
+          "group": "navigation",
+          "when": "editorLangId == python"
         }
       ],
       "commandPalette": [
@@ -83,6 +93,10 @@
         },
         {
           "command": "telert.wrapWithNotifyDecorator",
+          "when": "editorLangId == python"
+        },
+        {
+          "command": "telert.monitorPythonProcess",
           "when": "editorLangId == python"
         },
         {
@@ -142,6 +156,21 @@
           "type": "boolean",
           "default": true,
           "description": "Show timer in status bar while command is running"
+        },
+        "telert.autoInstall": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically install/update telert CLI when extension activates"
+        },
+        "telert.autoUpdateIntervalHours": {
+          "type": "number",
+          "default": 4,
+          "description": "Hours between automatic update checks for telert CLI (0 to disable periodic updates)"
+        },
+        "telert.processMonitorIntervalSeconds": {
+          "type": "number",
+          "default": 5,
+          "description": "Interval in seconds between checks for monitored process status"
         }
       }
     }

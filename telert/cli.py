@@ -531,6 +531,7 @@ def do_send(a):
     """Send a simple message."""
     provider = None
     all_providers = False
+    parse_mode = None
 
     # First check if all_providers flag is set
     if hasattr(a, "all_providers") and a.all_providers:
@@ -556,8 +557,15 @@ def do_send(a):
             except ValueError:
                 sys.exit(f"❌ Unknown provider: {a.provider}")
 
+    # Check if parse_mode was specified
+    if hasattr(a, "parse_mode") and a.parse_mode:
+        if a.parse_mode.upper() in ["HTML", "MARKDOWN", "MARKDOWNV2"]:
+            parse_mode = a.parse_mode
+        else:
+            sys.exit(f"❌ Invalid parse mode: {a.parse_mode}. Use 'HTML' or 'MarkdownV2'.")
+
     try:
-        results = send_message(a.text, provider, all_providers)
+        results = send_message(a.text, provider, all_providers, parse_mode)
         # Always show a basic success message
         if results:
             providers_str = ", ".join(results.keys())
@@ -1026,6 +1034,11 @@ def main():
         "--all-providers",
         action="store_true",
         help="send to all configured providers",
+    )
+    sd.add_argument(
+        "--parse-mode",
+        choices=["HTML", "MarkdownV2"],
+        help="message formatting mode (Telegram only)",
     )
     sd.add_argument(
         "--verbose",

@@ -6,7 +6,10 @@ authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = ["requests>=2.25"]
+dependencies = [
+    "requests>=2.25",
+    "beautifulsoup4>=4.9.0",
+]
 keywords = [
     "telegram", 
     "notification", 

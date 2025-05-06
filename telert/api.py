@@ -402,7 +402,8 @@ def list_providers() -> List[Dict[str, Any]]:
 def send(
     message: str, 
     provider: Optional[Union[str, Provider, List[Union[str, Provider]]]] = None,
-    all_providers: bool = False
+    all_providers: bool = False,
+    parse_mode: Optional[str] = None
 ) -> Dict[str, bool]:
     """
     Send a message using configured provider(s).
@@ -413,6 +414,10 @@ def send(
                  Can be a single provider or list of providers
                  If not provided, uses the default provider(s)
         all_providers: If True, sends to all configured providers
+        parse_mode: Optional parsing mode for formatted messages (optional)
+                   'HTML' - Use HTML formatting for message
+                   'MarkdownV2' - Use Markdown formatting (Telegram's MarkdownV2 format)
+                   None - Auto-detect formatting (default)
 
     Returns:
         A dictionary mapping provider names to success status
@@ -431,6 +436,12 @@ def send(
         
         # Send to all configured providers
         send("Critical alert", all_providers=True)
+        
+        # Send with explicit HTML formatting
+        send("Project build <b>completed</b> with <i>zero</i> errors", parse_mode="HTML")
+        
+        # Send with Markdown formatting
+        send("Project build **completed** with *zero* errors", parse_mode="MarkdownV2")
 
     Environment Variables:
         TELERT_DEFAULT_PROVIDER: Override default provider(s), comma-separated for multiple
@@ -462,7 +473,7 @@ def send(
                 provider = Provider.from_string(provider)
 
         # Send the message
-        return send_message(message, provider, all_providers)
+        return send_message(message, provider, all_providers, parse_mode)
     except Exception as e:
         raise RuntimeError(f"Failed to send message: {str(e)}")
 

@@ -860,6 +860,11 @@ export TELERT_CHAT_ID="your-chat-id"
 telert run --label "CI Build" -- npm run build
 ```
 
+### Monitor when Code Completes (Visual Studio Code Extension)
+- Monitor and notify when commands or Python code complete directly within VS Code.
+- Wrap Python functions or code blocks with a click and automatically receive alerts on success or failure.
+- Install the extension from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
+
 ---
 
 ### Releasing to PyPI
@@ -890,6 +895,60 @@ telert run --label "CI Build" -- npm run build
 
 PRs & issues welcome!  
 Licensed under the MIT License – see `LICENSE`.
+
+## 📝 Message Formatting
+
+### Telegram Formatting Options
+
+Telert supports multiple formatting options for Telegram messages.
+
+#### HTML Formatting
+
+Telert automatically detects and enables HTML formatting when HTML tags are found in messages:
+
+```bash
+# Send a message with HTML formatting (auto-detected)
+telert send "Project build <b>completed</b> with <i>zero</i> errors"
+
+# Or explicitly specify HTML parsing mode
+telert send --parse-mode HTML "Project build <b>completed</b> with <i>zero</i> errors"
+```
+
+Supported HTML tags:
+- `<b>`, `<strong>` - Bold text
+- `<i>`, `<em>` - Italic text
+- `<u>` - Underlined text
+- `<s>`, `<strike>`, `<del>` - Strikethrough text
+- `<code>` - Monospace text
+- `<pre>` - Pre-formatted text
+- `<a href="...">` - Links
+
+Example:
+```bash
+telert send "Click <a href='https://example.com'>here</a> to view <b>results</b>"
+```
+
+#### Markdown Formatting
+
+Telert also supports Telegram's MarkdownV2 format, automatically detected based on common Markdown syntax:
+
+```bash
+# Send a message with Markdown formatting (auto-detected)
+telert send "Project build **completed** with *zero* errors"
+
+# Or explicitly specify Markdown parsing mode
+telert send --parse-mode MarkdownV2 "Project build **completed** with *zero* errors"
+```
+
+Supported Markdown formatting:
+- `**text**` or `__text__` - Bold text
+- `*text*` or `_text_` - Italic text
+- `` `text` `` - Monospace text
+- ```text``` - Pre-formatted text
+- `~~text~~` - Strikethrough text
+- `[link text](https://example.com)` - Links
+
+Note: Telert automatically handles proper formatting and escaping to ensure compatibility with Telegram's formatting requirements. When formatting is detected, the appropriate parse mode is automatically enabled.
 
 ## 👏 Acknowledgements
 

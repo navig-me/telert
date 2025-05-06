@@ -23,6 +23,7 @@ import time
 from typing import Any, Dict, List, Optional, Union
 
 import requests
+from bs4 import BeautifulSoup
 
 # Config paths
 CONFIG_DIR = pathlib.Path(os.path.expanduser("~/.config/telert"))
@@ -250,6 +251,102 @@ class MessagingConfig:
         self.save()
 
 
+def prepare_telegram_html(message: str) -> str:
+    """
+    Prepare HTML-formatted messages for Telegram.
+    
+    Handles parsing and escaping HTML to ensure proper Telegram message formatting.
+    Only a limited subset of HTML tags are supported by Telegram: 
+    b, i, u, s, code, pre, a, and some others.
+    
+    Args:
+        message: Message text that may contain HTML formatting
+        
+    Returns:
+        Properly formatted message for Telegram with HTML parsing mode
+    """
+    if not message or message.isspace():
+        return message
+        
+    # Parse the HTML
+    soup = BeautifulSoup(message, 'html.parser')
+    
+    # Start with empty result
+    result = ""
+    
+    # Process all elements recursively
+    def process_node(node):
+        if node.name is None:  # Text node
+            return node.string
+            
+        # Only include supported tags, strip others but keep their content
+        supported_tags = ['b', 'i', 'u', 's', 'code', 'pre', 'a']
+        
+        if node.name in supported_tags:
+            tag_content = ''.join(process_node(child) for child in node.contents)
+            
+            # Special handling for links
+            if node.name == 'a' and node.has_attr('href'):
+                return f'<a href="{node["href"]}">{tag_content}</a>'
+            else:
+                return f'<{node.name}>{tag_content}</{node.name}>'
+        else:
+            # For unsupported tags, just return their content
+            return ''.join(process_node(child) for child in node.contents)
+    
+    # Process all top-level nodes
+    for node in soup.contents:
+        result += process_node(node)
+        
+    return result
+
+
+def prepare_telegram_markdown(message: str) -> str:
+    """
+    Prepare Markdown-formatted messages for Telegram.
+    
+    This function ensures proper escaping and formatting for Telegram's 
+    MarkdownV2 mode, which has specific requirements for escaping characters.
+    
+    Args:
+        message: Message text that may contain Markdown formatting
+        
+    Returns:
+        Properly formatted message for Telegram with MarkdownV2 parsing mode
+    """
+    if not message:
+        return message
+        
+    # Characters that need to be escaped in MarkdownV2
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    # We need to escape these characters outside of formatting tags
+    result = ""
+    in_tag = False
+    i = 0
+    
+    while i < len(message):
+        # Check for formatting tags
+        if message[i:i+2] in ['**', '__'] or message[i] in ['*', '_', '`', '~']:
+            # Toggle in_tag state
+            in_tag = not in_tag
+            result += message[i]
+            if message[i:i+2] in ['**', '__']:
+                result += message[i+1]
+                i += 2
+            else:
+                i += 1
+        else:
+            # Escape special characters outside of formatting tags
+            if not in_tag and message[i] in special_chars:
+                result += '\\' + message[i]
+            else:
+                result += message[i]
+            i += 1
+    
+    return result
+
+
 class TelegramProvider:
     """Provider for Telegram messaging."""
 
@@ -279,16 +376,55 @@ class TelegramProvider:
                 Provider.TELEGRAM, {"token": self.token, "chat_id": self.chat_id}
             )
 
-    def send(self, message: str) -> bool:
-        """Send a message via Telegram."""
+    def send(self, message: str, parse_mode: Optional[str] = None) -> bool:
+        """
+        Send a message via Telegram.
+        
+        Args:
+            message: The message text to send
+            parse_mode: Optional parsing mode ('HTML', 'MarkdownV2', or None for plain text)
+                       If not specified, will auto-detect HTML content
+        """
         if not (self.token and self.chat_id):
             raise ValueError("Telegram provider not configured")
 
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
+        
+        # Prepare the basic payload
+        payload = {
+            "chat_id": self.chat_id,
+            "text": message
+        }
+        
+        # Handle message formatting based on parse_mode
+        if parse_mode:
+            # Explicit parse mode specified
+            if parse_mode.upper() == "HTML":
+                payload["parse_mode"] = "HTML"
+                payload["text"] = prepare_telegram_html(message)
+            elif parse_mode.upper() in ["MARKDOWN", "MARKDOWNV2"]:
+                payload["parse_mode"] = "MarkdownV2"
+                payload["text"] = prepare_telegram_markdown(message)
+        else:
+            # Auto-detect HTML tags
+            has_html = any(tag in message for tag in ['<b>', '<i>', '<u>', '<s>', '<code>', '<pre>', '<a'])
+            
+            # Auto-detect Markdown indicators (simplified detection)
+            has_markdown = ('**' in message or '*' in message or '__' in message or '_' in message or 
+                          '```' in message or '`' in message or '~~' in message)
+            
+            # Prioritize HTML over Markdown if both are detected
+            if has_html:
+                payload["parse_mode"] = "HTML"
+                payload["text"] = prepare_telegram_html(message)
+            elif has_markdown:
+                payload["parse_mode"] = "MarkdownV2"
+                payload["text"] = prepare_telegram_markdown(message)
+        
         try:
             response = requests.post(
                 url,
-                json={"chat_id": self.chat_id, "text": message},
+                json=payload,
                 timeout=20,  # 20 second timeout
             )
 
@@ -1300,6 +1436,7 @@ def send_message(
     message: str,
     provider: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
     all_providers: bool = False,
+    parse_mode: Optional[str] = None,
 ) -> Dict[str, bool]:
     """Send a message using the specified or default provider(s).
 
@@ -1309,6 +1446,8 @@ def send_message(
                  Can be a single Provider/string or a list of Providers/strings
         all_providers: If True, sends to all configured providers
                       If False (default), uses specified provider(s) or default provider(s)
+        parse_mode: Optional parsing mode for formatted messages ('HTML', 'MarkdownV2')
+                   Currently only affects Telegram messages
 
     Returns:
         A dictionary mapping provider names to success status
@@ -1334,7 +1473,11 @@ def send_message(
 
     # For backward compatibility, if there's only one provider, just call send
     if len(providers_to_use) == 1:
-        result = providers_to_use[0].send(message)
+        # Check if the provider is Telegram and pass the parse_mode
+        if isinstance(providers_to_use[0], TelegramProvider) and parse_mode:
+            result = providers_to_use[0].send(message, parse_mode)
+        else:
+            result = providers_to_use[0].send(message)
         return {providers_to_use[0].__class__.__name__: result}
 
     # Send to all specified providers and collect results
@@ -1344,7 +1487,11 @@ def send_message(
     for provider_instance in providers_to_use:
         provider_name = provider_instance.__class__.__name__
         try:
-            success = provider_instance.send(message)
+            # Check if the provider is Telegram and pass the parse_mode
+            if isinstance(provider_instance, TelegramProvider) and parse_mode:
+                success = provider_instance.send(message, parse_mode)
+            else:
+                success = provider_instance.send(message)
             results[provider_name] = success
         except Exception as e:
             results[provider_name] = False

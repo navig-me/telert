@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.39 (2025-05-07)
+- Fixed HTML and Markdown formatting for non-Telegram providers
+- Added automatic tag stripping for providers that don't support formatting
+
 ## 0.1.38 (2025-05-06)
 - Added support for HTML and Markdown messages in Telegram
 

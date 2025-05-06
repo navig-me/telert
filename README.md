@@ -4,7 +4,7 @@
 
 # telert – Alerts for Your Terminal
 
-**Version 0.1.38**
+**Version 0.1.39**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -55,6 +55,8 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 - [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
 - [Message Formatting](#-message-formatting)
+  - [Telegram Formatting](#telegram-formatting)
+  - [Cross-Platform Formatting](#other-providers)
 - [Use Cases](#-use-cases-and-tips)
 - [Contributing](#-contributing--license)
 
@@ -858,16 +860,29 @@ Supported Markdown formatting in Telegram:
 
 #### Other Providers
 
-For providers that don't support HTML or Markdown formatting (Slack, Teams, Discord, etc.), Telert automatically strips the formatting tags while preserving the content. This ensures that your messages are still readable even if you use formatting tags intended for Telegram.
+For providers that don't natively support HTML or Markdown formatting (Slack, Teams, Discord, Pushover, etc.), Telert automatically strips the formatting tags while preserving the content. This ensures that your messages remain readable across all providers.
+
+**HTML Tag Stripping**: When a message with HTML tags is sent to non-Telegram providers, Telert extracts the text content while removing the tags.
+
+**Markdown Conversion**: When a message with Markdown formatting is sent to non-Telegram providers, Telert removes the formatting characters while keeping the text content.
 
 Example:
 ```bash
-# When sending to Telegram, this shows formatted text
+# When sending to Telegram, this shows bold and italic text
 # When sending to other providers, formatting is stripped but text is preserved
-telert send --provider "telegram,slack" "Project <b>completed</b> successfully"
+telert send --provider "telegram,slack,discord" "Project <b>completed</b> with <i>zero</i> errors"
+
+# Same with Markdown formatting
+telert send --provider "telegram,pushover,teams" "Project **completed** with *zero* errors" 
 ```
 
-Note: Telert intelligently handles the formatting based on the provider capabilities. You only need to format your message once, and Telert will ensure it displays properly across all providers.
+**Multi-provider usage**:
+```bash
+# Send to multiple providers at once with automatic formatting handling
+telert send --all-providers "Build <b>successful</b>: version 1.0.0 released!"
+```
+
+Note: Telert intelligently handles the formatting based on each provider's capabilities. You only need to format your message once, and Telert will ensure it displays properly across all providers. This makes it easy to send the same notification to multiple services without worrying about formatting compatibility.
 
 ---
 

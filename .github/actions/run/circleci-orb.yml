@@ -152,7 +152,7 @@ commands:
             fi
             
             # Run the command
-            eval "$cmd -- << parameters.command >>"
+            eval "$cmd << parameters.command >>"
 
 examples:
   run-with-notification:

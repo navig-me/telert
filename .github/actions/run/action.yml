@@ -112,7 +112,7 @@ runs:
         fi
         
         # Add the command to run
-        cmd="$cmd -- ${{ inputs.command }}"
+        cmd="$cmd ${{ inputs.command }}"
         
         # Execute the command
         eval "$cmd"

@@ -229,7 +229,7 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 
 | Mode           | What it does | Example |
 |----------------|--------------|---------|
-| **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" -- rsync -a /src /dst` |
+| **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" rsync -a /src /dst` |
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
@@ -245,7 +245,7 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 
 ### Command Line Interface (CLI)
 
-> **Note**: When using the `run` command, do not use double dashes (`--`) to separate telert options from the command to run. The correct syntax is `telert run [options] command`, not `telert run [options] -- command`.
+> **Note**: When using the `run` command, do not use double dashes (`--`) to separate telert options from the command to run. The correct syntax is `telert run [options] command`, not `telert run [options] command`.
 
 #### Run Mode
 Wrap any command to receive a notification when it completes:
@@ -928,7 +928,7 @@ export TELERT_TOKEN="your-token"
 export TELERT_CHAT_ID="your-chat-id"
 
 # Alert on build completion
-telert run --label "CI Build" -- npm run build
+telert run --label "CI Build" npm run build
 ```
 
 ### Monitor when Code Completes (Visual Studio Code Extension)

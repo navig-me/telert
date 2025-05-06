@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.40 (2025-05-08)
+- Added interactive `telert init` wizard for first-run setup
+- Added `--quiet`, `--silent`, and `--verbose` flags to control console output
+
 ## 0.1.39 (2025-05-07)
 - Fixed HTML and Markdown formatting for non-Telegram providers
 - Added automatic tag stripping for providers that don't support formatting

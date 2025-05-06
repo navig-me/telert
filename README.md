@@ -4,7 +4,7 @@
 
 # telert – Alerts for Your Terminal
 
-**Version 0.1.39**
+**Version 0.1.40**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -66,11 +66,11 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 # Install from PyPI (works on any OS with Python 3.8+)
 pip install telert
 
-# Configure a notification provider (example with desktop notifications)
-telert config desktop --app-name "My App" --set-default
+# Interactive setup wizard - easiest way to get started
+telert init
 
-# Test your configuration
-telert status
+# Or configure a notification provider manually
+telert config desktop --app-name "My App" --set-default
 
 # Basic usage - pipe command output
 long_running_command | telert "Command finished!"

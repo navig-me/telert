@@ -1,6 +1,6 @@
 [project]
 name = "telert"
-version = "0.1.39"
+version = "0.1.40"
 description = "Ultimate command monitoring & notification system: Telegram, Slack, Discord, Teams, Pushover, desktop & more. Monitor Python code and CLI tasks with context managers, decorators, and webhooks."
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"

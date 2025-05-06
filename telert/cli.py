@@ -532,6 +532,9 @@ def do_send(a):
     provider = None
     all_providers = False
     parse_mode = None
+    quiet_mode = hasattr(a, "quiet") and a.quiet
+    silent_mode = hasattr(a, "silent") and a.silent
+    verbose_mode = hasattr(a, "verbose") and a.verbose
 
     # First check if all_providers flag is set
     if hasattr(a, "all_providers") and a.all_providers:
@@ -566,16 +569,19 @@ def do_send(a):
 
     try:
         results = send_message(a.text, provider, all_providers, parse_mode)
-        # Always show a basic success message
-        if results:
-            providers_str = ", ".join(results.keys())
-            print(f"✓ Telert sent a message to: {providers_str}")
+        
+        # Handle output based on verbosity flags
+        if not silent_mode:
+            # Always show a basic success message if not in silent mode
+            if results and not quiet_mode:
+                providers_str = ", ".join(results.keys())
+                print(f"✓ Telert sent a message to: {providers_str}")
 
-        # Show detailed results for each provider if verbose or multiple providers used
-        if hasattr(a, "verbose") and a.verbose or len(results) > 1:
-            for provider_name, success in results.items():
-                status = "✅ success" if success else "❌ failed"
-                print(f"  - {provider_name}: {status}")
+            # Show detailed results based on verbosity
+            if verbose_mode or (len(results) > 1 and not quiet_mode):
+                for provider_name, success in results.items():
+                    status = "✅ success" if success else "❌ failed"
+                    print(f"  - {provider_name}: {status}")
     except Exception as e:
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
@@ -584,8 +590,16 @@ def do_run(a):
     """Run a command and send notification when it completes."""
     start = time.time()
 
-    # Check if we should suppress output
-    silent_mode = os.environ.get("TELERT_SILENT") == "1"
+    # Check verbosity flags
+    quiet_mode = hasattr(a, "quiet") and a.quiet
+    verbose_mode = hasattr(a, "verbose") and a.verbose
+    
+    # Check if we should suppress output - either from flag or env var
+    silent_mode = (hasattr(a, "silent") and a.silent) or os.environ.get("TELERT_SILENT") == "1"
+    
+    # If --silent flag was used, set the environment variable for compatibility
+    if hasattr(a, "silent") and a.silent:
+        os.environ["TELERT_SILENT"] = "1"
 
     if silent_mode:
         # Capture output when in silent mode
@@ -661,10 +675,20 @@ def do_run(a):
     # Send notification
     try:
         results = send_message(msg, provider, all_providers)
-        if results:
+        
+        # Only show output if not in silent mode and not in quiet mode
+        if results and not silent_mode and not quiet_mode:
             providers_str = ", ".join(results.keys())
             print(f"✓ Telert sent a message to: {providers_str}")
+            
+            # Show detailed results for each provider if verbose
+            if verbose_mode or (len(results) > 1 and not quiet_mode):
+                for provider_name, success in results.items():
+                    status_icon = "✅" if success else "❌"
+                    print(f"  - {provider_name}: {status_icon} {'success' if success else 'failed'}")
+                    
     except Exception as e:
+        # Always show errors, regardless of modes
         print(f"❌ Failed to send notification: {str(e)}", file=sys.stderr)
 
     sys.exit(status)
@@ -695,7 +719,19 @@ def piped_mode():
     all_providers = False
     skip_next = False
     provider_index = -1
+    quiet_mode = False
+    silent_mode = False
+    verbose_mode = False
 
+    # Check for flag arguments
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg in ["--quiet", "-q"]:
+            quiet_mode = True
+        elif arg in ["--silent", "-s"]:
+            silent_mode = True
+        elif arg in ["--verbose", "-v"]:
+            verbose_mode = True
+        
     for i, arg in enumerate(sys.argv[1:], 1):
         if skip_next:
             skip_next = False
@@ -786,14 +822,361 @@ def piped_mode():
     # Send the message
     try:
         results = send_message(msg, provider, all_providers)
-        if results:
-            providers_str = ", ".join(results.keys())
-            print(f"✓ Telert sent a message to: {providers_str}")
+        # Only show output if not in silent mode
+        if not silent_mode:
+            # Show basic success message if not in quiet mode
+            if results and not quiet_mode:
+                providers_str = ", ".join(results.keys())
+                print(f"✓ Telert sent a message to: {providers_str}")
+            
+            # Show detailed results if verbose mode or multiple providers in verbose mode
+            if verbose_mode or (len(results) > 1 and not quiet_mode):
+                for provider_name, success in results.items():
+                    status_icon = "✅" if success else "❌"
+                    print(f"  - {provider_name}: {status_icon} {'success' if success else 'failed'}")
     except Exception as e:
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
 # ──────────────────────────────── entrypoint ───────────────────────────────
+
+
+def do_init(a):
+    """Run the interactive configuration wizard."""
+    config = MessagingConfig()
+    
+    print("\n🔔 Welcome to telert configuration wizard! 🔔")
+    print("This wizard will help you set up notification providers.\n")
+    
+    # Step 1: Choose provider(s)
+    print("Available notification providers:")
+    print("1. Telegram - Mobile messaging via Telegram bot")
+    print("2. Microsoft Teams - Notifications in Teams channels")
+    print("3. Slack - Notifications in Slack channels")
+    print("4. Discord - Notifications in Discord channels")
+    print("5. Pushover - Notifications for iOS/Android devices")
+    print("6. Desktop - Local desktop notifications")
+    print("7. Audio - Sound alerts on your computer")
+    print("8. Endpoint - Custom HTTP notifications\n")
+    
+    # Get provider choices
+    provider_choices = input("Enter provider numbers to configure (comma-separated, e.g. 1,6,7): ").strip()
+    if not provider_choices:
+        print("No providers selected. Exiting wizard.")
+        return
+    
+    # Parse provider choices
+    try:
+        chosen_providers = [int(choice.strip()) for choice in provider_choices.split(",")]
+    except ValueError:
+        print("❌ Invalid input. Please enter numbers separated by commas.")
+        return
+    
+    # Map choices to provider enums
+    provider_map = {
+        1: Provider.TELEGRAM,
+        2: Provider.TEAMS,
+        3: Provider.SLACK,
+        4: Provider.DISCORD,
+        5: Provider.PUSHOVER,
+        6: Provider.DESKTOP,
+        7: Provider.AUDIO,
+        8: Provider.ENDPOINT
+    }
+    
+    selected_providers = []
+    
+    # Configure each chosen provider
+    for choice in chosen_providers:
+        if choice not in provider_map:
+            print(f"❌ Invalid provider number: {choice}")
+            continue
+        
+        provider = provider_map[choice]
+        print(f"\nConfiguring {provider.value}...")
+        
+        if provider == Provider.TELEGRAM:
+            print("\nFor Telegram notifications, you'll need:")
+            print("1. A bot token from @BotFather")
+            print("2. Your chat ID")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md")
+            
+            token = input("Enter bot token: ").strip()
+            chat_id = input("Enter chat ID: ").strip()
+            
+            if not token or not chat_id:
+                print("❌ Both token and chat ID are required. Skipping Telegram setup.")
+                continue
+                
+            try:
+                configure_provider(provider, token=token, chat_id=chat_id)
+                print("✅ Telegram configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure Telegram: {str(e)}")
+                
+        elif provider == Provider.TEAMS:
+            print("\nFor Microsoft Teams notifications, you'll need:")
+            print("1. A webhook URL from Power Automate")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/TEAMS.md")
+            
+            webhook_url = input("Enter Teams webhook URL: ").strip()
+            
+            if not webhook_url:
+                print("❌ Webhook URL is required. Skipping Teams setup.")
+                continue
+                
+            try:
+                configure_provider(provider, webhook_url=webhook_url)
+                print("✅ Microsoft Teams configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure Microsoft Teams: {str(e)}")
+                
+        elif provider == Provider.SLACK:
+            print("\nFor Slack notifications, you'll need:")
+            print("1. A webhook URL from Slack")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/SLACK.md")
+            
+            webhook_url = input("Enter Slack webhook URL: ").strip()
+            
+            if not webhook_url:
+                print("❌ Webhook URL is required. Skipping Slack setup.")
+                continue
+                
+            try:
+                configure_provider(provider, webhook_url=webhook_url)
+                print("✅ Slack configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure Slack: {str(e)}")
+                
+        elif provider == Provider.DISCORD:
+            print("\nFor Discord notifications, you'll need:")
+            print("1. A webhook URL from Discord")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/DISCORD.md")
+            
+            webhook_url = input("Enter Discord webhook URL: ").strip()
+            
+            if not webhook_url:
+                print("❌ Webhook URL is required. Skipping Discord setup.")
+                continue
+                
+            username = input("Enter bot username (optional, default: Telert): ").strip()
+            avatar_url = input("Enter bot avatar URL (optional): ").strip()
+            
+            try:
+                config_params = {"webhook_url": webhook_url}
+                if username:
+                    config_params["username"] = username
+                if avatar_url:
+                    config_params["avatar_url"] = avatar_url
+                    
+                configure_provider(provider, **config_params)
+                print("✅ Discord configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure Discord: {str(e)}")
+                
+        elif provider == Provider.PUSHOVER:
+            print("\nFor Pushover notifications, you'll need:")
+            print("1. An application token from Pushover.net")
+            print("2. Your user key from Pushover.net")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md")
+            
+            token = input("Enter Pushover application token: ").strip()
+            user = input("Enter Pushover user key: ").strip()
+            
+            if not token or not user:
+                print("❌ Both token and user key are required. Skipping Pushover setup.")
+                continue
+                
+            try:
+                configure_provider(provider, token=token, user=user)
+                print("✅ Pushover configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure Pushover: {str(e)}")
+                
+        elif provider == Provider.DESKTOP:
+            print("\nConfiguring desktop notifications:")
+            
+            app_name = input("Enter application name (optional, default: Telert): ").strip()
+            icon_path = input("Enter path to icon image (optional): ").strip()
+            
+            config_params = {}
+            if app_name:
+                config_params["app_name"] = app_name
+            if icon_path:
+                config_params["icon_path"] = icon_path
+                
+            try:
+                configure_provider(provider, **config_params)
+                print("✅ Desktop notifications configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure desktop notifications: {str(e)}")
+                
+        elif provider == Provider.AUDIO:
+            print("\nConfiguring audio notifications:")
+            
+            sound_file = input("Enter path to sound file (optional, default: built-in notification): ").strip()
+            volume_str = input("Enter volume level 0.0-1.0 (optional, default: 1.0): ").strip()
+            
+            config_params = {}
+            if sound_file:
+                config_params["sound_file"] = sound_file
+            if volume_str:
+                try:
+                    volume = float(volume_str)
+                    if 0.0 <= volume <= 1.0:
+                        config_params["volume"] = volume
+                    else:
+                        print("⚠️ Volume must be between 0.0 and 1.0. Using default (1.0).")
+                except ValueError:
+                    print("⚠️ Invalid volume format. Using default (1.0).")
+                    
+            try:
+                configure_provider(provider, **config_params)
+                print("✅ Audio notifications configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure audio notifications: {str(e)}")
+                
+        elif provider == Provider.ENDPOINT:
+            print("\nFor custom HTTP endpoint notifications, you'll need:")
+            print("1. A URL to send notifications to")
+            print("Learn more: https://github.com/navig-me/telert/blob/main/docs/ENDPOINT.md")
+            
+            url = input("Enter endpoint URL: ").strip()
+            
+            if not url:
+                print("❌ URL is required. Skipping endpoint setup.")
+                continue
+                
+            method = input("Enter HTTP method (optional, default: POST): ").strip().upper()
+            payload_template = input("Enter payload template (optional, default: {\"text\": \"{message}\"}): ").strip()
+            name = input("Enter friendly name for this endpoint (optional, default: Custom Endpoint): ").strip()
+            timeout_str = input("Enter request timeout in seconds (optional, default: 20): ").strip()
+            
+            config_params = {"url": url}
+            if method:
+                config_params["method"] = method
+            if payload_template:
+                config_params["payload_template"] = payload_template
+            if name:
+                config_params["name"] = name
+            if timeout_str:
+                try:
+                    timeout = int(timeout_str)
+                    config_params["timeout"] = timeout
+                except ValueError:
+                    print("⚠️ Invalid timeout format. Using default (20s).")
+                    
+            # Ask for HTTP headers
+            print("\nDo you want to add HTTP headers? (y/n)")
+            add_headers = input().strip().lower() == 'y'
+            
+            headers = {}
+            if add_headers:
+                print("Enter headers in 'Key: Value' format, one per line. Enter a blank line when done.")
+                while True:
+                    header_line = input().strip()
+                    if not header_line:
+                        break
+                        
+                    if ":" in header_line:
+                        key, value = header_line.split(":", 1)
+                        headers[key.strip()] = value.strip()
+                    else:
+                        print("⚠️ Invalid header format. Use 'Key: Value' format.")
+                        
+            if headers:
+                config_params["headers"] = headers
+                
+            try:
+                configure_provider(provider, **config_params)
+                print("✅ HTTP endpoint configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure HTTP endpoint: {str(e)}")
+    
+    # Set default providers if any were configured successfully
+    if selected_providers:
+        # Step 2: Set defaults and order
+        if len(selected_providers) > 1:
+            print("\nMultiple providers configured. You can set the default provider order.")
+            print("When sending notifications, providers will be tried in the specified order.")
+            
+            # Show configured providers
+            print("Configured providers:")
+            for i, p in enumerate(selected_providers, 1):
+                print(f"{i}. {p.value}")
+                
+            choice = input("\nUse the current order as defaults? (y/n, default: y): ").strip().lower()
+            
+            if choice != 'n':
+                # Use as is
+                config.set_default_providers(selected_providers)
+                providers_str = ", ".join([p.value for p in selected_providers])
+                print(f"✅ Default providers set: {providers_str}")
+            else:
+                # Ask for custom order
+                print("Enter provider numbers in your preferred order (comma-separated):")
+                order_input = input().strip()
+                
+                try:
+                    # Parse order
+                    order_indices = [int(idx.strip()) - 1 for idx in order_input.split(",")]
+                    # Create ordered provider list
+                    ordered_providers = []
+                    for idx in order_indices:
+                        if 0 <= idx < len(selected_providers):
+                            ordered_providers.append(selected_providers[idx])
+                            
+                    if ordered_providers:
+                        config.set_default_providers(ordered_providers)
+                        providers_str = ", ".join([p.value for p in ordered_providers])
+                        print(f"✅ Default providers set: {providers_str}")
+                    else:
+                        # Fallback to default order if parsing fails
+                        config.set_default_providers(selected_providers)
+                        providers_str = ", ".join([p.value for p in selected_providers])
+                        print(f"✅ Default providers set: {providers_str}")
+                except ValueError:
+                    # Fallback to default order if parsing fails
+                    config.set_default_providers(selected_providers)
+                    providers_str = ", ".join([p.value for p in selected_providers])
+                    print(f"✅ Default providers set: {providers_str}")
+        else:
+            # Only one provider, set as default
+            config.set_default_provider(selected_providers[0])
+            print(f"✅ Default provider set: {selected_providers[0].value}")
+    
+        # Step 3: Offer to test configuration
+        print("\nConfiguration complete! Would you like to test it now? (y/n)")
+        test_choice = input().strip().lower()
+        
+        if test_choice == 'y':
+            print("\nSending test message...\n")
+            try:
+                results = send_message("✅ telert configuration test successful")
+                
+                # Show results
+                for provider_name, success in results.items():
+                    status = "✅ success" if success else "❌ failed"
+                    print(f"  - {provider_name}: {status}")
+                    
+                print("\nSetup complete! You can now use telert to send notifications.")
+                print("Try running: telert run -- echo 'Hello, telert!'")
+            except Exception as e:
+                print(f"❌ Test failed: {str(e)}")
+                print("\nPlease check your configuration and try again with 'telert status'.")
+        else:
+            print("\nSetup complete! You can test your configuration with the 'telert status' command.")
+    else:
+        print("\n❌ No providers were successfully configured.")
+        print("You can try again or configure providers manually with 'telert config <provider>'.")
 
 
 def main():
@@ -1046,6 +1429,16 @@ def main():
         action="store_true",
         help="show detailed results for each provider",
     )
+    sd.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="reduce console output"
+    )
+    sd.add_argument(
+        "--silent", "-s",
+        action="store_true",
+        help="show no output except errors"
+    )
     sd.set_defaults(func=do_send)
 
     # run
@@ -1065,6 +1458,21 @@ def main():
         help="send to all configured providers",
     )
     rn.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="reduce console output while still displaying command output"
+    )
+    rn.add_argument(
+        "--silent", "-s",
+        action="store_true",
+        help="suppress command output in console (same as TELERT_SILENT=1)"
+    )
+    rn.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="show detailed output about notification delivery"
+    )
+    rn.add_argument(
         "cmd", nargs=argparse.REMAINDER, help="command to execute -- required"
     )
     rn.set_defaults(func=do_run)
@@ -1076,6 +1484,9 @@ def main():
     hp = sp.add_parser("help", help="show global help")
     hp.set_defaults(func=do_help)
     
+    # init (wizard)
+    init = sp.add_parser("init", help="run interactive setup wizard")
+    init.set_defaults(func=do_init)
 
     args = p.parse_args()
 

@@ -54,6 +54,7 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 - [API Deployment to Cloud Platforms](#-api-deployment-to-cloud-platforms)
 - [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
+- [Message Formatting](#-message-formatting)
 - [Use Cases](#-use-cases-and-tips)
 - [Contributing](#-contributing--license)
 
@@ -814,6 +815,61 @@ telert send "Environment variable configuration works!"
 Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
 
 ---
+## 📝 Message Formatting
+
+### Message Formatting Support
+
+Telert provides formatting options for messages, with different levels of support across providers.
+
+#### Telegram Formatting
+
+Telegram fully supports rich formatting with both HTML and Markdown options:
+
+```bash
+# Send a message with HTML formatting (auto-detected)
+telert send "Project build <b>completed</b> with <i>zero</i> errors"
+
+# Or explicitly specify HTML parsing mode
+telert send --parse-mode HTML "Project build <b>completed</b> with <i>zero</i> errors"
+
+# Send with Markdown formatting (auto-detected)
+telert send "Project build **completed** with *zero* errors"
+
+# Or explicitly specify Markdown parsing mode
+telert send --parse-mode MarkdownV2 "Project build **completed** with *zero* errors"
+```
+
+Supported HTML tags in Telegram:
+- `<b>`, `<strong>` - Bold text
+- `<i>`, `<em>` - Italic text
+- `<u>` - Underlined text
+- `<s>`, `<strike>`, `<del>` - Strikethrough text
+- `<code>` - Monospace text
+- `<pre>` - Pre-formatted text
+- `<a href="...">` - Links
+
+Supported Markdown formatting in Telegram:
+- `**text**` or `__text__` - Bold text
+- `*text*` or `_text_` - Italic text
+- `` `text` `` - Monospace text
+- ```text``` - Pre-formatted text
+- `~~text~~` - Strikethrough text
+- `[link text](https://example.com)` - Links
+
+#### Other Providers
+
+For providers that don't support HTML or Markdown formatting (Slack, Teams, Discord, etc.), Telert automatically strips the formatting tags while preserving the content. This ensures that your messages are still readable even if you use formatting tags intended for Telegram.
+
+Example:
+```bash
+# When sending to Telegram, this shows formatted text
+# When sending to other providers, formatting is stripped but text is preserved
+telert send --provider "telegram,slack" "Project <b>completed</b> successfully"
+```
+
+Note: Telert intelligently handles the formatting based on the provider capabilities. You only need to format your message once, and Telert will ensure it displays properly across all providers.
+
+---
 
 ## 💡 Use Cases and Tips
 
@@ -865,6 +921,7 @@ telert run --label "CI Build" -- npm run build
 - Wrap Python functions or code blocks with a click and automatically receive alerts on success or failure.
 - Install the extension from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
 
+
 ---
 
 ### Releasing to PyPI
@@ -896,59 +953,6 @@ telert run --label "CI Build" -- npm run build
 PRs & issues welcome!  
 Licensed under the MIT License – see `LICENSE`.
 
-## 📝 Message Formatting
-
-### Telegram Formatting Options
-
-Telert supports multiple formatting options for Telegram messages.
-
-#### HTML Formatting
-
-Telert automatically detects and enables HTML formatting when HTML tags are found in messages:
-
-```bash
-# Send a message with HTML formatting (auto-detected)
-telert send "Project build <b>completed</b> with <i>zero</i> errors"
-
-# Or explicitly specify HTML parsing mode
-telert send --parse-mode HTML "Project build <b>completed</b> with <i>zero</i> errors"
-```
-
-Supported HTML tags:
-- `<b>`, `<strong>` - Bold text
-- `<i>`, `<em>` - Italic text
-- `<u>` - Underlined text
-- `<s>`, `<strike>`, `<del>` - Strikethrough text
-- `<code>` - Monospace text
-- `<pre>` - Pre-formatted text
-- `<a href="...">` - Links
-
-Example:
-```bash
-telert send "Click <a href='https://example.com'>here</a> to view <b>results</b>"
-```
-
-#### Markdown Formatting
-
-Telert also supports Telegram's MarkdownV2 format, automatically detected based on common Markdown syntax:
-
-```bash
-# Send a message with Markdown formatting (auto-detected)
-telert send "Project build **completed** with *zero* errors"
-
-# Or explicitly specify Markdown parsing mode
-telert send --parse-mode MarkdownV2 "Project build **completed** with *zero* errors"
-```
-
-Supported Markdown formatting:
-- `**text**` or `__text__` - Bold text
-- `*text*` or `_text_` - Italic text
-- `` `text` `` - Monospace text
-- ```text``` - Pre-formatted text
-- `~~text~~` - Strikethrough text
-- `[link text](https://example.com)` - Links
-
-Note: Telert automatically handles proper formatting and escaping to ensure compatibility with Telegram's formatting requirements. When formatting is detected, the appropriate parse mode is automatically enabled.
 
 ## 👏 Acknowledgements
 

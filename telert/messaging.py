@@ -17,6 +17,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import time
@@ -1432,6 +1433,56 @@ def get_providers(
     return result_providers
 
 
+def strip_html_tags(text: str) -> str:
+    """Remove HTML tags from text while preserving the content.
+    
+    Args:
+        text: Text containing HTML tags
+        
+    Returns:
+        Text with HTML tags removed
+    """
+    if not text:
+        return text
+    
+    # Use BeautifulSoup to strip HTML tags while preserving content
+    soup = BeautifulSoup(text, 'html.parser')
+    return soup.get_text()
+
+
+def strip_markdown(text: str) -> str:
+    """Remove Markdown formatting from text while preserving the content.
+    
+    Args:
+        text: Text containing Markdown formatting
+        
+    Returns:
+        Text with Markdown formatting removed
+    """
+    if not text:
+        return text
+    
+    # Replace common Markdown patterns with their content
+    # Bold
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    
+    # Italic
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'_(.+?)_', r'\1', text)
+    
+    # Code
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    
+    # Strikethrough
+    text = re.sub(r'~~(.+?)~~', r'\1', text)
+    
+    # Links
+    text = re.sub(r'\[(.+?)\]\((.+?)\)', r'\1', text)
+    
+    return text
+
+
 def send_message(
     message: str,
     provider: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
@@ -1447,7 +1498,8 @@ def send_message(
         all_providers: If True, sends to all configured providers
                       If False (default), uses specified provider(s) or default provider(s)
         parse_mode: Optional parsing mode for formatted messages ('HTML', 'MarkdownV2')
-                   Currently only affects Telegram messages
+                   Currently only affects Telegram messages, for other providers formatting
+                   is stripped unless the provider explicitly supports it
 
     Returns:
         A dictionary mapping provider names to success status
@@ -1471,13 +1523,33 @@ def send_message(
     if not providers_to_use:
         raise ValueError("No messaging provider configured")
 
+    # Detect formatting in the message
+    has_html = any(tag in message for tag in ['<b>', '<i>', '<u>', '<s>', '<code>', '<pre>', '<a'])
+    has_markdown = ('**' in message or '*' in message or '__' in message or '_' in message or 
+                  '```' in message or '`' in message or '~~' in message)
+    
     # For backward compatibility, if there's only one provider, just call send
     if len(providers_to_use) == 1:
-        # Check if the provider is Telegram and pass the parse_mode
-        if isinstance(providers_to_use[0], TelegramProvider) and parse_mode:
-            result = providers_to_use[0].send(message, parse_mode)
+        provider_instance = providers_to_use[0]
+        # Check if the provider is Telegram
+        if isinstance(provider_instance, TelegramProvider):
+            # If parse_mode is specified, use it directly
+            if parse_mode:
+                result = provider_instance.send(message, parse_mode)
+            # Otherwise let Telegram's auto-detection handle it
+            else:
+                result = provider_instance.send(message)
+        # For other providers, strip formatting if present and no explicit handling
         else:
-            result = providers_to_use[0].send(message)
+            processed_message = message
+            # If message has formatting, strip it for providers that don't support it
+            if has_html:
+                processed_message = strip_html_tags(message)
+            elif has_markdown:
+                processed_message = strip_markdown(message)
+            # Send the processed message
+            result = provider_instance.send(processed_message)
+            
         return {providers_to_use[0].__class__.__name__: result}
 
     # Send to all specified providers and collect results
@@ -1487,11 +1559,25 @@ def send_message(
     for provider_instance in providers_to_use:
         provider_name = provider_instance.__class__.__name__
         try:
-            # Check if the provider is Telegram and pass the parse_mode
-            if isinstance(provider_instance, TelegramProvider) and parse_mode:
-                success = provider_instance.send(message, parse_mode)
+            # Check if the provider is Telegram
+            if isinstance(provider_instance, TelegramProvider):
+                # If parse_mode is specified, use it directly
+                if parse_mode:
+                    success = provider_instance.send(message, parse_mode)
+                # Otherwise let Telegram's auto-detection handle it
+                else:
+                    success = provider_instance.send(message)
+            # For other providers, strip formatting if present and no explicit handling
             else:
-                success = provider_instance.send(message)
+                processed_message = message
+                # If message has formatting, strip it for providers that don't support it
+                if has_html:
+                    processed_message = strip_html_tags(message)
+                elif has_markdown:
+                    processed_message = strip_markdown(message)
+                # Send the processed message
+                success = provider_instance.send(processed_message)
+                
             results[provider_name] = success
         except Exception as e:
             results[provider_name] = False

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.38 (2025-05-06)
+- Added support for HTML and Markdown messages in Telegram
+
 ## 0.1.36 (2025-05-02)
 - Added Python process monitoring to VS Code extension
 - Fixed issues with indentation when wrapping Python code blocks

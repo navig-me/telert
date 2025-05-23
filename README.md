@@ -1,8 +1,10 @@
+# telert – Alerts for Your Terminal
+
+[English](README.md) | [हिन्दी](README.hi.md) | [中文 (简体)](README.zh-CN.md) | [Español](README.es.md)
+
 <p align="center">
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
-
-# telert – Alerts for Your Terminal
 
 **Version 0.1.40**
 

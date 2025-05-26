@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.1.40**
+**Version 0.1.41**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -95,7 +95,7 @@ Telert supports multiple notification services. Choose one or more based on your
 
 ### Telegram Setup
 
-Telegram uses the official Bot API for reliable delivery.
+Telegram uses the official Bot API for reliable delivery. Messages exceeding Telegram's character limit (4096 characters) are automatically sent as text files.
 
 ```bash
 # After creating a bot with @BotFather and getting your chat ID
@@ -947,7 +947,7 @@ telert run --label "CI Build" npm run build
  
  1. Update version in both `pyproject.toml`, `README.md` and `telert/__init__.py`
  2. Commit the changes and push to main
-3. Create a new GitHub release with a tag like `v0.1.34`
+ 3. Create a new GitHub release with a tag like `v0.1.34`
  4. The GitHub Actions workflow will automatically build and publish to PyPI
  
  To manually publish to PyPI if needed:

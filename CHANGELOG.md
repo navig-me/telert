@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.41 (2025-05-26)
+- Added support for Telegram file sending for long messages (inspired by [Telepipe](https://github.com/Linuxmaster14/telepipe))
+
 ## 0.1.40 (2025-05-08)
 - Added interactive `telert init` wizard for first-run setup
 - Added `--quiet`, `--silent`, and `--verbose` flags to control console output

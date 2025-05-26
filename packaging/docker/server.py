@@ -22,7 +22,7 @@ has_static = static_dir.exists()
 app = FastAPI(
     title="Telert API",
     description="Send notifications from HTTP requests to various messaging services",
-    version="0.1.40"
+    version="0.1.41"
 )
 
 # Serve static files if directory exists

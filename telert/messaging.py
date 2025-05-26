@@ -20,6 +20,7 @@ import platform
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -354,6 +355,7 @@ class TelegramProvider:
     def __init__(self, token: Optional[str] = None, chat_id: Optional[str] = None):
         self.token = token
         self.chat_id = chat_id
+        self.max_message_length = 4096  # Telegram's max message length
 
     def configure_from_env(self) -> bool:
         """Configure from environment variables."""
@@ -377,7 +379,7 @@ class TelegramProvider:
                 Provider.TELEGRAM, {"token": self.token, "chat_id": self.chat_id}
             )
 
-    def send(self, message: str, parse_mode: Optional[str] = None) -> bool:
+    def send(self, message: str, parse_mode: Optional[str] = None, max_length: int = 4096) -> bool:
         """
         Send a message via Telegram.
         
@@ -385,9 +387,14 @@ class TelegramProvider:
             message: The message text to send
             parse_mode: Optional parsing mode ('HTML', 'MarkdownV2', or None for plain text)
                        If not specified, will auto-detect HTML content
+            max_length: Maximum message length before switching to file mode (default: 4096)
         """
         if not (self.token and self.chat_id):
             raise ValueError("Telegram provider not configured")
+            
+        # Check if message exceeds maximum length
+        if len(message) > max_length:
+            return self.send_as_file(message)
 
         url = f"https://api.telegram.org/bot{self.token}/sendMessage"
         
@@ -442,6 +449,69 @@ class TelegramProvider:
             raise RuntimeError(
                 "Telegram API connection error - please check your network connection"
             )
+            
+    def send_as_file(self, content: str, filename: Optional[str] = None) -> bool:
+        """
+        Send content as a file via Telegram.
+        
+        Args:
+            content: The text content to send as a file
+            filename: Optional custom filename (default: telert_message.txt)
+            
+        Returns:
+            bool: True if successful
+        """
+        if not (self.token and self.chat_id):
+            raise ValueError("Telegram provider not configured")
+            
+        url = f"https://api.telegram.org/bot{self.token}/sendDocument"
+        
+        # Create a temporary file with the content
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.txt', delete=False) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Prepare the file for upload
+            files = {
+                'document': (
+                    filename or 'telert_message.txt',
+                    open(temp_file_path, 'rb'),
+                    'text/plain'
+                )
+            }
+            
+            data = {
+                'chat_id': self.chat_id,
+                'caption': 'Message from telert (sent as file due to length)'
+            }
+            
+            response = requests.post(
+                url,
+                data=data,
+                files=files,
+                timeout=60  # Longer timeout for file uploads
+            )
+            
+            # Close and remove the temporary file
+            files['document'][1].close()
+            os.unlink(temp_file_path)
+            
+            if response.status_code != 200:
+                error_msg = (
+                    f"Telegram API error {response.status_code}: {response.text}"
+                )
+                raise RuntimeError(error_msg)
+                
+            return True
+            
+        except Exception as e:
+            # Make sure to clean up the temp file in case of errors
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
+            raise e
 
 
 class TeamsProvider:

@@ -71,6 +71,29 @@ Supported HTML tags include:
 - `<pre>` - Preformatted text block
 - `<a href="...">` - Links
 
+### Long Message Handling
+
+Telegram has a 4096 character limit for text messages. Telert handles this limitation automatically:
+
+- Messages under 4096 characters are sent as normal text messages
+- Messages exceeding this limit are automatically converted to text file attachments
+- The file is sent with the caption "Message from telert (sent as file due to length)"
+
+This conversion happens seamlessly without any additional configuration required. For example:
+
+```bash
+# This long message will be automatically sent as a file if it exceeds 4096 characters
+cat very_long_log.txt | telert "Log processing complete"
+
+# Python example
+from telert import send
+with open('large_report.txt', 'r') as f:
+    report = f.read()
+    send(report)  # Will be sent as a file if too long
+```
+
+This feature is particularly useful for sending log files, error reports, or other lengthy output that would otherwise be truncated.
+
 ### Privacy Considerations
 
 - Telegram bots can only send messages to chats where they've been added or to users who have initiated a conversation with them

@@ -1619,41 +1619,7 @@ def main():
         help="add to existing default providers",
     )
     
-    # Email configuration options
-    email_parser.add_argument(
-        "--server", required=True, help="SMTP server address"
-    )
-    email_parser.add_argument(
-        "--port", type=int, default=587, help="SMTP server port (default: 587 for TLS)"
-    )
-    email_parser.add_argument(
-        "--username", help="SMTP username for authentication"
-    )
-    email_parser.add_argument(
-        "--password", help="SMTP password for authentication"
-    )
-    email_parser.add_argument(
-        "--from", dest="from_addr", help="sender email address"
-    )
-    email_parser.add_argument(
-        "--to", dest="to_addrs", help="recipient email address(es) - comma separated for multiple"
-    )
-    email_parser.add_argument(
-        "--subject-template",
-        default="Telert Alert: {label} - {status}",
-        help="template for email subject line (default: 'Telert Alert: {label} - {status}')"
-    )
-    email_parser.add_argument(
-        "--html", dest="use_html", action="store_true", help="send HTML formatted emails"
-    )
-    email_parser.add_argument(
-        "--set-default", action="store_true", help="set as the only default provider"
-    )
-    email_parser.add_argument(
-        "--add-to-defaults",
-        action="store_true",
-        help="add to existing default providers",
-    )
+    # Email configuration options are already defined above
 
     # Legacy Telegram config (for backward compatibility)
     c.add_argument("--token", help="(legacy) Telegram bot token")

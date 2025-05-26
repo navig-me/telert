@@ -54,7 +54,7 @@ This document summarizes the features and functionality provided by the `vscode-
 ### 3.4 Configure Notification Provider (`telert.configureProviders`)
 - **Purpose**: Sets up environment variables and default provider for Telert CLI.
 - **Behavior**:
-  - QuickPick list of supported providers: `telegram`, `slack`, `teams`, `discord`, `pushover`, `desktop`, `audio`.
+  - QuickPick list of supported providers: `telegram`, `slack`, `teams`, `discord`, `pushover`, `desktop`, `audio`, `email`.
   - Prompts for each provider’s required `TELERT_*` environment variables (e.g., `TELERT_TELEGRAM_TOKEN`, `TELERT_TELEGRAM_CHAT_ID`).
   - Writes settings to the global VS Code configuration under `telert.environmentVariables` and `telert.defaultProvider`.
 

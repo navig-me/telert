@@ -26,6 +26,14 @@ Telert can be configured using environment variables, which is especially useful
 | `TELERT_ENDPOINT_PAYLOAD` | Payload template for HTTP requests           |
 | `TELERT_ENDPOINT_NAME`    | Friendly name for the custom endpoint        |
 | `TELERT_ENDPOINT_TIMEOUT` | Request timeout in seconds (default: 20)     |
+| `TELERT_EMAIL_SERVER`     | SMTP server address                          |
+| `TELERT_EMAIL_PORT`       | SMTP server port (default: 587)              |
+| `TELERT_EMAIL_USERNAME`   | SMTP username for authentication             |
+| `TELERT_EMAIL_PASSWORD`   | SMTP password for authentication             |
+| `TELERT_EMAIL_FROM`       | Sender email address                         |
+| `TELERT_EMAIL_TO`         | Comma-separated list of recipient addresses   |
+| `TELERT_EMAIL_SUBJECT_TEMPLATE` | Template for email subject line         |
+| `TELERT_EMAIL_HTML`       | Set to "1" for HTML-formatted emails         |
 
 ## Runtime Variables
 

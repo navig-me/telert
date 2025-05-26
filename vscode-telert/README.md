@@ -23,7 +23,7 @@ It monitors your code and commands in **real time**, tracks **execution duration
       <img src="https://raw.githubusercontent.com/navig-me/telert/main/docs/provider-options.png" alt="Provider Options" width="400">
 
     📘 Setup Docs:
-    - [Telegram](docs/TELEGRAM.md) · [Slack](docs/SLACK.md) · [Teams](docs/TEAMS.md) · [Discord](docs/DISCORD.md) · [Pushover](docs/PUSHOVER.md)
+    - [Telegram](docs/TELEGRAM.md) · [Slack](docs/SLACK.md) · [Teams](docs/TEAMS.md) · [Discord](docs/DISCORD.md) · [Pushover](docs/PUSHOVER.md) · [Email](docs/EMAIL.md)
 
 2. **Run a Command with Notifications**
    - Click the bell icon or right-click a file → _Run in Integrated Terminal and Notify_

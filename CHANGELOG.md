@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.42 (2025-05-26)
+- Added email support as a notification provider
+
 ## 0.1.41 (2025-05-26)
 - Added support for Telegram file sending for long messages (inspired by [Telepipe](https://github.com/Linuxmaster14/telepipe))
 

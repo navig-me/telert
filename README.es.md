@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Versión 0.1.41**
+**Versión 0.1.42**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -21,6 +21,7 @@
 Telert es una herramienta ligera que envía notificaciones cuando tus comandos de terminal o código en Python terminan de ejecutarse. Soporta múltiples canales de notificación:
 
 - **Aplicaciones de mensajería**: Telegram, Microsoft Teams, Slack, Discord
+- **Correo electrónico**: Email
 - **Dispositivos móviles**: Pushover (para Android e iOS)
 - **Notificaciones locales**: Notificaciones de escritorio, alertas de audio
 - **Integraciones personalizadas**: Puntos finales HTTP para cualquier servicio

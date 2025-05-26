@@ -7,7 +7,7 @@ Telert provides a comprehensive Python API that can be used directly in your Pyt
 ```python
 from telert import (
     configure_telegram, configure_teams, configure_slack, configure_discord, configure_pushover,
-    configure_audio, configure_desktop, configure_providers,
+    configure_email, configure_audio, configure_desktop, configure_providers,
     set_default_provider, set_default_providers, 
     is_configured, get_config, list_providers
 )
@@ -20,6 +20,27 @@ configure_discord("<webhook-url>")  # Basic Discord configuration
 # Or with custom bot name and avatar
 configure_discord("<webhook-url>", username="My Bot", avatar_url="https://example.com/avatar.png")
 configure_pushover("<app-token>", "<user-key>")
+
+# Configure email notifications
+configure_email(
+    server="smtp.example.com",
+    port=587,
+    username="user@example.com", 
+    password="mypassword",
+    to_addrs=["recipient@example.com"]
+)
+# Or with more options
+configure_email(
+    server="smtp.example.com",
+    port=587,
+    username="user@example.com", 
+    password="mypassword",
+    from_addr="Telert Notifications <alerts@example.com>",
+    to_addrs=["admin@example.com", "alerts@example.com"],
+    subject_template="Telert Alert: {label} - {status}",
+    use_html=True
+)
+
 configure_audio()  # Uses built-in sound
 # Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
 

@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**版本 0.1.41**
+**版本 0.1.42**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -21,6 +21,7 @@
 Telert 是一个轻量级工具，当你的终端命令或 Python 代码执行完毕时会发送通知。支持多个通知渠道：
 
 - **消息应用**：Telegram、Microsoft Teams、Slack、Discord
+- **电子邮件**：Email
 - **移动设备**：Pushover（支持 Android 和 iOS）
 - **本地通知**：桌面通知、音频提醒
 - **自定义集成**：HTTP 接口，适配任意服务

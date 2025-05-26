@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Alerts and Monitoring for your Terminal Commands and Python Functions",
   "description": "Python function monitoring, terminal command alerts, and notifications for your code execution",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {
@@ -129,7 +129,8 @@
             "discord",
             "pushover",
             "desktop",
-            "audio"
+            "audio",
+            "email"
           ],
           "enumDescriptions": [
             "Telegram Bot notifications",
@@ -138,7 +139,8 @@
             "Discord server via webhook",
             "Pushover mobile notifications",
             "Desktop native notifications",
-            "Audio sound alert"
+            "Audio sound alert",
+            "Email notifications"
           ],
           "description": "Default notification provider to use."
         },

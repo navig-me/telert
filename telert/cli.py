@@ -251,6 +251,41 @@ def do_config(a):
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
 
+        elif provider == "email":
+            if not hasattr(a, "server"):
+                sys.exit("❌ Email configuration requires --server")
+
+            config_params = {
+                "server": a.server,
+                "port": a.port,
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
+
+            if hasattr(a, "username") and a.username:
+                config_params["username"] = a.username
+
+            if hasattr(a, "password") and a.password:
+                config_params["password"] = a.password
+
+            if hasattr(a, "from_addr") and a.from_addr:
+                config_params["from_addr"] = a.from_addr
+
+            if hasattr(a, "to_addrs") and a.to_addrs:
+                config_params["to_addrs"] = a.to_addrs
+
+            if hasattr(a, "subject_template") and a.subject_template:
+                config_params["subject_template"] = a.subject_template
+
+            if hasattr(a, "use_html") and a.use_html:
+                config_params["use_html"] = a.use_html
+
+            try:
+                configure_provider(Provider.EMAIL, **config_params)
+                print(f"✔ Email configuration saved for {a.server}")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
+
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
     else:
@@ -426,6 +461,27 @@ def do_status(a):
             f"- Discord{default_marker}: webhook={webhook[:20]}…, username={username}{avatar_info}"
         )
 
+    # Check Email
+    email_config = config.get_provider_config(Provider.EMAIL)
+    if email_config:
+        # Mark as default if in default providers list
+        if Provider.EMAIL.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.EMAIL.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+
+        server = email_config["server"]
+        port = email_config.get("port", 587)
+        username = email_config.get("username", "")
+        to_addrs = email_config.get("to_addrs", [])
+        to_str = ", ".join(to_addrs) if to_addrs else "unknown"
+        print(f"- Email{default_marker}: server={server}:{port} → {to_str}")
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -436,6 +492,7 @@ def do_status(a):
         or pushover_config
         or endpoint_config
         or discord_config
+        or email_config
     ):
         print("No providers configured. Use `telert config` to set up a provider.")
         return
@@ -852,9 +909,6 @@ def piped_mode():
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
-# ──────────────────────────────── entrypoint ───────────────────────────────
-
-
 def do_init(a):
     """Run the interactive configuration wizard."""
     config = MessagingConfig()
@@ -871,7 +925,8 @@ def do_init(a):
     print("5. Pushover - Notifications for iOS/Android devices")
     print("6. Desktop - Local desktop notifications")
     print("7. Audio - Sound alerts on your computer")
-    print("8. Endpoint - Custom HTTP notifications\n")
+    print("8. Endpoint - Custom HTTP notifications")
+    print("9. Email - Notifications via email\n")
 
     # Get provider choices
     provider_choices = input(
@@ -900,6 +955,7 @@ def do_init(a):
         6: Provider.DESKTOP,
         7: Provider.AUDIO,
         8: Provider.ENDPOINT,
+        9: Provider.EMAIL,
     }
 
     selected_providers = []
@@ -1153,6 +1209,75 @@ def do_init(a):
             except Exception as e:
                 print(f"❌ Failed to configure HTTP endpoint: {str(e)}")
 
+        elif provider == Provider.EMAIL:
+            print("\nFor email notifications, you'll need:")
+            print("1. SMTP server address")
+            print("2. SMTP server port (optional, default: 587 for TLS)")
+            print("3. SMTP username (optional)")
+            print("4. SMTP password (optional)")
+            print("5. Sender email address (optional)")
+            print("6. Recipient email address(es) - comma separated for multiple")
+            print(
+                "Learn more: https://github.com/navig-me/telert/blob/main/docs/EMAIL.md"
+            )
+
+            server = input("Enter SMTP server address: ").strip()
+
+            if not server:
+                print("❌ SMTP server is required. Skipping email setup.")
+                continue
+
+            port_str = input("SMTP server port (optional, default: 587 for TLS): ").strip()
+            if port_str:
+                try:
+                    port = int(port_str)
+                except ValueError:
+                    print("❌ Invalid port number, using default 587")
+                    port = 587
+            else:
+                port = 587
+
+            username = input("SMTP username (optional): ").strip()
+            password = input("SMTP password (optional): ").strip()
+
+            from_addr = input("Sender email address (optional): ").strip()
+            to_addrs = input("Recipient email address(es) - comma separated for multiple: ").strip()
+
+            if not to_addrs:
+                print("❌ At least one recipient email address is required")
+                continue
+
+            to_list = [addr.strip() for addr in to_addrs.split(",")]
+
+            subject_template = input("Subject template (optional, default: 'Telert Alert: {label} - {status}'): ").strip()
+            if not subject_template:
+                subject_template = "Telert Alert: {label} - {status}"
+
+            use_html_str = input("Send HTML formatted emails? (y/n, default: n): ").strip().lower()
+            use_html = use_html_str in ("y", "yes", "true", "1")
+
+            config_params = {
+                "server": server,
+                "port": port,
+                "to_addrs": to_list,
+                "subject_template": subject_template,
+                "use_html": use_html,
+            }
+
+            if username:
+                config_params["username"] = username
+            if password:
+                config_params["password"] = password
+            if from_addr:
+                config_params["from_addr"] = from_addr
+
+            try:
+                configure_provider(provider, **config_params)
+                print("✅ Email configured successfully")
+                selected_providers.append(provider)
+            except Exception as e:
+                print(f"❌ Failed to configure email: {str(e)}")
+
     # Set default providers if any were configured successfully
     if selected_providers:
         # Step 2: Set defaults and order
@@ -1275,10 +1400,51 @@ def main():
 
     # config
     c = sp.add_parser("config", help="configure messaging providers")
-    c_subparsers = c.add_subparsers(dest="provider", help="provider to configure")
+    config_sp = c.add_subparsers(
+        dest="provider", help="provider type to configure"
+    )
+    
+    # Email configuration subparser
+    email_parser = config_sp.add_parser(
+        "email", help="configure email (SMTP) messaging"
+    )
+    email_parser.add_argument(
+        "--server", required=True, help="SMTP server address"
+    )
+    email_parser.add_argument(
+        "--port", type=int, default=587, help="SMTP server port (default: 587 for TLS)"
+    )
+    email_parser.add_argument(
+        "--username", help="SMTP username for authentication"
+    )
+    email_parser.add_argument(
+        "--password", help="SMTP password for authentication"
+    )
+    email_parser.add_argument(
+        "--from", dest="from_addr", help="sender email address"
+    )
+    email_parser.add_argument(
+        "--to", dest="to_addrs", help="recipient email address(es) - comma separated for multiple"
+    )
+    email_parser.add_argument(
+        "--subject-template",
+        default="Telert Alert: {label} - {status}",
+        help="template for email subject line (default: 'Telert Alert: {label} - {status}')"
+    )
+    email_parser.add_argument(
+        "--html", dest="use_html", action="store_true", help="send HTML formatted emails"
+    )
+    email_parser.add_argument(
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    email_parser.add_argument(
+        "--add-to-defaults",
+        action="store_true",
+        help="add to existing default providers",
+    )
 
     # Set defaults command (new)
-    set_defaults_parser = c_subparsers.add_parser(
+    set_defaults_parser = config_sp.add_parser(
         "set-defaults", help="set multiple default providers in priority order"
     )
     set_defaults_parser.add_argument(
@@ -1288,7 +1454,9 @@ def main():
     )
 
     # Telegram config
-    telegram_parser = c_subparsers.add_parser("telegram", help="configure Telegram")
+    telegram_parser = config_sp.add_parser(
+        "telegram", help="configure Telegram messaging"
+    )
     telegram_parser.add_argument(
         "--token", required=True, help="bot token from @BotFather"
     )
@@ -1305,7 +1473,7 @@ def main():
     )
 
     # Teams config
-    teams_parser = c_subparsers.add_parser("teams", help="configure Microsoft Teams")
+    teams_parser = config_sp.add_parser("teams", help="configure Microsoft Teams")
     teams_parser.add_argument(
         "--webhook-url", required=True, help="incoming webhook URL"
     )
@@ -1319,7 +1487,7 @@ def main():
     )
 
     # Slack config
-    slack_parser = c_subparsers.add_parser("slack", help="configure Slack")
+    slack_parser = config_sp.add_parser("slack", help="configure Slack")
     slack_parser.add_argument(
         "--webhook-url", required=True, help="incoming webhook URL"
     )
@@ -1333,7 +1501,7 @@ def main():
     )
 
     # Discord config
-    discord_parser = c_subparsers.add_parser("discord", help="configure Discord")
+    discord_parser = config_sp.add_parser("discord", help="configure Discord")
     discord_parser.add_argument(
         "--webhook-url", required=True, help="incoming webhook URL"
     )
@@ -1353,7 +1521,7 @@ def main():
     )
 
     # Audio config
-    audio_parser = c_subparsers.add_parser("audio", help="configure Audio alerts")
+    audio_parser = config_sp.add_parser("audio", help="configure Audio alerts")
     audio_parser.add_argument(
         "--sound-file",
         help="path to sound file (.mp3 or .wav) (default: built-in MP3 sound)",
@@ -1371,7 +1539,7 @@ def main():
     )
 
     # Desktop config
-    desktop_parser = c_subparsers.add_parser(
+    desktop_parser = config_sp.add_parser(
         "desktop", help="configure Desktop notifications"
     )
     desktop_parser.add_argument(
@@ -1391,7 +1559,7 @@ def main():
     )
 
     # Pushover config
-    pushover_parser = c_subparsers.add_parser(
+    pushover_parser = config_sp.add_parser(
         "pushover", help="configure Pushover notifications"
     )
     pushover_parser.add_argument(
@@ -1410,7 +1578,7 @@ def main():
     )
 
     # Endpoint config
-    endpoint_parser = c_subparsers.add_parser(
+    endpoint_parser = config_sp.add_parser(
         "endpoint", help="configure custom HTTP endpoint notifications"
     )
     endpoint_parser.add_argument(
@@ -1446,6 +1614,42 @@ def main():
         "--set-default", action="store_true", help="set as the only default provider"
     )
     endpoint_parser.add_argument(
+        "--add-to-defaults",
+        action="store_true",
+        help="add to existing default providers",
+    )
+    
+    # Email configuration options
+    email_parser.add_argument(
+        "--server", required=True, help="SMTP server address"
+    )
+    email_parser.add_argument(
+        "--port", type=int, default=587, help="SMTP server port (default: 587 for TLS)"
+    )
+    email_parser.add_argument(
+        "--username", help="SMTP username for authentication"
+    )
+    email_parser.add_argument(
+        "--password", help="SMTP password for authentication"
+    )
+    email_parser.add_argument(
+        "--from", dest="from_addr", help="sender email address"
+    )
+    email_parser.add_argument(
+        "--to", dest="to_addrs", help="recipient email address(es) - comma separated for multiple"
+    )
+    email_parser.add_argument(
+        "--subject-template",
+        default="Telert Alert: {label} - {status}",
+        help="template for email subject line (default: 'Telert Alert: {label} - {status}')"
+    )
+    email_parser.add_argument(
+        "--html", dest="use_html", action="store_true", help="send HTML formatted emails"
+    )
+    email_parser.add_argument(
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    email_parser.add_argument(
         "--add-to-defaults",
         action="store_true",
         help="add to existing default providers",

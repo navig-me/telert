@@ -19,9 +19,13 @@ import pathlib
 import platform
 import re
 import shutil
+import smtplib
 import subprocess
 import tempfile
 import time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from typing import Any, Dict, List, Optional, Union
 
 import requests
@@ -50,6 +54,7 @@ class Provider(enum.Enum):
     PUSHOVER = "pushover"
     ENDPOINT = "endpoint"
     DISCORD = "discord"
+    EMAIL = "email"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -127,6 +132,58 @@ class MessagingConfig:
                     config["username"] = username
                 if avatar_url:
                     config["avatar_url"] = avatar_url
+                return config
+        elif provider == Provider.ENDPOINT:
+            webhook_url = os.environ.get("TELERT_ENDPOINT_URL")
+            if webhook_url:
+                config = {"url": webhook_url}
+                # Optional env vars
+                method = os.environ.get("TELERT_ENDPOINT_METHOD")
+                if method:
+                    config["method"] = method
+                headers = os.environ.get("TELERT_ENDPOINT_HEADERS")
+                if headers:
+                    try:
+                        config["headers"] = json.loads(headers)
+                    except json.JSONDecodeError:
+                        # Fallback to simple header if not valid JSON
+                        config["headers"] = {"Authorization": headers}
+                return config
+        elif provider == Provider.EMAIL:
+            server = os.environ.get("TELERT_EMAIL_SERVER")
+            username = os.environ.get("TELERT_EMAIL_USERNAME")
+            password = os.environ.get("TELERT_EMAIL_PASSWORD")
+            if server:
+                config = {"server": server}
+                if username:
+                    config["username"] = username
+                if password:
+                    config["password"] = password
+                    
+                # Optional env vars
+                port = os.environ.get("TELERT_EMAIL_PORT")
+                if port:
+                    try:
+                        config["port"] = int(port)
+                    except ValueError:
+                        pass
+                        
+                from_addr = os.environ.get("TELERT_EMAIL_FROM")
+                if from_addr:
+                    config["from_addr"] = from_addr
+                    
+                to_addrs = os.environ.get("TELERT_EMAIL_TO")
+                if to_addrs:
+                    config["to_addrs"] = [addr.strip() for addr in to_addrs.split(",")]
+                    
+                subject = os.environ.get("TELERT_EMAIL_SUBJECT_TEMPLATE")
+                if subject:
+                    config["subject_template"] = subject
+                    
+                use_html = os.environ.get("TELERT_EMAIL_HTML")
+                if use_html in ("1", "true", "yes"):
+                    config["use_html"] = True
+                    
                 return config
         elif provider == Provider.AUDIO:
             sound_file = os.environ.get("TELERT_AUDIO_FILE")
@@ -1124,6 +1181,181 @@ class DiscordProvider:
             )
 
 
+class EmailProvider:
+    """Provider for email messaging via SMTP."""
+
+    def __init__(
+        self,
+        server: str,
+        port: int = 587,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        from_addr: Optional[str] = None,
+        to_addrs: Optional[List[str]] = None,
+        subject_template: Optional[str] = None,
+        use_html: bool = False,
+    ):
+        """Initialize SMTP email provider.
+        
+        Args:
+            server: SMTP server address
+            port: SMTP server port (default: 587 for TLS)
+            username: SMTP username for authentication
+            password: SMTP password for authentication
+            from_addr: Sender email address
+            to_addrs: List of recipient email addresses
+            subject_template: Template for email subject line
+            use_html: Whether to send HTML formatted emails
+        """
+        self.server = server
+        self.port = port
+        self.username = username
+        self.password = password
+        self.from_addr = from_addr or (username if '@' in (username or '') else None)
+        self.to_addrs = to_addrs or []
+        self.subject_template = subject_template or "Telert Alert: {label}"
+        self.use_html = use_html
+    
+    def configure_from_env(self):
+        """Configure from environment variables."""
+        self.server = os.environ.get("TELERT_EMAIL_SERVER", self.server)
+        self.port = int(os.environ.get("TELERT_EMAIL_PORT", self.port))
+        self.username = os.environ.get("TELERT_EMAIL_USERNAME", self.username)
+        self.password = os.environ.get("TELERT_EMAIL_PASSWORD", self.password)
+        self.from_addr = os.environ.get("TELERT_EMAIL_FROM", self.from_addr)
+        
+        to_env = os.environ.get("TELERT_EMAIL_TO", "")
+        if to_env:
+            self.to_addrs = [addr.strip() for addr in to_env.split(",")]
+        
+        self.subject_template = os.environ.get(
+            "TELERT_EMAIL_SUBJECT_TEMPLATE", self.subject_template
+        )
+        self.use_html = os.environ.get("TELERT_EMAIL_HTML", "0") in ("1", "true", "yes")
+
+    def configure_from_config(self, config: MessagingConfig):
+        """Configure from stored configuration."""
+        email_config = config.get_provider_config(Provider.EMAIL)
+        if email_config:
+            self.server = email_config.get("server", self.server)
+            self.port = email_config.get("port", self.port)
+            self.username = email_config.get("username", self.username)
+            self.password = email_config.get("password", self.password)
+            self.from_addr = email_config.get("from_addr", self.from_addr)
+            self.to_addrs = email_config.get("to_addrs", self.to_addrs)
+            self.subject_template = email_config.get("subject_template", self.subject_template)
+            self.use_html = email_config.get("use_html", self.use_html)
+
+    def save_config(self, config: MessagingConfig):
+        """Save configuration."""
+        config.set_provider_config(
+            Provider.EMAIL,
+            {
+                "server": self.server,
+                "port": self.port,
+                "username": self.username,
+                "password": self.password,
+                "from_addr": self.from_addr,
+                "to_addrs": self.to_addrs,
+                "subject_template": self.subject_template,
+                "use_html": self.use_html,
+            },
+        )
+
+    def _format_subject(self, label: str = "Notification", status: str = "") -> str:
+        """Format subject line based on template."""
+        return self.subject_template.format(label=label, status=status)
+
+    def _create_message(self, content: str, label: str = "Notification", status: str = "", 
+                        attachment_content: Optional[str] = None, attachment_filename: Optional[str] = None) -> MIMEMultipart:
+        """Create email message with proper formatting."""
+        subject = self._format_subject(label, status)
+        from_addr = self.from_addr or self.username or "telert@localhost"
+        
+        # Create message container
+        msg = MIMEMultipart()
+        msg["From"] = from_addr
+        msg["To"] = ", ".join(self.to_addrs)
+        msg["Subject"] = subject
+        
+        # Attach message body
+        if self.use_html:
+            msg.attach(MIMEText(content, "html"))
+        else:
+            msg.attach(MIMEText(content, "plain"))
+        
+        # Add attachment if provided
+        if attachment_content and attachment_filename:
+            attachment = MIMEApplication(attachment_content)
+            attachment.add_header(
+                "Content-Disposition", 
+                f"attachment; filename={attachment_filename}"
+            )
+            msg.attach(attachment)
+            
+        return msg
+
+    def send(self, message: str, **kwargs) -> bool:
+        """Send an email notification.
+        
+        Args:
+            message: Notification message content
+            **kwargs: Additional parameters:
+                - label: Command label or name
+                - status: Status string (e.g., "✓ Success")
+                - attachment_content: Optional file content to attach
+                - attachment_filename: Optional filename for attachment
+                
+        Returns:
+            bool: True if successful
+        """
+        if not self.server or not self.to_addrs:
+            print("⚠️ Email not configured properly - missing server or recipients")
+            return False
+            
+        try:
+            label = kwargs.get("label", "Notification")
+            status = kwargs.get("status", "")
+            attachment_content = kwargs.get("attachment_content")
+            attachment_filename = kwargs.get("attachment_filename")
+            
+            msg = self._create_message(
+                message, 
+                label, 
+                status, 
+                attachment_content, 
+                attachment_filename
+            )
+            
+            # Connect to SMTP server
+            if self.port == 465:
+                # SSL connection
+                smtp = smtplib.SMTP_SSL(self.server, self.port, timeout=20)
+            else:
+                # Standard or TLS connection
+                smtp = smtplib.SMTP(self.server, self.port, timeout=20)
+                smtp.ehlo()
+                if self.port == 587:
+                    smtp.starttls()
+                    smtp.ehlo()
+            
+            # Login if credentials provided
+            if self.username and self.password:
+                smtp.login(self.username, self.password)
+            
+            # Send the message
+            smtp.sendmail(
+                self.from_addr or self.username or "telert@localhost",
+                self.to_addrs,
+                msg.as_string()
+            )
+            smtp.quit()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to send email: {str(e)}")
+            return False
+
 class EndpointProvider:
     """Provider for custom HTTP endpoint messaging."""
 
@@ -1852,6 +2084,45 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
             payload_template=payload_template,
             name=name,
             timeout=timeout,
+        )
+        
+    elif provider == Provider.EMAIL:
+        if "server" not in kwargs:
+            raise ValueError("Email provider requires 'server'")
+            
+        # Get required parameters
+        server = kwargs["server"]
+        port = kwargs.get("port", 587)
+        username = kwargs.get("username")
+        password = kwargs.get("password")
+        
+        # Get optional parameters
+        from_addr = kwargs.get("from_addr")
+        to_addrs = kwargs.get("to_addrs", [])
+        
+        # Convert to_addrs from string if provided as comma-separated string
+        if isinstance(to_addrs, str):
+            to_addrs = [addr.strip() for addr in to_addrs.split(",")]
+            
+        subject_template = kwargs.get("subject_template", "Telert Alert: {label} - {status}")
+        use_html = kwargs.get("use_html", False)
+        
+        # Validate port is a valid integer
+        try:
+            port = int(port)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid port number: {port}")
+            
+        # Create provider instance
+        provider_instance = EmailProvider(
+            server=server,
+            port=port,
+            username=username,
+            password=password,
+            from_addr=from_addr,
+            to_addrs=to_addrs,
+            subject_template=subject_template,
+            use_html=use_html,
         )
 
     else:

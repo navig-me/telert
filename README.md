@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.1.41**
+**Version 0.1.42**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -21,6 +21,7 @@
 Telert is a lightweight utility that sends notifications when your terminal commands or Python code completes. It supports multiple notification channels:
 
 - **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
+- **Email**: SMTP email notifications
 - **Mobile Devices**: Pushover (Android & iOS)
 - **Local Notifications**: Desktop notifications, Audio alerts
 - **Custom Integrations**: HTTP endpoints for any service
@@ -54,6 +55,7 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
   - [Microsoft Teams](#microsoft-teams-setup)
   - [Slack](#slack-setup)
   - [Discord](#discord-setup)
+  - [Email](#email-setup)
   - [Pushover](#pushover-setup)
   - [Custom HTTP Endpoints](#custom-http-endpoint-setup)
   - [Audio Alerts](#audio-alerts-setup)
@@ -83,6 +85,7 @@ For more detailed information, please refer to the [docs](https://github.com/nav
 - [Microsoft Teams Setup](https://github.com/navig-me/telert/blob/main/docs/TEAMS.md)
 - [Slack Setup](https://github.com/navig-me/telert/blob/main/docs/SLACK.md)
 - [Discord Setup](https://github.com/navig-me/telert/blob/main/docs/DISCORD.md)
+- [Email Setup](https://github.com/navig-me/telert/blob/main/docs/EMAIL.md)
 - [Pushover Setup](https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md)
 - [Custom HTTP Endpoint Guide](https://github.com/navig-me/telert/blob/main/docs/ENDPOINT.md)
 - [Docker Usage](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md)
@@ -169,6 +172,30 @@ telert config discord --webhook-url "<webhook-url>" --username "My Bot" --avatar
 ```
 
 [**Detailed Discord Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/DISCORD.md)
+
+### Email Setup
+
+Email integration uses standard SMTP protocol to send notifications.
+
+```bash
+# Basic configuration
+telert config email --server smtp.example.com --port 587 --username user@example.com --password mypassword --to recipient@example.com --set-default
+telert status  # Test your configuration
+
+# Advanced configuration
+telert config email \
+  --server smtp.example.com \
+  --port 587 \
+  --username user@example.com \
+  --password mypassword \
+  --from "Telert Notifications <alerts@example.com>" \
+  --to "admin@example.com,alerts@example.com" \
+  --subject-template "Telert Alert: {label} - {status}" \
+  --html \
+  --set-default
+```
+
+[**Detailed Email Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/EMAIL.md)
 
 ### Pushover Setup
 

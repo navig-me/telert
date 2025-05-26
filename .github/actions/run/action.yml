@@ -13,7 +13,7 @@ inputs:
     description: 'Label to identify the command in the notification'
     required: false
   provider:
-    description: 'Notification provider to use (telegram, teams, slack, discord, pushover, desktop, audio)'
+    description: 'Notification provider to use (telegram, teams, slack, discord, pushover, desktop, audio, email)'
     required: false
   all-providers:
     description: 'Send to all configured providers (true/false)'
@@ -38,7 +38,9 @@ inputs:
   user-key:
     description: 'Pushover user key (or use TELERT_PUSHOVER_USER env var)'
     required: false
-
+  email-to:
+    description: 'Email recipient (or use TELERT_EMAIL_TO env var)'
+    required: false
 runs:
   using: 'composite'
   steps:
@@ -73,6 +75,8 @@ runs:
             telert config desktop --app-name "GitHub Action" --set-default
           elif [[ "${{ inputs.provider }}" == "audio" ]]; then
             telert config audio --set-default
+          elif [[ "${{ inputs.provider }}" == "email" ]]; then
+            telert config email --set-default
           fi
         fi
 
@@ -86,6 +90,7 @@ runs:
         TELERT_DISCORD_WEBHOOK: ${{ inputs.webhook-url }}
         TELERT_PUSHOVER_TOKEN: ${{ inputs.token }}
         TELERT_PUSHOVER_USER: ${{ inputs.user-key }}
+        TELERT_EMAIL_TO: ${{ inputs.email-to }}
       run: |
         # Build the telert run command
         cmd="telert run"

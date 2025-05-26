@@ -1,7 +1,7 @@
 [project]
 name = "telert"
-version = "0.1.41"
-description = "Ultimate command monitoring & notification system: Telegram, Slack, Discord, Teams, Pushover, desktop & more. Monitor Python code and CLI tasks with context managers, decorators, and webhooks."
+version = "0.1.42"
+description = "Ultimate command monitoring & notification system: Telegram, Slack, Discord, Teams, Pushover, Email, desktop & more. Monitor Python code and CLI tasks with context managers, decorators, and webhooks."
 authors = [{name = "Mihir Khandekar", email = "mihirkhandekar@gmail.com"}]
 license = "MIT"
 readme = "README.md"
@@ -15,6 +15,7 @@ keywords = [
     "notification", 
     "cli", 
     "terminal", 
+    "email", 
     "alert", 
     "pushover", 
     "slack", 

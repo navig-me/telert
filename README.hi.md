@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**संस्करण 0.1.41**
+**संस्करण 0.1.42**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -21,6 +21,7 @@
 टेलर्ट एक हल्का टूल है जो आपके टर्मिनल कमांड या पायथन कोड समाप्त होने पर नोटिफिकेशन भेजता है। यह कई नोटिफिकेशन चैनल्स को सपोर्ट करता है:
 
 - **मैसेजिंग ऐप्स**: टेलीग्राम, माइक्रोसॉफ्ट टीम्स, स्लैक, डिस्कॉर्ड
+- **ईमेल**: ईमेल
 - **मोबाइल डिवाइसेज़**: पुशओवर (Android और iOS)
 - **लोकल नोटिफिकेशन**: डेस्कटॉप नोटिफिकेशन, ऑडियो अलर्ट
 - **कस्टम इंटीग्रेशन**: HTTP एंडपॉइंट्स किसी भी सर्विस के लिए

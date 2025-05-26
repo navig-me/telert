@@ -56,10 +56,10 @@ echo -e "${GREEN}=== telert Demo - Terminal Notifications Made Easy ===${NC}"
 sleep 2
 
 # Basic example - running a command with telert
-show_and_execute "telert run --label \"Demo Process\" -- echo \"Running a sample process\"" "Run a command and get notified when it completes"
+show_and_execute "telert run --label \"Demo Process\" echo \"Running a sample process\"" "Run a command and get notified when it completes"
 
 # Running a longer process
-show_and_execute "telert run --label \"Long Process\" -- bash -c \"slow_command\"" "Works with longer running processes too"
+show_and_execute "telert run --label \"Long Process\" bash -c \"slow_command\"" "Works with longer running processes too"
 
 # Show the filter mode
 show_and_execute "echo 'This is sample output' | telert \"Pipeline completed\"" "Use it in pipelines too!"

@@ -1,6 +1,6 @@
 # telert – Alerts for Your Terminal
 
-[English](README.md) | [हिन्दी](README.hi.md) | [中文 (简体)](README.zh-CN.md) | [Español](README.es.md)
+[English](https://github.com/navig-me/telert/blob/main/README.md) | [हिन्दी](https://github.com/navig-me/telert/blob/main/README.hi.md) | [中文 (简体)](https://github.com/navig-me/telert/blob/main/README.zh-CN.md) | [Español](https://github.com/navig-me/telert/blob/main/README.es.md)
 
 <p align="center">
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
@@ -11,7 +11,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
 [![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
-[![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/docs/LICENSE)
+[![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version/Navig.telert-vscode.svg?subject=VS%20Code%20Marketplace&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
 
@@ -25,9 +25,20 @@ Telert is a lightweight utility that sends notifications when your terminal comm
 - **Local Notifications**: Desktop notifications, Audio alerts
 - **Custom Integrations**: HTTP endpoints for any service
 
+Simple to use:
+
+```bash
+# Run a command and get notified when it finishes
+telert run npm build
+
+# Or pipe any command output for notification
+find . -name "*.log" | telert "Log files found!"
+```
+
 Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
 
 Use it as a CLI tool, Python library, or a notification API. Telert is available:
+
 - As a Python package: `pip install telert`
 - As a Docker image: `docker pull ghcr.io/navig-me/telert:latest`
 - As a cloud-hosted API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
@@ -57,10 +68,25 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 - [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
 - [Message Formatting](#-message-formatting)
-  - [Telegram Formatting](#telegram-formatting)
-  - [Cross-Platform Formatting](#other-providers)
 - [Use Cases](#-use-cases-and-tips)
 - [Contributing](#-contributing--license)
+
+## Documentation
+
+For more detailed information, please refer to the [docs](https://github.com/navig-me/telert/blob/main/docs/) directory:
+
+- [Environment Variables](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
+- [Message Formatting](https://github.com/navig-me/telert/blob/main/docs/MESSAGE_FORMATTING.md)
+- [Python API Reference](https://github.com/navig-me/telert/blob/main/docs/PYTHON_API.md)
+- [Use Cases & Tips](https://github.com/navig-me/telert/blob/main/docs/USE_CASES.md)
+- [Telegram Setup](https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md)
+- [Microsoft Teams Setup](https://github.com/navig-me/telert/blob/main/docs/TEAMS.md)
+- [Slack Setup](https://github.com/navig-me/telert/blob/main/docs/SLACK.md)
+- [Discord Setup](https://github.com/navig-me/telert/blob/main/docs/DISCORD.md)
+- [Pushover Setup](https://github.com/navig-me/telert/blob/main/docs/PUSHOVER.md)
+- [Custom HTTP Endpoint Guide](https://github.com/navig-me/telert/blob/main/docs/ENDPOINT.md)
+- [Docker Usage](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md)
+- [CI/CD Integrations](https://github.com/navig-me/telert/blob/main/docs/CI-CD.md)
 
 ## 🚀 Installation & Quick Start
 
@@ -374,224 +400,33 @@ telert-wrapper run source deploy.sh
 
 ### Python API
 
-#### Configuration
+Telert provides a comprehensive Python API for notification management that includes:
+
+- **Configuration functions** for setting up notification providers
+- **Simple messaging** with the `send()` function for quick notifications
+- **Context manager** with `with telert():` for timing code execution
+- **Function decorator** with `@notify()` for monitoring function calls
+
 ```python
-from telert import (
-    configure_telegram, configure_teams, configure_slack, configure_discord, configure_pushover,
-    configure_audio, configure_desktop, configure_providers,
-    set_default_provider, set_default_providers, 
-    is_configured, get_config, list_providers
-)
-
-# Configure one or more providers
-configure_telegram("<token>", "<chat-id>")
-configure_teams("<webhook-url>")
-configure_slack("<webhook-url>")
-configure_discord("<webhook-url>")  # Basic Discord configuration
-# Or with custom bot name and avatar
-configure_discord("<webhook-url>", username="My Bot", avatar_url="https://example.com/avatar.png")
-configure_pushover("<app-token>", "<user-key>")
-configure_audio()  # Uses built-in sound
-# Or with custom sound: configure_audio("/path/to/alert.wav", volume=0.8)
-
-# Configure custom HTTP endpoint
-from telert.messaging import Provider, configure_provider
-configure_provider(
-    Provider.ENDPOINT,
-    url="https://api.example.com/notify",
-    method="POST",
-    headers={"Authorization": "Bearer abc123"},
-    payload_template='{"text": "{message}"}',
-    name="My API",
-    timeout=30
-)
-
-# Configure provider and add to existing defaults (without replacing them)
-configure_desktop("My App", add_to_defaults=True)  # Uses built-in icon
-
-# Configure multiple providers at once
-configure_providers([
-    {"provider": "telegram", "token": "<token>", "chat_id": "<chat-id>"},
-    {"provider": "slack", "webhook_url": "<webhook-url>"},
-    {"provider": "audio"}
-], set_as_defaults=True)  # Optionally set these as defaults in the given order
-
-# Check if specific provider is configured
-if not is_configured("audio"):
-    configure_audio("/path/to/bell.wav")
-
-# Get configuration for a specific provider
-desktop_config = get_config("desktop")
-print(f"Using app name: {desktop_config['app_name']}")
-
-# List all providers and see which is default
-providers = list_providers()
-for p in providers:
-    print(f"{p['name']} {'(default)' if p['is_default'] else ''}")
-
-# Set a single default provider
-set_default_provider("audio")
-
-# Set multiple default providers in priority order
-set_default_providers(["slack", "desktop", "audio"])
-```
-
-#### Simple Messaging
-```python
+# Simple example of sending a notification
 from telert import send
+send("Script completed successfully!")
 
-# Send using default provider(s)
-send("Script started")  # Uses default providers in configured priority order
-
-# Send to specific provider
-send("Processing completed with 5 records updated", provider="teams")
-
-# Send to multiple specific providers
-send("Critical error detected!", provider=["slack", "telegram"])
-
-# Send to all configured providers
-send("Major system error", all_providers=True)
-
-# Provider-specific examples
-send("Send to mobile device", provider="pushover")
-send("Play a sound alert", provider="audio")
-send("Show a desktop notification", provider="desktop")
-send("Send to Discord channel", provider="discord") 
-send("Send to custom HTTP endpoint", provider="endpoint")
-
-# Check delivery results
-results = send("Important message", provider=["slack", "telegram"])
-for provider, success in results.items():
-    if not success:
-        print(f"Failed to send to {provider}")
-```
-
-#### Context Manager
-The `telert` context manager times code execution and sends a notification when the block completes:
-
-```python
+# Using the context manager
 from telert import telert
-import time
-
-# Basic usage
 with telert("Data processing"):
     # Your long-running code here
-    time.sleep(5)
+    process_large_dataset()
 
-# Include results in the notification
-with telert("Calculation") as t:
-    result = sum(range(1000000))
-    t.result = {"sum": result, "status": "success"}
-
-# Only notify on failure
-with telert("Critical operation", only_fail=True):
-    # This block will only send a notification if an exception occurs
-    risky_function()
-    
-# Specify a provider
-with telert("Teams notification", provider="teams"):
-    # This will notify via Teams regardless of the default provider
-    teams_specific_operation()
-    
-# Send to multiple providers
-with telert("Important calculation", provider=["slack", "telegram"]):
-    # This will send to both Slack and Telegram
-    important_calculation()
-    
-# Send to all configured providers
-with telert("Critical operation", all_providers=True):
-    # This will send to all configured providers
-    critical_function()
-    
-# Use audio notifications
-with telert("Long calculation", provider="audio"):
-    # This will play a sound when done
-    time.sleep(5)
-    
-# Use desktop notifications
-with telert("Database backup", provider="desktop"):
-    # This will show a desktop notification when done
-    backup_database()
-    
-# Send to mobile device
-with telert("Long-running task", provider="pushover"):
-    # This will send to Pushover when done
-    time.sleep(60)
-    
-# Send to Discord channel
-with telert("Discord notification", provider="discord"):
-    # This will notify via Discord when done
-    discord_specific_operation()
-    
-# Send to custom HTTP endpoint
-with telert("API operation", provider="endpoint"):
-    # This will send to your configured HTTP endpoint when done
-    api_operation()
-```
-
-#### Function Decorator
-The `notify` decorator makes it easy to monitor functions:
-
-```python
+# Using the function decorator
 from telert import notify
-
-# Basic usage - uses function name as the label
-@notify()
-def process_data():
-    # Code that might take a while
-    return "Processing complete"
-
-# Custom label and only notify on failure
-@notify("Database backup", only_fail=True)
+@notify("Database backup")
 def backup_database():
-    # This will only send a notification if it raises an exception
-    return "Backup successful"
-
-# Function result will be included in the notification
-@notify("Calculation")
-def calculate_stats(data):
-    return {"mean": sum(data)/len(data), "count": len(data)}
-
-# Send notification to specific provider
-@notify("Slack alert", provider="slack")
-def slack_notification_function():
-    return "This will be sent to Slack"
-    
-# Send to multiple providers
-@notify("Important function", provider=["telegram", "desktop"])
-def important_function():
-    return "This will be sent to both Telegram and Desktop"
-    
-# Send to all configured providers
-@notify("Critical function", all_providers=True)
-def critical_function():
-    return "This will be sent to all providers"
-    
-# Use audio notifications
-@notify("Audio alert", provider="audio")
-def play_sound_on_completion():
-    return "This will play a sound when done"
-    
-# Use desktop notifications
-@notify("Desktop alert", provider="desktop")
-def show_desktop_notification():
-    return "This will show a desktop notification when done"
-    
-# Send to mobile device
-@notify("Mobile alert", provider="pushover")
-def send_mobile_notification():
-    return "This will send to Pushover when done"
-    
-# Send to Discord
-@notify("Discord alert", provider="discord")
-def send_to_discord():
-    return "This will send to Discord when done"
-    
-# Send to custom HTTP endpoint
-@notify("API alert", provider="endpoint")
-def send_to_api():
-    return "This will send to your configured HTTP endpoint when done"
+    # Backup code here
+    return "Backup completed"  # Result included in notification
 ```
+
+[**View the complete Python API reference**](https://github.com/navig-me/telert/blob/main/docs/PYTHON_API.md)
 
 ### Docker Usage
 
@@ -760,183 +595,43 @@ For more details on deployment options and configuration, see the [telert-notifi
 ---
 ## 🌿 Environment Variables
 
-### Configuration Variables
+Telert can be configured using environment variables, which is especially useful in CI/CD pipelines or containerized environments. Key variables include:
 
-| Variable                  | Effect                                      |
-|---------------------------|---------------------------------------------|
-| `TELERT_DEFAULT_PROVIDER` | Set default provider(s) to use (comma-separated for multiple) |
-| `TELERT_TOKEN` or `TELERT_TELEGRAM_TOKEN` | Telegram bot token         |
-| `TELERT_CHAT_ID` or `TELERT_TELEGRAM_CHAT_ID` | Telegram chat ID       |
-| `TELERT_TEAMS_WEBHOOK`    | Microsoft Teams Power Automate HTTP URL     |
-| `TELERT_SLACK_WEBHOOK`    | Slack webhook URL                           |
-| `TELERT_DISCORD_WEBHOOK`  | Discord webhook URL                         |
-| `TELERT_DISCORD_USERNAME` | Discord webhook bot name (default: Telert)  |
-| `TELERT_DISCORD_AVATAR_URL` | Discord webhook bot avatar URL           |
-| `TELERT_PUSHOVER_TOKEN`   | Pushover application token                  |
-| `TELERT_PUSHOVER_USER`    | Pushover user key                           |
-| `TELERT_AUDIO_FILE`       | Path to sound file for audio notifications  |
-| `TELERT_AUDIO_VOLUME`     | Volume level for audio notifications (0.0-1.0) |
-| `TELERT_DESKTOP_APP_NAME` | Application name for desktop notifications  |
-| `TELERT_DESKTOP_ICON`     | Path to icon file for desktop notifications |
-| `TELERT_ENDPOINT_URL`     | URL for custom HTTP endpoint notifications   |
-| `TELERT_ENDPOINT_METHOD`  | HTTP method to use (default: POST)           |
-| `TELERT_ENDPOINT_HEADERS` | JSON string of headers for HTTP requests      |
-| `TELERT_ENDPOINT_PAYLOAD` | Payload template for HTTP requests           |
-| `TELERT_ENDPOINT_NAME`    | Friendly name for the custom endpoint        |
-| `TELERT_ENDPOINT_TIMEOUT` | Request timeout in seconds (default: 20)     |
+- `TELERT_DEFAULT_PROVIDER` - Set default provider(s) to use
+- Provider-specific variables for Telegram, Teams, Slack, Discord, Pushover, etc.
+- Runtime variables like `TELERT_SILENT=1` for output control
 
-### Runtime Variables
+Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
 
-| Variable          | Effect                                            |
-|-------------------|---------------------------------------------------|
-| `TELERT_LONG`     | Default threshold (seconds) for `hook`            |
-| `TELERT_SILENT=1` | Capture and include command output in notification, but don't display in real-time |
-
-### Example Usage
-
-```bash
-# Set multiple default providers (will use in fallback order)
-export TELERT_DEFAULT_PROVIDER="slack,audio,desktop"
-
-# Configure Telegram via environment
-export TELERT_TELEGRAM_TOKEN="your-bot-token"
-export TELERT_TELEGRAM_CHAT_ID="your-chat-id"
-
-# Configure Slack
-export TELERT_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
-
-# Configure Discord
-export TELERT_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
-export TELERT_DISCORD_USERNAME="Alert Bot"  # Optional
-
-# Configure desktop notifications
-export TELERT_DESKTOP_APP_NAME="MyApp"
-
-# Send a message (will use default providers in order)
-telert send "Environment variable configuration works!"
-```
-
-Using environment variables is especially useful in CI/CD pipelines or containerized environments where you don't want to create a config file. Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
+[**See all environment variables**](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
 
 ---
 ## 📝 Message Formatting
 
-### Message Formatting Support
+Telert provides formatting options for messages with different levels of support across providers:
 
-Telert provides formatting options for messages, with different levels of support across providers.
+- **Telegram** fully supports rich formatting with both HTML and Markdown syntax
+- **Other providers** (Slack, Teams, Discord, Pushover) receive appropriately formatted messages with tags stripped
+- Automatic cross-platform compatibility ensures readable messages on all platforms
 
-#### Telegram Formatting
+Telert intelligently handles the formatting based on each provider's capabilities. You only need to format your message once, and Telert ensures it displays properly across all providers.
 
-Telegram fully supports rich formatting with both HTML and Markdown options:
-
-```bash
-# Send a message with HTML formatting (auto-detected)
-telert send "Project build <b>completed</b> with <i>zero</i> errors"
-
-# Or explicitly specify HTML parsing mode
-telert send --parse-mode HTML "Project build <b>completed</b> with <i>zero</i> errors"
-
-# Send with Markdown formatting (auto-detected)
-telert send "Project build **completed** with *zero* errors"
-
-# Or explicitly specify Markdown parsing mode
-telert send --parse-mode MarkdownV2 "Project build **completed** with *zero* errors"
-```
-
-Supported HTML tags in Telegram:
-- `<b>`, `<strong>` - Bold text
-- `<i>`, `<em>` - Italic text
-- `<u>` - Underlined text
-- `<s>`, `<strike>`, `<del>` - Strikethrough text
-- `<code>` - Monospace text
-- `<pre>` - Pre-formatted text
-- `<a href="...">` - Links
-
-Supported Markdown formatting in Telegram:
-- `**text**` or `__text__` - Bold text
-- `*text*` or `_text_` - Italic text
-- `` `text` `` - Monospace text
-- ```text``` - Pre-formatted text
-- `~~text~~` - Strikethrough text
-- `[link text](https://example.com)` - Links
-
-#### Other Providers
-
-For providers that don't natively support HTML or Markdown formatting (Slack, Teams, Discord, Pushover, etc.), Telert automatically strips the formatting tags while preserving the content. This ensures that your messages remain readable across all providers.
-
-**HTML Tag Stripping**: When a message with HTML tags is sent to non-Telegram providers, Telert extracts the text content while removing the tags.
-
-**Markdown Conversion**: When a message with Markdown formatting is sent to non-Telegram providers, Telert removes the formatting characters while keeping the text content.
-
-Example:
-```bash
-# When sending to Telegram, this shows bold and italic text
-# When sending to other providers, formatting is stripped but text is preserved
-telert send --provider "telegram,slack,discord" "Project <b>completed</b> with <i>zero</i> errors"
-
-# Same with Markdown formatting
-telert send --provider "telegram,pushover,teams" "Project **completed** with *zero* errors" 
-```
-
-**Multi-provider usage**:
-```bash
-# Send to multiple providers at once with automatic formatting handling
-telert send --all-providers "Build <b>successful</b>: version 1.0.0 released!"
-```
-
-Note: Telert intelligently handles the formatting based on each provider's capabilities. You only need to format your message once, and Telert will ensure it displays properly across all providers. This makes it easy to send the same notification to multiple services without worrying about formatting compatibility.
+[**Learn more about message formatting**](https://github.com/navig-me/telert/blob/main/docs/MESSAGE_FORMATTING.md)
 
 ---
 
 ## 💡 Use Cases and Tips
 
-### Server Administration
-- Get notified when backups complete
-- Monitor critical system jobs
-- Alert when disk space runs low
+Telert is versatile and useful in various scenarios:
 
-```bash
-# Alert when disk space exceeds 90%
-df -h | grep -E '[9][0-9]%' | telert "Disk space alert!"
+- **Server Administration**: Get notified when backups complete, monitor system jobs, alert on disk space issues
+- **Data Processing**: Track long-running data pipelines, ML model training, and large file operations
+- **CI/CD Pipelines**: Get notifications for build completions, deployment failures, and test results
+- **VS Code Integration**: Monitor and notify when commands or code complete directly within VS Code
+- **Long-Running Processes**: Get notified when database migrations, file transfers, or batch jobs complete
+- **Remote Server Monitoring**: Receive alerts from cron jobs, system reboots, and automated tasks
 
-# Monitor a system update
-telert run --label "System update" apt update && apt upgrade -y
-```
-
-### Data Processing
-- Monitor long-running data pipelines
-- Get notified when large file operations complete
-- Track ML model training progress
-
-```python
-from telert import telert, notify
-import pandas as pd
-
-@notify("Data processing")
-def process_large_dataset(filename):
-    df = pd.read_csv(filename)
-    # Process data...
-    return {"rows_processed": len(df), "outliers_removed": 15}
-```
-
-### CI/CD Pipelines
-- Get notified when builds complete
-- Alert on deployment failures
-- Track test suite status
-
-```bash
-# In a CI/CD environment using environment variables
-export TELERT_TOKEN="your-token"
-export TELERT_CHAT_ID="your-chat-id"
-
-# Alert on build completion
-telert run --label "CI Build" npm run build
-```
-
-### Monitor when Code Completes (Visual Studio Code Extension)
-- Monitor and notify when commands or Python code complete directly within VS Code.
-- Wrap Python functions or code blocks with a click and automatically receive alerts on success or failure.
-- Install the extension from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
+[**Explore all use cases and examples**](https://github.com/navig-me/telert/blob/main/docs/USE_CASES.md)
 
 
 ---

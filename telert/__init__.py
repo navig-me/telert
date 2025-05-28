@@ -7,6 +7,7 @@ __all__ = [
     "configure_telegram",
     "configure_teams",
     "configure_slack",
+    "configure_email",
     "configure_discord",
     "configure_audio",
     "configure_desktop",
@@ -18,7 +19,7 @@ __all__ = [
     "set_default_providers",
     "list_providers",
 ]
-__version__ = "0.1.43"
+__version__ = "0.1.44"
 
 from telert.api import (
     configure,
@@ -30,6 +31,7 @@ from telert.api import (
     configure_slack,
     configure_teams,
     configure_telegram,
+    configure_email,
     get_config,
     is_configured,
     list_providers,

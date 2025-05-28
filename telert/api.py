@@ -203,6 +203,52 @@ def configure_discord(webhook_url: str, username: Optional[str] = None, avatar_u
     configure_provider(Provider.DISCORD, **config)
 
 
+def configure_email(
+    server: str,
+    port: int,
+    username: str,
+    password: str,
+    from_addr: str,
+    to_addr: str,
+    set_default: bool = True,
+) -> None:
+    """
+    Configure Telert for email notifications.
+
+    Args:
+        server: The SMTP server address
+        port: The SMTP server port
+        username: The SMTP server username
+        password: The SMTP server password
+        from_addr: The sender email address
+        to_addr: The recipient email address
+        set_default: Whether to set Email as the default provider
+
+    Examples:
+        from telert import configure_email
+
+        configure_email(
+            "smtp.example.com",
+            587,
+            "user@example.com",
+            "password",
+            "from@example.com",
+            "to@example.com",
+            set_default=True
+        )
+    """
+    config = {
+        "server": server,
+        "port": port,
+        "username": username,
+        "password": password,
+        "from_addr": from_addr,
+        "to_addr": to_addr,
+        "set_default": set_default,
+    }
+    configure_provider(Provider.EMAIL, **config)
+
+
 # Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """
@@ -313,6 +359,16 @@ def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
         if os.environ.get("TELERT_SLACK_WEBHOOK"):
             return True
         if os.environ.get("TELERT_DISCORD_WEBHOOK"):
+            return True
+        if os.environ.get("TELERT_EMAIL_SERVER"):
+            return True
+        if os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
+            return True
+        if os.environ.get("TELERT_AUDIO_FILE"):
+            return True
+        if os.environ.get("TELERT_DESKTOP_APP_NAME"):
+            return True
+        if os.environ.get("TELERT_DESKTOP_ICON"):
             return True
 
         return False
@@ -454,6 +510,8 @@ def send(
         TELERT_PUSHOVER_TOKEN, TELERT_PUSHOVER_USER: Override Pushover configuration
         TELERT_AUDIO_FILE, TELERT_AUDIO_VOLUME: Override Audio configuration
         TELERT_DESKTOP_APP_NAME, TELERT_DESKTOP_ICON: Override Desktop configuration
+        TELERT_EMAIL_SERVER, TELERT_EMAIL_PORT, TELERT_EMAIL_USERNAME, TELERT_EMAIL_PASSWORD,
+        TELERT_EMAIL_FROM, TELERT_EMAIL_TO, TELERT_EMAIL_SUBJECT_TEMPLATE: Override Email configuration
     """
     try:
         # Convert string providers to Provider enums

@@ -5,6 +5,7 @@ Messaging providers for telert.
 This module contains implementations for different messaging services:
 - Telegram
 - Microsoft Teams
+- Email (SMTP)
 - Slack
 - Audio (plays sound files)
 - Desktop (system notifications)
@@ -1547,6 +1548,7 @@ def get_provider(
     PushoverProvider,
     EndpointProvider,
     DiscordProvider,
+    EmailProvider,
 ]:
     """Get a configured messaging provider (single provider mode for backward compatibility)."""
     providers = get_providers(provider_name)
@@ -1567,6 +1569,7 @@ def get_providers(
         PushoverProvider,
         EndpointProvider,
         DiscordProvider,
+        EmailProvider,
     ]
 ]:
     """Get a list of configured messaging providers.
@@ -1625,6 +1628,8 @@ def get_providers(
                 provider = EndpointProvider()
             elif provider_enum == Provider.DISCORD:
                 provider = DiscordProvider()
+            elif provider_enum == Provider.EMAIL:
+                provider = EmailProvider()
             else:
                 continue  # Skip unsupported providers
 
@@ -1689,6 +1694,11 @@ def get_providers(
             if provider.configure_from_env():
                 env_providers.append(provider)
 
+        if os.environ.get("TELERT_EMAIL_SERVER", None) is not None:
+            provider = EmailProvider()
+            if provider.configure_from_env():
+                env_providers.append(provider)
+
         # If multiple providers are configured via env vars, check for preference order
         if env_providers:
             # If TELERT_DEFAULT_PROVIDER is set, reorder the providers accordingly
@@ -1719,6 +1729,7 @@ def get_providers(
                                     Provider.DESKTOP: DesktopProvider,
                                     Provider.ENDPOINT: EndpointProvider,
                                     Provider.DISCORD: DiscordProvider,
+                                    Provider.EMAIL: EmailProvider,
                                 }[p_type],
                             ):
                                 result_providers.append(provider)

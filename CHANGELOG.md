@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.44 (2025-05-28)
+- Fixes for email support as a notification provider
+
 ## 0.1.43 (2025-05-26)
 - Fixed `telert init` command
 

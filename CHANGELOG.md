@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.45 (2025-05-28)
+- Fix for making email fields optional
+
 ## 0.1.44 (2025-05-28)
 - Fixes for email support as a notification provider
 

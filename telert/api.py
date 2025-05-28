@@ -533,6 +533,7 @@ def send(
         # Send the message
         return send_message(message, provider, all_providers, parse_mode)
     except Exception as e:
+        traceback.print_exc()
         raise RuntimeError(f"Failed to send message: {str(e)}")
 
 

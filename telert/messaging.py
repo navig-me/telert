@@ -1187,8 +1187,8 @@ class EmailProvider:
 
     def __init__(
         self,
-        server: str,
-        port: int = 587,
+        server: Optional[str] = None,
+        port: Optional[int] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         from_addr: Optional[str] = None,
@@ -1217,10 +1217,10 @@ class EmailProvider:
         self.subject_template = subject_template or "Telert Alert: {label}"
         self.use_html = use_html
     
-    def configure_from_env(self):
+    def configure_from_env(self) -> bool:
         """Configure from environment variables."""
         self.server = os.environ.get("TELERT_EMAIL_SERVER", self.server)
-        self.port = int(os.environ.get("TELERT_EMAIL_PORT", self.port))
+        self.port = os.environ.get("TELERT_EMAIL_PORT", self.port)
         self.username = os.environ.get("TELERT_EMAIL_USERNAME", self.username)
         self.password = os.environ.get("TELERT_EMAIL_PASSWORD", self.password)
         self.from_addr = os.environ.get("TELERT_EMAIL_FROM", self.from_addr)
@@ -1233,8 +1233,9 @@ class EmailProvider:
             "TELERT_EMAIL_SUBJECT_TEMPLATE", self.subject_template
         )
         self.use_html = os.environ.get("TELERT_EMAIL_HTML", "0") in ("1", "true", "yes")
+        return bool(self.server and self.port and self.username and self.password and self.from_addr and self.to_addrs)
 
-    def configure_from_config(self, config: MessagingConfig):
+    def configure_from_config(self, config: MessagingConfig) -> bool:
         """Configure from stored configuration."""
         email_config = config.get_provider_config(Provider.EMAIL)
         if email_config:
@@ -1246,6 +1247,8 @@ class EmailProvider:
             self.to_addrs = email_config.get("to_addrs", self.to_addrs)
             self.subject_template = email_config.get("subject_template", self.subject_template)
             self.use_html = email_config.get("use_html", self.use_html)
+            return True
+        return False
 
     def save_config(self, config: MessagingConfig):
         """Save configuration."""
@@ -1827,10 +1830,8 @@ def send_message(
                     provider_instance = get_provider(p)
                     providers_to_use.append(provider_instance)
                 except ValueError:
-                    # Skip providers that fail to configure
                     pass
     else:
-        # Otherwise use specified or default providers
         providers_to_use = get_providers(provider)
 
     if not providers_to_use:

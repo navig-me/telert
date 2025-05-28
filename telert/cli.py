@@ -11,6 +11,7 @@ Run `telert --help` or `telert help` for full usage.
 
 from __future__ import annotations
 
+import traceback
 import argparse
 import os
 import subprocess
@@ -494,7 +495,7 @@ def do_status(a):
         or discord_config
         or email_config
     ):
-        print("No providers configured. Use `telert config` to set up a provider.")
+        print("No providers configured. Use `telert config` or `telert init` to set up a provider.")
         return
 
     # Show environment variable information
@@ -514,6 +515,7 @@ def do_status(a):
                     status = "✅ success" if success else "❌ failed"
                     print(f"  - {provider_name}: {status}")
             except Exception as e:
+                traceback.print_exc()
                 sys.exit(f"❌ Failed to send message: {str(e)}")
         else:
             # Handle multiple providers (comma-separated)
@@ -523,6 +525,7 @@ def do_status(a):
                     try:
                         providers_to_test.append(Provider.from_string(p.strip()))
                     except ValueError:
+                        traceback.print_exc()
                         sys.exit(f"❌ Unknown provider: {p.strip()}")
 
                 # Send to all specified providers
@@ -534,6 +537,7 @@ def do_status(a):
                         status = "✅ success" if success else "❌ failed"
                         print(f"  - {provider_name}: {status}")
                 except Exception as e:
+                    traceback.print_exc()
                     sys.exit(f"❌ Failed to send message: {str(e)}")
             else:
                 # Single provider
@@ -569,6 +573,7 @@ def do_status(a):
                 )
                 print(f"sent: test message via {provider_name}")
         except Exception as e:
+            traceback.print_exc()
             sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
@@ -644,6 +649,7 @@ def do_send(a):
                     status = "✅ success" if success else "❌ failed"
                     print(f"  - {provider_name}: {status}")
     except Exception as e:
+        traceback.print_exc()
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
@@ -906,6 +912,7 @@ def piped_mode():
                         f"  - {provider_name}: {status_icon} {'success' if success else 'failed'}"
                     )
     except Exception as e:
+        traceback.print_exc()
         sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
@@ -1618,7 +1625,7 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
-    
+
     # Legacy Telegram config (for backward compatibility)
     c.add_argument("--token", help="(legacy) Telegram bot token")
     c.add_argument("--chat-id", help="(legacy) Telegram chat ID")

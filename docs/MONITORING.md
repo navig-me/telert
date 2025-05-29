@@ -62,7 +62,7 @@ Monitor system processes by name, command, or PID and receive notifications when
 telert monitor process --name "nginx" --notify-on stop,high-cpu --provider slack
 
 # Monitor a specific process by command pattern
-telert monitor process --command "python.*worker\.py" --notify-on stop,crash --provider telegram
+telert monitor process --command-pattern "python.*worker\.py" --notify-on stop,crash --provider telegram
 
 # Monitor using a process ID
 telert monitor process --pid 1234 --notify-on stop --provider email
@@ -71,10 +71,10 @@ telert monitor process --pid 1234 --notify-on stop --provider email
 telert monitor process --name "postgres" --cpu-threshold 80 --memory-threshold 2G --provider telegram
 
 # Monitor with custom action when process stops
-telert monitor process --name "my-service" --notify-on stop --action "systemctl restart my-service"
+telert monitor process --command-pattern "python.*worker\.py" --notify-on stop --action "systemctl restart my-service"
 
 # Add a friendly name to your monitor
-telert monitor process --name "nginx" --monitor-name "Web Server" --notify-on stop
+telert monitor process --command-pattern "ps aux | grep nginx" --monitor-name "Web Server" --notify-on stop
 
 # List all process monitors
 telert monitor process --list
@@ -87,8 +87,7 @@ telert monitor process --stop proc-12345678
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `--name` | Process name to monitor (can be regex) | `--name "postgres"` |
-| `--command` | Command pattern to match | `--command "python worker.py"` |
+| `--command-pattern` | Command pattern to match | `--command-pattern "python worker.py"` |
 | `--pid` | Specific process ID to monitor | `--pid 1234` |
 | `--notify-on` | Events to notify on (comma-separated) | `--notify-on stop,high-cpu,high-memory` |
 | `--cpu-threshold` | CPU usage threshold (0-100) | `--cpu-threshold 80` |

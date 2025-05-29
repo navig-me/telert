@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Versión 0.2.1**
+**Versión 0.2.2**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -59,10 +59,10 @@ Supervise el uso de recursos de procesos y reciba notificaciones cuando excedan 
 
 ```bash
 # Monitorear uso de memoria de un proceso
-telert monitor process --name "mi_app" --command "ps aux | grep mi_app" --memory-threshold 2G
+telert monitor process --command-pattern "ps aux | grep mi_app" --memory-threshold 2G
 
 # Monitorear múltiples procesos
-telert monitor process --name "servicios" --command "ps aux | grep -E 'nginx|postgres'" --cpu-threshold 80
+telert monitor process --command-pattern "ps aux | grep -E 'nginx|postgres'" --cpu-threshold 80
 
 # Listar todos los monitores de procesos
 telert monitor process --list

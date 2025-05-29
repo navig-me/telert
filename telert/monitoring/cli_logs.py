@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from telert.monitoring.fixed_logs import MonitorLogger, LogLevel
+from telert.monitoring.activity_logs import MonitorLogger, LogLevel
 
 
 def format_log_entry(log_entry: Dict) -> str:

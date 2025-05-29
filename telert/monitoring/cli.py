@@ -53,7 +53,7 @@ def setup_process_monitor_cli(subparsers):
         "--name", help="process name to monitor (can be a regular expression)"
     )
     process_group.add_argument(
-        "--command", help="command pattern to match (can be a regular expression)"
+        "--command-pattern", dest="command_pattern", help="command pattern to match (can be a regular expression)"
     )
     process_group.add_argument(
         "--pid", type=int, help="specific process ID to monitor"
@@ -303,7 +303,7 @@ def handle_process_monitor(args):
         return
     
     # Start a new monitor
-    if not (args.name or args.command or args.pid):
+    if not (args.name or args.command_pattern or args.pid):
         print("❌ You must specify at least one of --name, --command, or --pid.")
         return
     
@@ -324,7 +324,7 @@ def handle_process_monitor(args):
         monitor_id = monitor_process(
             name=args.monitor_name,
             process_name=args.name,
-            command=args.command,
+            command=args.command_pattern,
             pid=args.pid,
             notify_on=notify_on,
             cpu_threshold=args.cpu_threshold,

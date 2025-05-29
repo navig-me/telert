@@ -24,7 +24,7 @@ from telert.monitoring.base import (
     MonitorStatus, 
     MonitorRegistry
 )
-from telert.monitoring.fixed_logs import LogLevel
+from telert.monitoring.activity_logs import LogLevel
 from telert.monitoring.debug_logs import debug_log, debug_inspect
 
 

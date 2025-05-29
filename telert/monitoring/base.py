@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, TypeVar, Generic
 
 from telert.messaging import Provider, send_message
-from telert.monitoring.fixed_logs import MonitorLogger, LogLevel
+from telert.monitoring.activity_logs import MonitorLogger, LogLevel
 
 # Type definitions
 MonitorID = str

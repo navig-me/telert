@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**संस्करण 0.2.1**
+**संस्करण 0.2.2**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -59,10 +59,10 @@ telert init
 
 ```bash
 # प्रोसेस मेमोरी उपयोग की निगरानी
-telert monitor process --name "मेरी_ऐप" --command "ps aux | grep मेरी_ऐप" --memory-threshold 2G
+telert monitor process --command-pattern "ps aux | grep मेरी_ऐप" --memory-threshold 2G
 
 # एकाधिक प्रोसेस की निगरानी
-telert monitor process --name "सेवाएं" --command "ps aux | grep -E 'nginx|postgres'" --cpu-threshold 80
+telert monitor process --command-pattern "ps aux | grep -E 'nginx|postgres'" --cpu-threshold 80
 
 # सभी प्रोसेस मॉनिटर सूचीबद्ध करें
 telert monitor process --list

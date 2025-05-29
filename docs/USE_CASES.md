@@ -93,10 +93,10 @@ echo 'telert send --all-providers "Server $(hostname) has rebooted"' >> /etc/rc.
 telert monitor process --name "postgres" --notify-on stop,high-cpu --provider slack
 
 # Auto-restart a service when it crashes
-telert monitor process --name "my-service" --notify-on stop --action "systemctl restart my-service"
+telert monitor process --command-pattern "python training\.py" --notify-on stop --action "systemctl restart my-service"
 
 # Get notified when a process uses excessive resources
-telert monitor process --command "python training\.py" --cpu-threshold 90 --memory-threshold 8G --provider telegram
+telert monitor process --command-pattern "python training\.py" --cpu-threshold 90 --memory-threshold 8G --provider telegram
 ```
 
 ## Log File Monitoring

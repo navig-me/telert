@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.2.1**
+**Version 0.2.2**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -39,7 +39,7 @@ find . -name "*.log" | telert "Log files found!"
 telert monitor log --name "postgres" --file "/var/log/postgresql/postgresql-15-main.log" --pattern "ERROR|FATAL"
 
 # Monitor a process and notify on high memory usage
-telert monitor process --name "postgres" --command "ps aux | grep postgres" --memory-threshold 2G
+telert monitor process --command-pattern "ps aux | grep postgres" --memory-threshold 2G
 
 # Monitor a network endpoint and notify on failure
 telert monitor network --name "myapp-health" --host "myapp.com" --port 80 --type http --interval 60 --timeout 5 --expected-status 200 --expected-content "healthy"
@@ -373,7 +373,7 @@ telert monitor process --name "nginx" --notify-on stop,high-cpu --provider slack
 telert monitor process --name "postgres" --cpu-threshold 80 --memory-threshold 2G --provider telegram
 
 # Monitor with custom action on state change
-telert monitor process --command "python worker.py" --notify-on crash --action "systemctl restart worker"
+telert monitor process --command-pattern "python worker.py" --notify-on crash --action "systemctl restart worker"
 
 # List all monitored processes
 telert monitor process --list

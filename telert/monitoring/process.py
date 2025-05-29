@@ -1,21 +1,34 @@
 """Process monitoring for telert."""
 
-import os
+import json
 import re
 import subprocess
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union, Set
+import atexit
+from typing import Any, Dict, List, Optional, Union # Callable, Set removed
 
+# Local application imports
+from telert.messaging import Provider
+from telert.monitoring.base import (
+    Monitor,
+    MonitorID,
+    MonitorStatus,
+    MonitorType,
+    MonitorRegistry
+)
+from telert.monitoring.activity_logs import LogLevel # LogLevel import from correct module
+
+# Helper function for psutil import error
 def _get_platform_help():
-    import platform
+    import platform # Keep platform import local to this helper
     system = platform.system().lower()
     arch = platform.machine().lower()
-    
+
     help_msg = []
     help_msg.append("\nInstallation instructions:")
     help_msg.append(f"- System: {system}, Architecture: {arch}")
-    
+
     if system == 'darwin' and 'arm' in arch:  # Apple Silicon
         help_msg.append("\nFor Apple Silicon (M-series) users, try:")
         help_msg.append("  arch -arm64 pip install --no-cache-dir psutil")
@@ -24,11 +37,12 @@ def _get_platform_help():
     elif system == 'windows':
         help_msg.append("\nOn Windows, you might need to install Visual C++ Build Tools:")
         help_msg.append("  https://visualstudio.microsoft.com/visual-cpp-build-tools/")
-    
+
     help_msg.append("\nFor other platforms, try:")
     help_msg.append("  pip install --upgrade --force-reinstall psutil")
     return "\n".join(help_msg)
 
+# psutil import with detailed error handling
 try:
     import psutil
 except (ImportError, OSError) as e:
@@ -38,16 +52,6 @@ except (ImportError, OSError) as e:
         f"{_get_platform_help()}"
     )
     raise ImportError(error_msg) from e
-
-from telert.messaging import Provider
-from telert.monitoring.base import (
-    Monitor, 
-    MonitorID, 
-    MonitorType, 
-    MonitorStatus, 
-    MonitorRegistry
-)
-from telert.monitoring.fixed_logs import LogLevel
 
 # Type aliases
 ResourceThreshold = Union[int, float, str]
@@ -257,77 +261,89 @@ class ProcessMonitor(Monitor):
         """Check if process state changed and generate notification messages."""
         if self._first_check:
             self._first_check = False
-            # Don't send notifications on first check
-            self.log(LogLevel.INFO, "First process check completed, establishing baseline")
+            self.log(LogLevel.INFO, "First process check completed, establishing baseline.")
             return []
             
         notifications = []
         
-        # Check for stopped processes
-        for pid in old_status:
-            if pid not in new_status or not new_status[pid]["running"]:
-                if "stop" in self.notify_on:
-                    process_name = old_status[pid].get("name", f"PID {pid}")
-                    msg = f"Process stopped: {process_name}"
+        # Check for stopped or crashed processes
+        for pid, last_info in old_status.items():
+            if pid not in new_status or not new_status[pid].get("running"):
+                event_type = "stopped" 
+                
+                if event_type in self.notify_on or ("stop" in self.notify_on and event_type == "stopped") or ("crash" in self.notify_on and event_type == "crashed"):
+                    process_name = last_info.get("name", f"PID {pid}")
+                    msg = f"Process {event_type}: {process_name} (PID {pid})"
                     notifications.append(msg)
-                    self.log(LogLevel.FAILURE, msg, {"pid": pid, "process_name": process_name})
-                    
-                    # Run action if configured
+                    self.log(LogLevel.FAILURE, msg, {"pid": pid, "process_name": process_name, "event": event_type})
                     if self.action:
-                        self.log(LogLevel.INFO, f"Running action command: {self.action}")
+                        self.log(LogLevel.INFO, f"Running action for {event_type} event on {process_name}: {self.action}")
                         self._run_action()
         
-        # Check for new processes
-        for pid in new_status:
-            if pid not in old_status and "start" in self.notify_on:
-                process_name = new_status[pid].get("name", f"PID {pid}")
-                msg = f"Process started: {process_name}"
-                notifications.append(msg)
-                self.log(LogLevel.SUCCESS, msg, {"pid": pid, "process_name": process_name})
-        
-        # Check for resource thresholds
-        for pid, status in new_status.items():
-            if status["running"]:
-                # Check CPU threshold
-                if status["high_cpu"] and "high-cpu" in self.notify_on:
-                    process_name = status.get("name", f"PID {pid}")
-                    cpu = status["cpu_percent"]
-                    msg = f"High CPU usage: {process_name} is using {cpu:.1f}% CPU"
+        # Check for newly started processes
+        for pid, current_info in new_status.items():
+            if current_info.get("running") and pid not in old_status: # Process is running and wasn't in old_status
+                if "start" in self.notify_on:
+                    process_name = current_info.get("name", f"PID {pid}")
+                    msg = f"Process started: {process_name} (PID {pid})"
                     notifications.append(msg)
-                    self.log(LogLevel.WARNING, msg, {"pid": pid, "process_name": process_name, "cpu_percent": cpu})
+                    self.log(LogLevel.SUCCESS, msg, {"pid": pid, "process_name": process_name, "event": "start"})
+                    if self.action:
+                        self.log(LogLevel.INFO, f"Running action for start event on {process_name}: {self.action}")
+                        self._run_action()
+
+        # Check for resource threshold violations on currently running processes
+        for pid, current_proc_status in new_status.items():
+            if current_proc_status.get("running"):
+                process_name = current_proc_status.get("name", f"PID {pid}")
+                
+                # Check CPU threshold
+                if current_proc_status.get("high_cpu") and "high-cpu" in self.notify_on:
+                    if not old_status.get(pid, {}).get("high_cpu"): # Notify only on transition into high CPU state
+                        cpu_percent = current_proc_status.get("cpu_percent", 0.0)
+                        msg = f"High CPU usage: {process_name} (PID {pid}) is at {cpu_percent:.1f}%"
+                        notifications.append(msg)
+                        self.log(LogLevel.WARNING, msg, {"pid": pid, "process_name": process_name, "cpu_percent": cpu_percent, "event": "high-cpu"})
+                        if self.action:
+                            self.log(LogLevel.INFO, f"Running action for high-cpu event on {process_name}: {self.action}")
+                            self._run_action()
                 
                 # Check memory threshold
-                if status["high_memory"] and "high-memory" in self.notify_on:
-                    process_name = status.get("name", f"PID {pid}")
-                    memory_mb = status["memory_bytes"] / (1024 * 1024)
-                    msg = f"High memory usage: {process_name} is using {memory_mb:.1f} MB"
-                    notifications.append(msg)
-                    self.log(LogLevel.WARNING, msg, {"pid": pid, "process_name": process_name, "memory_bytes": status["memory_bytes"]})
-        
+                if current_proc_status.get("high_memory") and "high-memory" in self.notify_on:
+                    if not old_status.get(pid, {}).get("high_memory"): # Notify only on transition into high memory state
+                        memory_bytes = current_proc_status.get("memory_bytes", 0)
+                        memory_mb = memory_bytes / (1024 * 1024)
+                        msg = f"High memory usage: {process_name} (PID {pid}) is using {memory_mb:.1f}MB"
+                        notifications.append(msg)
+                        self.log(LogLevel.WARNING, msg, {"pid": pid, "process_name": process_name, "memory_bytes": memory_bytes, "event": "high-memory"})
+                        if self.action:
+                            self.log(LogLevel.INFO, f"Running action for high-memory event on {process_name}: {self.action}")
+                            self._run_action()
         return notifications
-    
+        
     def _monitor_loop(self) -> None:
         """Main monitoring loop that runs in a separate thread."""
         while self._should_run:
             try:
-                # Find matching processes
                 processes = self._find_matching_processes()
                 
-                # Check each process and build status dictionary
+                # Build new status dictionary
                 new_status = {}
                 for proc in processes:
                     try:
-                        # Get basic process info
+                        # Get process information
                         proc_info = {
                             "pid": proc.pid,
                             "name": proc.name(),
-                            "running": True,
+                            "cmdline": proc.cmdline(),
+                            "running": proc.is_running(),
                         }
                         
-                        # Add resource usage info
-                        resource_info = self._check_process_resources(proc)
-                        proc_info.update(resource_info)
+                        # Add resource information
+                        resources = self._check_process_resources(proc)
+                        proc_info.update(resources)
                         
+                        # Store in new status
                         new_status[proc.pid] = proc_info
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         # Process disappeared or we don't have access
@@ -357,22 +373,19 @@ class ProcessMonitor(Monitor):
                     
                     # Clear last status to avoid sending repeated notifications
                     self._last_status = {}
-                
+                    
             except Exception as e:
                 # Log the exception but keep the monitor running
-                print(f"Error in process monitor: {e}")
+                self.log(LogLevel.ERROR, f"Error in process monitor: {e}", exc_info=True)
             
             # Sleep until next check
             time.sleep(self.check_interval)
-    
+        
     def start(self) -> None:
         """Start the process monitor."""
         if self._monitor_thread and self._monitor_thread.is_alive():
-            # Already running
-            self.log(LogLevel.INFO, "Process monitor already running")
+            self.log(LogLevel.INFO, f"Process monitor {self.monitor_id} already running.")
             return
-            
-        self.log(LogLevel.INFO, f"Starting process monitor {self.monitor_id}")
             
         self._should_run = True
         self._first_check = True
@@ -573,8 +586,6 @@ def stop_process_monitor(monitor_id: MonitorID) -> bool:
 
 
 # Make sure to initialize properly
-import atexit
-import json
 
 def _cleanup_monitors():
     """Stop all monitors on exit."""

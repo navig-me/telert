@@ -8,9 +8,9 @@
 
 **Version 0.2.2**
 
+[![PyPI Downloads](https://static.pepy.tech/badge/telert)](https://pepy.tech/projects/telert)
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
-[![Downloads](https://static.pepy.tech/personalized-badge/telert?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads)](https://pepy.tech/project/telert)
 [![License](https://img.shields.io/github/license/navig-me/telert)](https://github.com/navig-me/telert/blob/main/LICENSE)
 [![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-blue?logo=github)](https://github.com/marketplace/actions/telert-run)
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version/Navig.telert-vscode.svg?subject=VS%20Code%20Marketplace&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode)
@@ -54,10 +54,14 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 - As a cloud-hosted API on [Replit](https://replit.com/@mihir95/Telert-CLI-Notifier), [Railway](https://railway.com/template/A_kYXt?referralCode=vj4bEA), [Render](https://render.com/deploy?repo=https://github.com/navig-me/telert-notifier) or [Fly.io](https://github.com/navig-me/telert-notifier?tab=readme-ov-file#-deploy-manually-on-flyio) with one-click deployments.
 
 
-<img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="600">
+<img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="700">
 
 
 ## 📋 Table of Contents
+
+<details>
+<summary>View Table of Contents</summary>
+
 - [Installation & Quick Start](#-installation--quick-start)
 - [Notification Providers](#-notification-providers)
   - [Telegram](#telegram-setup)
@@ -85,8 +89,12 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 - [Message Formatting](#-message-formatting)
 - [Use Cases](#-use-cases-and-tips)
 - [Contributing](#-contributing--license)
+</details>
 
 ## Documentation
+
+<details>
+<summary>📚 <b>Click to expand documentation</b></summary>
 
 For more detailed information, please refer to the [docs](https://github.com/navig-me/telert/blob/main/docs/) directory:
 
@@ -104,6 +112,8 @@ For more detailed information, please refer to the [docs](https://github.com/nav
 - [Custom HTTP Endpoint Guide](https://github.com/navig-me/telert/blob/main/docs/ENDPOINT.md)
 - [Docker Usage](https://github.com/navig-me/telert/blob/main/docs/DOCKER.md)
 - [CI/CD Integrations](https://github.com/navig-me/telert/blob/main/docs/CI-CD.md)
+
+</details>
 
 ## 🚀 Installation & Quick Start
 

@@ -47,6 +47,7 @@ classifiers = [
 
 [project.urls]
 "Homepage" = "https://github.com/navig-me/telert"
+"Repository" = "https://github.com/navig-me/telert"
 "Documentation" = "https://github.com/navig-me/telert#readme"
 "Bug Tracker" = "https://github.com/navig-me/telert/issues"
 "VS Code Extension" = "https://marketplace.visualstudio.com/items?itemName=Navig.telert-vscode"

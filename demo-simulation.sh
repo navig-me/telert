@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 function type_text() {
   text="$1"
   for (( i=0; i<${#text}; i++ )); do
-    echo -n "${text:$i:1}"
+    printf "%s" "${text:$i:1}"
     sleep 0.02
   done
   echo ""
@@ -30,17 +30,17 @@ function simulate_command() {
   output="$3"
   
   # Show the command with prompt
-  echo -ne "\n${GREEN}$ ${NC}"
+  printf "%b" "\n${GREEN}$ ${NC}"
   type_text "${command}"
   
   if [ -n "$comment" ]; then
-    echo -e "${YELLOW}# $comment${NC}"
+    printf "%b\n" "${YELLOW}# $comment${NC}"
     sleep 1
   fi
   
   # Show the simulated output
   if [ -n "$output" ]; then
-    echo -e "$output"
+    printf "%b\n" "$output"
   fi
   
   sleep 2
@@ -50,55 +50,69 @@ function simulate_command() {
 clear
 
 # Introduction
-echo -e "${RED}=== telert ===${NC}"
+clear
+printf "%b\n" "${RED}=== telert ===${NC}"
 sleep 0.1
-echo -e "${CYAN}== Command completion notifications${NC}" 
-echo -e "${CYAN}== on Telegram, Slack, Teams and Desktop.${NC}"
+printf "%b\n" "${CYAN}== Terminal & Python notifications, monitoring, and more!${NC}"
+sleep 0.3
+printf "%b\n" "${BLUE}Channels: Telegram, Slack, Teams, Discord, Email, Desktop, Audio, Pushover${NC}"
 sleep 0.5
 
-# Simple telert run example
+# Show that it is easy to install and configure
+simulate_command "pip install telert && telert init" \
+  "Install & configure telert in seconds!" \
+  "${CYAN}✓ telert installed & ready! Configure your favorite channels in one step.${NC}"
+
+echo "" # Add spacing
+
+# Basic command completion notification
 simulate_command "sleep 2 | telert" \
-"Simple notification after command completion" \
-"${CYAN}✓ Notification sent with exit code 0${NC}"
+  "Get notified when any command finishes" \
+  "${CYAN}✓ Notification sent: sleep 2 finished with exit 0${NC}"
 
-# Show basic telert run example
-simulate_command "telert run --label \"Database Backup\" pg_dump -U postgres mydb > backup.sql" \
-                "Run a command with a custom label" \
-"Starting pg_dump...
-Database dump completed successfully!
-${CYAN}✓ Notification sent: Database Backup finished with exit 0 in 3s${NC}"
+echo "" # Add spacing
 
-# Show long-running command with real-time output
-simulate_command "telert run --label \"ML Training\" python train.py" \
-                "Real-time output is displayed during execution" \
-"Epoch 1/10: loss=0.342, accuracy=0.896
-Epoch 2/10: loss=0.213, accuracy=0.923
-Epoch 3/10: loss=0.187, accuracy=0.946
-...
-Training complete! Model saved to ./model.h5
-${CYAN}✓ Notification sent: ML Training finished with exit 0 in 52s${NC}"
+# Custom notification to multiple providers
+simulate_command "telert send --provider 'slack,desktop' 'Deployment to production completed!'" \
+  "Send a custom message to multiple providers" \
+  "${CYAN}✓ Notification sent to Slack, Desktop: Deployment to production completed!${NC}"
 
-# Show pipeline example
-simulate_command "find . -name \"*.log\" | grep \"ERROR\" | telert --provider slack \"Error check complete\"" \
-                "Pipe command output to telert" \
-"./logs/app.log:ERROR: Database connection failed
-./logs/service.log:ERROR: Authentication timeout
-${CYAN}✓ Notification sent to Slack: Error check complete${NC}"
+echo "" # Add spacing
 
-# Show direct message example
-simulate_command "telert send \"Deployment to production completed successfully!\"" \
-                "Send custom notification messages" \
-"${CYAN}✓ Notification sent: Deployment to production completed successfully!${NC}"
-
-# Show failure case
-simulate_command "telert run --only-fail rsync -a /src/ /backup/" \
-                "Get notified only when commands fail" \
-"Building file list...
-File list built, starting transfer...
-Transfer complete.
-${GREEN}✓ Command completed successfully (no notification sent, as --only-fail was specified)${NC}"
-
-# Show bash hook example
+# Shell Hook: notify for all long-running commands
 simulate_command "eval \"\$(telert hook -l 30)\"" \
-                "Set up automatic notifications for all commands > 30s" \
-"${CYAN}✓ Hook installed! All commands taking longer than 30s will now trigger notifications${NC}"
+  "Enable notifications for any command taking longer than 30 seconds" \
+  "${YELLOW}Now, running a long command like 'sleep 35' triggers a notification automatically${NC}"
+simulate_command "sleep 35" \
+  "" \
+  "${CYAN}✓ Notification sent: sleep 35 finished (took 35s)${NC}"
+
+echo "" # Add spacing
+
+# Log file monitoring
+simulate_command "telert monitor log --file /var/log/app.log --pattern 'ERROR|CRITICAL' --provider telegram" \
+  "Alert on error patterns in logs" \
+  "Monitoring /var/log/app.log for pattern: ERROR|CRITICAL\n${CYAN}✓ Notification sent to Telegram: ERROR found in app.log${NC}"
+
+echo "" # Add spacing
+
+# Process monitoring
+simulate_command "telert monitor process --name 'postgres' --command 'ps aux | grep postgres' --memory-threshold 2G" \
+  "Watch a process and get alerts on memory usage" \
+  "Process 'postgres' is using 2.1G RAM\n${CYAN}✓ Notification sent: postgres memory usage exceeded 2G${NC}"
+
+echo "" # Add spacing
+
+# Network monitoring
+simulate_command "telert monitor network --host myapp.com --port 80 --type http --expected-status 200 --expected-content healthy" \
+  "Monitor network endpoint health" \
+  "HTTP check to myapp.com:80 returned 500\n${CYAN}✓ Notification sent: Network check failed for myapp.com${NC}"
+
+echo "" # Add spacing
+
+# Show Python API integration
+simulate_command "python -c 'from telert import notify; notify(\"Hello from Python!\")"' \
+  "Use Telert directly from Python code" \
+  "${CYAN}✓ Notification sent: Hello from Python!${NC}"
+
+echo "" # Add spacing

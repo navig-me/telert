@@ -107,8 +107,9 @@ For more detailed information, please refer to the [docs](https://github.com/nav
 
 ## 🚀 Installation & Quick Start
 
+Install and configure in seconds:
+
 ```bash
-# Install from PyPI (works on any OS with Python 3.8+)
 pip install telert
 
 # Interactive setup wizard - easiest way to get started
@@ -116,13 +117,45 @@ telert init
 
 # Or configure a notification provider manually
 telert config desktop --app-name "My App" --set-default
+```
 
-# Basic usage - pipe command output
+Use in your shell directly or wrap any command:
+
+```bash
+# Pipe command output for notification
 long_running_command | telert "Command finished!"
 
-# Or wrap a command to capture status and timing
+# Wrap a command to capture status and timing
 telert run --label "Database Backup" pg_dump -U postgres mydb > backup.sql
 
+# Get notified for any command taking longer than 30 seconds
+eval "$(telert hook -l 30)"
+```
+
+Or use in your Python code:
+
+```python
+from telert import send, telert, notify
+
+# Simple notification
+send("Script completed successfully!")
+
+# Using the context manager
+def process():
+    with telert("Data processing", provider="telegram"):
+        # Your long-running code here
+        process_large_dataset()
+
+# Using the function decorator
+@notify("Database backup", provider="email")
+def backup_database():
+    # Backup code here
+    return "Backup completed"
+```
+
+Or monitor processes, log files, and network endpoints:
+
+```bash
 # Monitor a process
 telert monitor process --name "postgres" --command "ps aux | grep postgres" --memory-threshold 2G
 
@@ -689,6 +722,21 @@ curl -X POST https://your-deployment-url.example.com/send \
 
 For more details on deployment options and configuration, see the [telert-notifier repository](https://github.com/navig-me/telert-notifier).
 
+---
+## 🌿 Environment Variables
+
+Telert can be configured using environment variables, which is especially useful in CI/CD pipelines or containerized environments. Key variables include:
+
+- `TELERT_DEFAULT_PROVIDER` - Set default provider(s) to use
+- Provider-specific variables for Telegram, Teams, Slack, Discord, Pushover, etc.
+- Runtime variables like `TELERT_SILENT=1` for output control
+
+Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
+
+[**See all environment variables**](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Desktop Notifications Issues
@@ -720,49 +768,55 @@ For more details on deployment options and configuration, see the [telert-notifi
   - Install required audio players (macOS: built-in, Linux: mpg123/paplay/aplay, Windows: winsound/playsound)
   - For MP3 support on Windows: `pip install telert[audio]`
 
+### Notification Delivery Failures
+- Verify your internet connection
+- Check provider configuration with `telert status`
+- For cloud services, verify API keys and webhook URLs
+- Check rate limits for your notification provider
 
----
-## 🌿 Environment Variables
 
-Telert can be configured using environment variables, which is especially useful in CI/CD pipelines or containerized environments. Key variables include:
+### Monitoring Installation Issues & Commands
 
-- `TELERT_DEFAULT_PROVIDER` - Set default provider(s) to use
-- Provider-specific variables for Telegram, Teams, Slack, Discord, Pushover, etc.
-- Runtime variables like `TELERT_SILENT=1` for output control
+Telert’s process monitoring depends on the `psutil` library. If you encounter errors related to psutil (such as ImportError, build failures, or missing wheels), follow these platform-specific tips:
 
-Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
+**Apple Silicon (M1/M2):**
+- Try installing psutil using the native ARM64 architecture:
+  ```bash
+  arch -arm64 pip install --no-cache-dir psutil
+  ```
+- For Intel compatibility (Rosetta):
+  ```bash
+  arch -x86_64 pip install --no-cache-dir psutil
+  ```
+- If you see compilation errors, ensure you have Xcode Command Line Tools installed:
+  ```bash
+  xcode-select --install
+  ```
 
-[**See all environment variables**](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
+**Linux:**
+- Make sure you have Python development headers and a C compiler installed:
+  ```bash
+  sudo apt-get install python3-dev gcc
+  pip install --upgrade --force-reinstall psutil
+  ```
 
----
+**Windows:**
+- You may need to install Visual C++ Build Tools from:
+  https://visualstudio.microsoft.com/visual-cpp-build-tools/
+- Then try:
+  ```bash
+  pip install --upgrade --force-reinstall psutil
+  ```
 
-## 🔍 Troubleshooting
+**General:**
+- If you still have issues, try upgrading pip and setuptools:
+  ```bash
+  pip install --upgrade pip setuptools wheel
+  ```
+- For more details, see the error message for platform-specific instructions.
 
-### Common Issues and Solutions
+> **Note:** psutil is required for all process monitoring features in Telert. If import fails, you’ll see a detailed error with platform-specific help.
 
-#### Notification Delivery Failures
-- **Symptom**: Notifications not being received
-  - Verify your internet connection
-  - Check provider configuration with `telert status`
-  - For cloud services, verify API keys and webhook URLs
-  - Check rate limits for your notification provider
-
-#### Audio Notifications Not Working
-- **Symptom**: No sound when using audio notifications
-  - Ensure audio package dependencies are installed: `pip install 'telert[audio]'`
-  - Check system volume and audio output device
-  - On Linux, ensure `libasound2` and `libasound2-dev` are installed
-
-#### Apple Silicon (M1/M2) Installation
-- **Symptom**: Installation fails on Apple Silicon Macs
-  - For Apple Silicon (M-series) users, try:
-    ```bash
-    # Native ARM64 installation (recommended)
-    arch -arm64 pip install --no-cache-dir telert
-    
-    # Or for Intel compatibility
-    arch -x86_64 pip install --no-cache-dir telert
-    ```
 
 ---
 ## 📝 Message Formatting

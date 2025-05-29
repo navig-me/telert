@@ -35,14 +35,14 @@ telert run npm build
 # Or pipe any command output for notification
 find . -name "*.log" | telert "Log files found!"
 
-# Monitor a log file
+# Monitor a log file and notify on error
 telert monitor log --name "postgres" --file "/var/log/postgresql/postgresql-15-main.log" --pattern "ERROR|FATAL"
 
-# Monitor a process memory usage
+# Monitor a process and notify on high memory usage
 telert monitor process --name "postgres" --command "ps aux | grep postgres" --memory-threshold 2G
 
-# Monitor a network endpoint
-telert monitor network --name "postgres" --host "myapp.com" --port 80 --type http --interval 60 --timeout 5 --expected-status 200 --expected-content "healthy"
+# Monitor a network endpoint and notify on failure
+telert monitor network --name "myapp-health" --host "myapp.com" --port 80 --type http --interval 60 --timeout 5 --expected-status 200 --expected-content "healthy"
 ```
 
 Perfect for long-running tasks, remote servers, CI pipelines, monitoring critical code, processes, logs, and network services.

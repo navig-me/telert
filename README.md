@@ -60,7 +60,7 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 ## 📋 Table of Contents
 
 <details>
-<summary>View Table of Contents</summary>
+<summary> <b>View Table of Contents</b> </summary>
 
 - [Installation & Quick Start](#-installation--quick-start)
 - [Notification Providers](#-notification-providers)
@@ -94,7 +94,7 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 ## Documentation
 
 <details>
-<summary>📚 <b>Click to expand documentation</b></summary>
+<summary> <b>View Documentation Directory</b></summary>
 
 For more detailed information, please refer to the [docs](https://github.com/navig-me/telert/blob/main/docs/) directory:
 

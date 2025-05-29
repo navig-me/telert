@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 # Install dependencies for audio notifications and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \

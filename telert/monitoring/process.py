@@ -7,7 +7,37 @@ import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Union, Set
 
-import psutil
+def _get_platform_help():
+    import platform
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+    
+    help_msg = []
+    help_msg.append("\nInstallation instructions:")
+    help_msg.append(f"- System: {system}, Architecture: {arch}")
+    
+    if system == 'darwin' and 'arm' in arch:  # Apple Silicon
+        help_msg.append("\nFor Apple Silicon (M-series) users, try:")
+        help_msg.append("  arch -arm64 pip install --no-cache-dir psutil")
+        help_msg.append("Or for Intel compatibility:")
+        help_msg.append("  arch -x86_64 pip install --no-cache-dir psutil")
+    elif system == 'windows':
+        help_msg.append("\nOn Windows, you might need to install Visual C++ Build Tools:")
+        help_msg.append("  https://visualstudio.microsoft.com/visual-cpp-build-tools/")
+    
+    help_msg.append("\nFor other platforms, try:")
+    help_msg.append("  pip install --upgrade --force-reinstall psutil")
+    return "\n".join(help_msg)
+
+try:
+    import psutil
+except (ImportError, OSError) as e:
+    error_msg = (
+        f"Failed to import psutil: {str(e)}\n"
+        "psutil is required for process monitoring. "
+        f"{_get_platform_help()}"
+    )
+    raise ImportError(error_msg) from e
 
 from telert.messaging import Provider
 from telert.monitoring.base import (

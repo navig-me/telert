@@ -19,7 +19,7 @@ __all__ = [
     "set_default_providers",
     "list_providers",
 ]
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from telert.api import (
     configure,

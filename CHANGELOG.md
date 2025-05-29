@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (2025-05-29)
+- Made psutil a required dependency for better reliability
+- Added comprehensive platform-specific error messages for psutil installation
+- Improved troubleshooting documentation
+- Added better error handling for platform-specific installation issues
+
 ## 0.2.0 (2025-05-29)
 - Added monitoring support for logs, processes, and networks
 

@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.2.0**
+**Version 0.2.1**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -122,15 +122,26 @@ long_running_command | telert "Command finished!"
 
 # Or wrap a command to capture status and timing
 telert run --label "Database Backup" pg_dump -U postgres mydb > backup.sql
+
+# Monitor a process
+telert monitor process --name "postgres" --command "ps aux | grep postgres" --memory-threshold 2G
+
+# Monitor a log file
+telert monitor log --file "/var/log/app.log" --pattern "ERROR|CRITICAL" --provider telegram
+
+# Monitor a network endpoint
+telert monitor network --host "myapp.com" --port 80 --type http --interval 60 --timeout 5 --expected-status 200 --expected-content "healthy"
 ```
 
 ### Key benefits
 
 - 📱 Get notified when commands finish (even when away from your computer)
+- 📊 Monitor processes, log files, and network endpoints
 - ⏱️ See exactly how long commands or code took to run
 - 🚦 Capture success/failure status codes and tracebacks
-- 📃 View command output snippets directly in your notifications
+- 📃 View command output snippets directly in notifications
 - 🔄 Works with shell commands, pipelines, and Python code
+
 
 ## 📲 Notification Providers
 
@@ -722,6 +733,36 @@ Telert can be configured using environment variables, which is especially useful
 Environment variables take precedence over the configuration file, making them perfect for temporary overrides.
 
 [**See all environment variables**](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
+
+---
+
+## 🔍 Troubleshooting
+
+### Common Issues and Solutions
+
+#### Notification Delivery Failures
+- **Symptom**: Notifications not being received
+  - Verify your internet connection
+  - Check provider configuration with `telert status`
+  - For cloud services, verify API keys and webhook URLs
+  - Check rate limits for your notification provider
+
+#### Audio Notifications Not Working
+- **Symptom**: No sound when using audio notifications
+  - Ensure audio package dependencies are installed: `pip install 'telert[audio]'`
+  - Check system volume and audio output device
+  - On Linux, ensure `libasound2` and `libasound2-dev` are installed
+
+#### Apple Silicon (M1/M2) Installation
+- **Symptom**: Installation fails on Apple Silicon Macs
+  - For Apple Silicon (M-series) users, try:
+    ```bash
+    # Native ARM64 installation (recommended)
+    arch -arm64 pip install --no-cache-dir telert
+    
+    # Or for Intel compatibility
+    arch -x86_64 pip install --no-cache-dir telert
+    ```
 
 ---
 ## 📝 Message Formatting

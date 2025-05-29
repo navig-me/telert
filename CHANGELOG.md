@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.46 (2025-05-29)
+- Support multiple to emails in configure_email
+
 ## 0.1.45 (2025-05-28)
 - Fix for making email fields optional
 

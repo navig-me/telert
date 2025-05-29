@@ -209,7 +209,7 @@ def configure_email(
     username: str,
     password: str,
     from_addr: str,
-    to_addr: str,
+    to_addrs: List[str],
     set_default: bool = True,
 ) -> None:
     """
@@ -221,7 +221,7 @@ def configure_email(
         username: The SMTP server username
         password: The SMTP server password
         from_addr: The sender email address
-        to_addr: The recipient email address
+        to_addrs: The recipient email addresses
         set_default: Whether to set Email as the default provider
 
     Examples:
@@ -233,7 +233,7 @@ def configure_email(
             "user@example.com",
             "password",
             "from@example.com",
-            "to@example.com",
+            ["to@example.com"],
             set_default=True
         )
     """
@@ -243,7 +243,7 @@ def configure_email(
         "username": username,
         "password": password,
         "from_addr": from_addr,
-        "to_addr": to_addr,
+        "to_addrs": to_addrs,
         "set_default": set_default,
     }
     configure_provider(Provider.EMAIL, **config)

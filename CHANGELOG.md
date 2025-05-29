@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0 (2025-05-29)
+- Added monitoring support for logs, processes, and networks
+
 ## 0.1.46 (2025-05-29)
 - Support multiple to emails in configure_email
 

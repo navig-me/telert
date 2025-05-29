@@ -27,6 +27,7 @@ from telert.messaging import (
     configure_provider,
     send_message,
 )
+from telert.monitoring.cli import setup_monitor_cli, handle_monitor_commands
 
 CFG_DIR = CONFIG_DIR
 CFG_FILE = CFG_DIR / "config.json"
@@ -1390,20 +1391,18 @@ def main():
     if not sys.stdin.isatty():
         piped_mode()
         return
-
     p = argparse.ArgumentParser(
-        prog="telert",
-        description="Send alerts when commands finish (supports multiple messaging providers).",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Send alerts from shell commands to messaging services",
+        epilog="Example: telert run ls -la",
     )
-    # Show version and exit
     p.add_argument(
-        "--version",
-        action="version",
-        version="%(prog)s " + __version__,
-        help="show program version and exit",
+        "--version", action="version", version=f"telert {__version__}"
     )
-    sp = p.add_subparsers(dest="cmd", required=True)
+
+    sp = p.add_subparsers(dest="command", metavar="COMMAND")
+    
+    # Add monitoring commands
+    setup_monitor_cli(sp)
 
     # config
     c = sp.add_parser("config", help="configure messaging providers")
@@ -1733,7 +1732,13 @@ def main():
     if getattr(args, "cmd", None) == [] and getattr(args, "func", None) is do_run:
         p.error("run: missing command – use telert run <cmd> …")
 
-    args.func(args)
+    # Handle monitor commands
+    if getattr(args, "command", None) == "monitor":
+        handle_monitor_commands(args)
+    elif hasattr(args, "func"):
+        args.func(args)
+    else:
+        p.print_help()
 
 
 if __name__ == "__main__":

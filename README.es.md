@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Versión 0.1.46**
+**Versión 0.2.0**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -49,6 +49,71 @@ telert init
 - 🚦 Captura el código de estado de éxito/fallo y cualquier error
 - 📃 Visualiza fragmentos de salida del comando en la notificación
 - 🔄 Funciona con comandos shell, tuberías y código en Python
+
+
+## 🚦 Monitorización
+
+### Monitorización de Procesos
+
+Supervise el uso de recursos de procesos y reciba notificaciones cuando excedan los umbrales:
+
+```bash
+# Monitorear uso de memoria de un proceso
+telert monitor process --name "mi_app" --command "ps aux | grep mi_app" --memory-threshold 2G
+
+# Monitorear múltiples procesos
+telert monitor process --name "servicios" --command "ps aux | grep -E 'nginx|postgres'" --cpu-threshold 80
+
+# Listar todos los monitores de procesos
+telert monitor process --list
+
+# Detener monitoreo de un proceso
+telert monitor process --stop <id-monitor>
+```
+
+### Monitorización de Archivos de Log
+
+Vigile archivos de registro en busca de patrones específicos y reciba notificaciones con contexto cuando se encuentren coincidencias:
+
+```bash
+# Monitorear un archivo de log para patrones
+telert monitor log --file "/var/log/aplicacion.log" --pattern "ERROR|CRITICO" --provider telegram
+
+# Monitoreo avanzado con contexto
+telert monitor log \
+  --file "/var/log/nginx/error.log" \
+  --pattern ".*\[error\].*" \
+  --context-lines 5 \
+  --cooldown 300 \
+  --provider slack
+
+# Listar todos los monitores de log
+telert monitor log --list
+```
+
+### Monitorización de Red
+
+Supervise la conectividad de red y servicios con diferentes tipos de verificación:
+
+```bash
+# Monitoreo básico de ping
+telert monitor network --host ejemplo.com --type ping --interval 60 --provider slack
+
+# Monitoreo de punto final HTTP
+telert monitor network \
+  --url https://api.ejemplo.com/health \
+  --expected-status 200 \
+  --timeout 5 \
+  --provider telegram
+
+# Monitoreo de puerto TCP
+telert monitor network --host db.ejemplo.com --port 5432 --provider email
+
+# Listar todos los monitores de red
+telert monitor network --list
+```
+
+Para documentación detallada sobre las características de monitoreo, consulte la [Guía de Monitoreo](https://github.com/navig-me/telert/blob/main/docs/MONITORING.md).
 
 ## 🤝 Contribuciones / Licencia
 

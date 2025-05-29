@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.1.46**
+**Version 0.2.0**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -18,7 +18,7 @@
 
 ## 📱 Overview
 
-Telert is a lightweight utility that sends notifications when your terminal commands or Python code completes. It supports multiple notification channels:
+Telert is a lightweight utility for multi-channel notifications for alerting when terminal commands or Python code completes. It also extends this notification capability to easily monitor processes, log files, and HTTP endpoints uptime. The tool supports multiple notification channels:
 
 - **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
 - **Email**: SMTP email notifications
@@ -34,9 +34,18 @@ telert run npm build
 
 # Or pipe any command output for notification
 find . -name "*.log" | telert "Log files found!"
+
+# Monitor a log file
+telert monitor log --name "postgres" --file "/var/log/postgresql/postgresql-15-main.log" --pattern "ERROR|FATAL"
+
+# Monitor a process memory usage
+telert monitor process --name "postgres" --command "ps aux | grep postgres" --memory-threshold 2G
+
+# Monitor a network endpoint
+telert monitor network --name "postgres" --host "myapp.com" --port 80 --type http --interval 60 --timeout 5 --expected-status 200 --expected-content "healthy"
 ```
 
-Perfect for long-running tasks, remote servers, CI pipelines, or monitoring critical code.
+Perfect for long-running tasks, remote servers, CI pipelines, monitoring critical code, processes, logs, and network services.
 
 Use it as a CLI tool, Python library, or a notification API. Telert is available:
 
@@ -66,6 +75,10 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
   - [Command Line Interface](#command-line-interface-cli)
   - [Python API](#python-api)
   - [Docker Usage](#docker-usage)
+- [Monitoring](#-monitoring)
+  - [Process Monitoring](#process-monitoring)
+  - [Log File Monitoring](#log-file-monitoring)
+  - [Network Monitoring](#network-monitoring)
 - [API Deployment to Cloud Platforms](#-api-deployment-to-cloud-platforms)
 - [Troubleshooting](#-troubleshooting)
 - [Environment Variables](#-environment-variables)
@@ -80,6 +93,7 @@ For more detailed information, please refer to the [docs](https://github.com/nav
 - [Environment Variables](https://github.com/navig-me/telert/blob/main/docs/ENVIRONMENT_VARIABLES.md)
 - [Message Formatting](https://github.com/navig-me/telert/blob/main/docs/MESSAGE_FORMATTING.md)
 - [Python API Reference](https://github.com/navig-me/telert/blob/main/docs/PYTHON_API.md)
+- [Monitoring Guide](https://github.com/navig-me/telert/blob/main/docs/MONITORING.md)
 - [Use Cases & Tips](https://github.com/navig-me/telert/blob/main/docs/USE_CASES.md)
 - [Telegram Setup](https://github.com/navig-me/telert/blob/main/docs/TELEGRAM.md)
 - [Microsoft Teams Setup](https://github.com/navig-me/telert/blob/main/docs/TEAMS.md)
@@ -287,12 +301,89 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 | **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" rsync -a /src /dst` |
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
 | **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
+| **Monitor**    | Watches processes, log files, and network endpoints. | `telert monitor process --name "nginx" --notify-on stop` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
 | **GitHub Action** | Run commands in GitHub Actions with notifications. | `uses: navig-me/telert/actions/run@v1` |
 | **CI Integration** | GitLab CI templates and CircleCI orbs for notifications. | `extends: .telert-notify` |
 | **Docker** | Run as CLI tool or notification API server in Docker. | `docker run ghcr.io/navig-me/telert:latest` |
 | **Multi-provider** | Configure and use multiple notification services (Telegram, Teams, Slack, Pushover, Audio, Desktop). | `telert config desktop --app-name "My App"` |
+
+---
+
+## 🔍 Monitoring
+
+Telert provides a simple way to monitor processes, log files, and HTTP endpoints, sending notifications through any configured provider when important events occur.
+
+> **Note**: While monitors are stored in a persistent configuration, they need to be explicitly started after a system restart. To ensure monitors run continuously, consider setting up an autostart mechanism using your system's init system (systemd, cron, etc.). Configuration details are provided in the [Persistence and Startup Behavior](https://github.com/navig-me/telert/blob/main/docs/MONITORING.md#persistence-and-startup-behavior) section.
+
+### Process Monitoring
+
+Monitor system processes by name, command, or PID and get notified on state changes or resource usage thresholds:
+
+```bash
+# Monitor a process by name
+telert monitor process --name "nginx" --notify-on stop,high-cpu --provider slack
+
+# Monitor with resource thresholds
+telert monitor process --name "postgres" --cpu-threshold 80 --memory-threshold 2G --provider telegram
+
+# Monitor with custom action on state change
+telert monitor process --command "python worker.py" --notify-on crash --action "systemctl restart worker"
+
+# List all monitored processes
+telert monitor process --list
+
+# Stop monitoring a process
+telert monitor process --stop <monitor-id>
+```
+
+### Log File Monitoring
+
+Watch log files for specific patterns and receive notifications with context when matches are found:
+
+```bash
+# Monitor a log file for patterns
+telert monitor log --file "/var/log/app.log" --pattern "ERROR|CRITICAL" --provider telegram
+
+# Advanced monitoring with context
+telert monitor log \
+  --file "/var/log/nginx/error.log" \
+  --pattern ".*\[error\].*" \
+  --context-lines 5 \
+  --cooldown 300 \
+  --provider slack
+
+# List all log monitors
+telert monitor log --list
+
+# Stop monitoring a log file
+telert monitor log --stop <monitor-id>
+```
+
+### Network Monitoring
+
+Monitor network connectivity and services with different check types:
+
+```bash
+# Basic ping monitoring
+telert monitor network --host example.com --type ping --interval 60 --provider slack
+
+# HTTP endpoint monitoring
+telert monitor network \
+  --url https://api.example.com/health \
+  --expected-status 200 \
+  --timeout 5 \
+  --provider telegram
+
+# TCP port monitoring
+telert monitor network --host db.example.com --port 5432 --provider email
+
+# List all network monitors
+telert monitor network --list
+```
+
+For detailed documentation on monitoring features, see the [Monitoring Guide](https://github.com/navig-me/telert/blob/main/docs/MONITORING.md).
 
 ---
 

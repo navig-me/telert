@@ -1,6 +1,6 @@
 # Use Cases and Tips
 
-Telert can be used in a variety of scenarios across different domains. Here are some common use cases and helpful tips.
+Telert can be used in a variety of scenarios across different domains. Here are some common use cases and helpful tips for both notification and monitoring features.
 
 ## Server Administration
 
@@ -80,4 +80,55 @@ telert run --label "Migration" python manage.py migrate
 
 # Monitor server restarts
 echo 'telert send --all-providers "Server $(hostname) has rebooted"' >> /etc/rc.local
+```
+
+## Process Monitoring
+
+- Monitor critical services and receive notifications when they stop
+- Track resource usage and get alerts on high CPU/memory
+- Execute automatic recovery actions
+
+```bash
+# Monitor a database server process
+telert monitor process --name "postgres" --notify-on stop,high-cpu --provider slack
+
+# Auto-restart a service when it crashes
+telert monitor process --name "my-service" --notify-on stop --action "systemctl restart my-service"
+
+# Get notified when a process uses excessive resources
+telert monitor process --command "python training\.py" --cpu-threshold 90 --memory-threshold 8G --provider telegram
+```
+
+## Log File Monitoring
+
+- Monitor application logs for errors and exceptions
+- Track security logs for unauthorized access attempts
+- Get notifications with context when pattern matches are found
+
+```bash
+# Watch application logs for errors
+telert monitor log --file "/var/log/app.log" --pattern "ERROR|CRITICAL|EXCEPTION" --context-lines 5 --provider email
+
+# Monitor auth logs for security incidents
+telert monitor log --file "/var/log/auth.log" --pattern "Failed password|authentication failure" --provider telegram
+
+# Watch web server logs with cooldown period
+telert monitor log --file "/var/log/nginx/error.log" --pattern "\[error\]" --cooldown 300 --provider teams
+```
+
+## Network Monitoring
+
+- Monitor API endpoints and web services
+- Check database and service connectivity
+- Track network latency issues
+
+```bash
+# Monitor website availability
+telert monitor network --url "https://example.com" --expected-status 200 --interval 300 --provider slack
+
+# Check database connectivity
+telert monitor network --host "db.example.com" --port 5432 --type tcp --provider email
+
+# Monitor internal service health endpoint
+telert monitor network --url "http://internal-api/health" --expected-content "healthy" --method GET --provider teams
 ```

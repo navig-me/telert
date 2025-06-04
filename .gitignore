@@ -202,3 +202,4 @@ vscode-telert/.eslintcache
 # Local configuration
 config.json
 .internaldocs
+.reddit_post.txt

@@ -2,7 +2,7 @@
   "name": "telert-vscode",
   "displayName": "Telert - Alerts and Monitoring for your Terminal Commands and Python Functions",
   "description": "Python function monitoring, terminal command alerts, and notifications for your code execution",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "Navig",
   "author": "Mihir Khandekar <mihirkhandekar@gmail.com>",
   "engines": {

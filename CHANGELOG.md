@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3 (2025-06-04)
+- Fixes for special characters in Telegram messages
+
 ## 0.2.2 (2025-05-29)
 - Fixes for process monitoring
 

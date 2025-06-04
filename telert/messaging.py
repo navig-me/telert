@@ -337,7 +337,11 @@ def prepare_telegram_html(message: str) -> str:
     # Process all elements recursively
     def process_node(node):
         if node.name is None:  # Text node
-            return node.string
+            # Escape HTML special characters in text content
+            text = node.string or ""
+            # HTML mode requires escaping of <, >, & characters
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            return text
             
         # Only include supported tags, strip others but keep their content
         supported_tags = ['b', 'i', 'u', 's', 'code', 'pre', 'a']
@@ -361,6 +365,37 @@ def prepare_telegram_html(message: str) -> str:
     return result
 
 
+def prepare_telegram_plain_text(message: str) -> str:
+    """
+    Prepare plain text messages for Telegram by escaping special characters.
+    
+    When sending plain text (no HTML or Markdown), certain characters still need
+    to be escaped to prevent Telegram API errors. This function handles the
+    escaping of characters that have special meaning in Telegram messages.
+    
+    Args:
+        message: Message text that contains special characters
+        
+    Returns:
+        Message with special characters properly escaped for plain text mode
+    """
+    if not message:
+        return message
+        
+    # Characters that need to be escaped in plain text to prevent API errors
+    # Based on Telegram Bot API documentation and common error patterns
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    result = ""
+    for char in message:
+        if char in special_chars:
+            result += '\\' + char
+        else:
+            result += char
+    
+    return result
+
+
 def prepare_telegram_markdown(message: str) -> str:
     """
     Prepare Markdown-formatted messages for Telegram.
@@ -380,29 +415,65 @@ def prepare_telegram_markdown(message: str) -> str:
     # Characters that need to be escaped in MarkdownV2
     special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     
-    # We need to escape these characters outside of formatting tags
+    # For MarkdownV2, we need to escape special characters but preserve markdown syntax
+    # This is a simplified approach - for complex markdown, consider using a proper parser
     result = ""
-    in_tag = False
     i = 0
     
     while i < len(message):
-        # Check for formatting tags
-        if message[i:i+2] in ['**', '__'] or message[i] in ['*', '_', '`', '~']:
-            # Toggle in_tag state
-            in_tag = not in_tag
-            result += message[i]
+        char = message[i]
+        
+        # Handle code blocks (``` or single `)
+        if char == '`':
+            # Find the matching closing backtick(s)
+            if i + 2 < len(message) and message[i:i+3] == '```':
+                # Code block - find closing ```
+                end = message.find('```', i + 3)
+                if end != -1:
+                    # Include the entire code block without escaping
+                    result += message[i:end+3]
+                    i = end + 3
+                    continue
+            else:
+                # Inline code - find closing `
+                end = message.find('`', i + 1)
+                if end != -1:
+                    # Include the entire inline code without escaping
+                    result += message[i:end+1]
+                    i = end + 1
+                    continue
+        
+        # Handle other markdown formatting characters
+        if char in ['*', '_', '~'] and i + 1 < len(message):
+            # Check for double characters (**,  __, etc.)
             if message[i:i+2] in ['**', '__']:
-                result += message[i+1]
-                i += 2
+                # Find matching closing tag
+                tag = message[i:i+2]
+                end = message.find(tag, i + 2)
+                if end != -1:
+                    # Include the formatted text, escaping content inside
+                    content = message[i+2:end]
+                    escaped_content = ''.join('\\' + c if c in special_chars and c not in ['*', '_'] else c for c in content)
+                    result += tag + escaped_content + tag
+                    i = end + 2
+                    continue
             else:
-                i += 1
+                # Single character formatting
+                end = message.find(char, i + 1)
+                if end != -1:
+                    # Include the formatted text, escaping content inside
+                    content = message[i+1:end]
+                    escaped_content = ''.join('\\' + c if c in special_chars and c != char else c for c in content)
+                    result += char + escaped_content + char
+                    i = end + 1
+                    continue
+        
+        # Regular character - escape if it's a special character
+        if char in special_chars:
+            result += '\\' + char
         else:
-            # Escape special characters outside of formatting tags
-            if not in_tag and message[i] in special_chars:
-                result += '\\' + message[i]
-            else:
-                result += message[i]
-            i += 1
+            result += char
+        i += 1
     
     return result
 
@@ -486,6 +557,9 @@ class TelegramProvider:
             elif has_markdown:
                 payload["parse_mode"] = "MarkdownV2"
                 payload["text"] = prepare_telegram_markdown(message)
+            else:
+                # Plain text - escape special characters to prevent API errors
+                payload["text"] = prepare_telegram_plain_text(message)
         
         try:
             response = requests.post(

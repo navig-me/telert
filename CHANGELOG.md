@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.4 (2025-06-20)
+- Fixes `telert init` command
+
 ## 0.2.3 (2025-06-04)
 - Fixes for special characters in Telegram messages
 

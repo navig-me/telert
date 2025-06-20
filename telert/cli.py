@@ -919,7 +919,6 @@ def piped_mode():
 
 def do_init(a):
     """Run the interactive configuration wizard."""
-    config = MessagingConfig()
 
     print("\n🔔 Welcome to telert configuration wizard! 🔔")
     print("This wizard will help you set up notification providers.\n")
@@ -1285,6 +1284,9 @@ def do_init(a):
                 selected_providers.append(provider)
             except Exception as e:
                 print(f"❌ Failed to configure email: {str(e)}")
+
+    # Reload configuration after provider setup to ensure we have the latest state
+    config = MessagingConfig()
 
     # Set default providers if any were configured successfully
     if selected_providers:

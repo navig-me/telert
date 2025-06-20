@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.2.4**
+**Version 0.2.5**
 
 [![PyPI Downloads](https://static.pepy.tech/badge/telert)](https://pepy.tech/projects/telert)
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)

@@ -227,6 +227,22 @@ class MessagingConfig:
         """Check if a provider is configured."""
         return bool(self.get_provider_config(provider))
 
+    def get_providers(self) -> List[Provider]:
+        """Return a list of all providers that are configured.
+
+        A provider is considered configured if configuration exists in the
+        configuration file or corresponding environment variables.
+        """
+        configured: List[Provider] = []
+        for p in Provider:
+            try:
+                if self.is_provider_configured(p):
+                    configured.append(p)
+            except Exception:
+                # Ignore any provider-specific errors when checking configuration
+                pass
+        return configured
+
     def get_default_providers(self) -> List[Provider]:
         """Get the default providers if configured.
 

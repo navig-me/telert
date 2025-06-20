@@ -104,6 +104,29 @@ def do_config(a):
             # Exit the function since we're done
             return
 
+        # List providers
+        if provider == "list-providers":
+            config = MessagingConfig()
+            providers = config.get_providers()
+            default_providers = config.get_default_providers()
+            print("Providers:")
+            if not providers:
+                print("  (none configured)")
+                return
+
+            for provider in providers:
+                if provider in default_providers:
+                    if len(default_providers) > 1:
+                        # Show priority order starting at 1
+                        priority = default_providers.index(provider) + 1
+                        marker = f" (default #{priority})"
+                    else:
+                        marker = " (default)"
+                else:
+                    marker = ""
+                print(f"  {provider.value}{marker}")
+            return
+
         # Single provider configuration
         if provider == "discord":
             if not hasattr(a, "webhook_url"):
@@ -291,8 +314,27 @@ def do_config(a):
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
     else:
-        # Legacy Telegram-only config for backward compatibility
-        _save(a.token, a.chat_id)
+        print("Run `telert config --help` to see available options.\n")
+        config = MessagingConfig()
+        providers = config.get_providers()
+        default_providers = config.get_default_providers()
+        print("Providers:")
+        if not providers:
+            print("  (none configured)")
+            return
+
+        for provider in providers:
+            if provider in default_providers:
+                if len(default_providers) > 1:
+                    # Show priority order starting at 1
+                    priority = default_providers.index(provider) + 1
+                    marker = f" (default #{priority})"
+                else:
+                    marker = " (default)"
+            else:
+                marker = ""
+            print(f"  {provider.value}{marker}")
+        return
 
 
 def do_status(a):
@@ -1412,7 +1454,7 @@ def main():
         dest="provider", help="provider type to configure"
     )
     
-    # Set defaults command (new)
+    # Set defaults command 
     set_defaults_parser = config_sp.add_parser(
         "set-defaults", help="set multiple default providers in priority order"
     )
@@ -1420,6 +1462,11 @@ def main():
         "--providers",
         required=True,
         help="comma-separated list of providers to use as defaults, in priority order",
+    )
+
+    # List providers command
+    list_providers_parser = config_sp.add_parser(
+        "list-providers", help="list all available providers"
     )
 
     # Telegram config
@@ -1626,10 +1673,6 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
-
-    # Legacy Telegram config (for backward compatibility)
-    c.add_argument("--token", help="(legacy) Telegram bot token")
-    c.add_argument("--chat-id", help="(legacy) Telegram chat ID")
 
     c.set_defaults(func=do_config)
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.5 (2025-06-20)
+- Fix legacy telert config command
+
 ## 0.2.4 (2025-06-20)
 - Fixes `telert init` command
 

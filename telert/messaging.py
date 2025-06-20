@@ -367,33 +367,21 @@ def prepare_telegram_html(message: str) -> str:
 
 def prepare_telegram_plain_text(message: str) -> str:
     """
-    Prepare plain text messages for Telegram by escaping special characters.
-    
-    When sending plain text (no HTML or Markdown), certain characters still need
-    to be escaped to prevent Telegram API errors. This function handles the
-    escaping of characters that have special meaning in Telegram messages.
-    
+    Return the message unchanged for plain-text Telegram delivery.
+
+    When *no* ``parse_mode`` is supplied the Telegram Bot API treats the text as
+    raw UTF-8. Therefore no additional character escaping is required – adding
+    back-slashes would make the message look cluttered (e.g. ``\(`` and
+    ``\)``). We simply return the original message so that it appears exactly
+    as passed by the caller.
+
     Args:
-        message: Message text that contains special characters
-        
+        message: Message text to send as-is.
+
     Returns:
-        Message with special characters properly escaped for plain text mode
+        The unmodified message string.
     """
-    if not message:
-        return message
-        
-    # Characters that need to be escaped in plain text to prevent API errors
-    # Based on Telegram Bot API documentation and common error patterns
-    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    
-    result = ""
-    for char in message:
-        if char in special_chars:
-            result += '\\' + char
-        else:
-            result += char
-    
-    return result
+    return message
 
 
 def prepare_telegram_markdown(message: str) -> str:

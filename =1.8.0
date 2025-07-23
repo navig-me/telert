@@ -1,0 +1,38 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting slixmpp
+  Downloading slixmpp-1.10.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata
+     - 7.2 kB ? 0:00:00
+Collecting aiodns>=3.2.0 (from slixmpp)
+  Downloading aiodns-3.5.0-py3-none-any.whl.metadata
+     - 5.8 kB ? 0:00:00
+Collecting pyasn1>=0.6.1 (from slixmpp)
+  Downloading pyasn1-0.6.1-py3-none-any.whl.metadata
+     - 8.4 kB ? 0:00:00
+Collecting pyasn1-modules>=0.4.1 (from slixmpp)
+  Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata
+     - 3.5 kB ? 0:00:00
+Collecting pycares>=4.9.0 (from aiodns>=3.2.0->slixmpp)
+  Downloading pycares-4.9.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata
+     - 4.3 kB ? 0:00:00
+Collecting cffi>=1.5.0 (from pycares>=4.9.0->aiodns>=3.2.0->slixmpp)
+  Downloading cffi-1.17.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata
+     - 1.5 kB ? 0:00:00
+Collecting pycparser (from cffi>=1.5.0->pycares>=4.9.0->aiodns>=3.2.0->slixmpp)
+  Downloading pycparser-2.22-py3-none-any.whl.metadata
+     - 943 bytes ? 0:00:00
+Downloading slixmpp-1.10.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+   - 929.7 kB 187.6 MB/s 0:00:00
+Downloading aiodns-3.5.0-py3-none-any.whl
+   - 8.1 kB ? 0:00:00
+Downloading pyasn1-0.6.1-py3-none-any.whl
+   - 83.1 kB 192.7 MB/s 0:00:00
+Downloading pyasn1_modules-0.4.2-py3-none-any.whl
+   - 181.3 kB 182.7 MB/s 0:00:00
+Downloading pycares-4.9.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+   - 629.3 kB 171.0 MB/s 0:00:00
+Downloading cffi-1.17.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+   - 479.4 kB 181.8 MB/s 0:00:00
+Downloading pycparser-2.22-py3-none-any.whl
+   - 117.6 kB 164.0 MB/s 0:00:00
+Installing collected packages: pycparser, pyasn1, pyasn1-modules, cffi, pycares, aiodns, slixmpp
+Successfully installed aiodns-3.5.0 cffi-1.17.1 pyasn1-0.6.1 pyasn1-modules-0.4.2 pycares-4.9.0 pycparser-2.22 slixmpp-1.10.0

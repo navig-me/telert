@@ -10,7 +10,8 @@ dependencies = [
     "requests>=2.25",
     "beautifulsoup4>=4.9.0",
     "psutil>=5.9.0",
-    "ping3>=4.0.0"
+    "ping3>=4.0.0",
+    "slixmpp>=1.8.0"
 ]
 keywords = [
     "telegram", 

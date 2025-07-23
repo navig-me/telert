@@ -311,6 +311,30 @@ def do_config(a):
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
 
+        elif provider == "xmpp":
+            if not hasattr(a, "jid") or not hasattr(a, "password") or not hasattr(a, "recipient_jid"):
+                sys.exit("❌ XMPP configuration requires --jid, --password, and --recipient-jid")
+
+            config_params = {
+                "jid": a.jid,
+                "password": a.password,
+                "recipient_jid": a.recipient_jid,
+                "port": a.port,
+                "set_default": a.set_default,
+                "add_to_defaults": a.add_to_defaults,
+            }
+
+            if hasattr(a, "server") and a.server:
+                config_params["server"] = a.server
+
+            try:
+                configure_provider(Provider.XMPP, **config_params)
+                print(f"✔ XMPP configuration saved for {a.jid} -> {a.recipient_jid}")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
+            except ImportError as e:
+                sys.exit(f"❌ Failed to configure XMPP: {str(e)}")
+
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
     else:
@@ -526,6 +550,26 @@ def do_status(a):
         to_str = ", ".join(to_addrs) if to_addrs else "unknown"
         print(f"- Email{default_marker}: server={server}:{port} → {to_str}")
 
+    # Check XMPP
+    xmpp_config = config.get_provider_config(Provider.XMPP)
+    if xmpp_config:
+        # Mark as default if in default providers list
+        if Provider.XMPP.value in default_provider_names:
+            # Show priority if multiple defaults
+            if len(default_provider_names) > 1:
+                priority = default_provider_names.index(Provider.XMPP.value) + 1
+                default_marker = f" (default #{priority})"
+            else:
+                default_marker = " (default)"
+        else:
+            default_marker = ""
+
+        jid = xmpp_config["jid"]
+        recipient_jid = xmpp_config["recipient_jid"]
+        server = xmpp_config.get("server", "auto")
+        port = xmpp_config.get("port", 5222)
+        print(f"- XMPP{default_marker}: {jid} → {recipient_jid} (server: {server}:{port})")
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -537,6 +581,7 @@ def do_status(a):
         or endpoint_config
         or discord_config
         or email_config
+        or xmpp_config
     ):
         print("No providers configured. Use `telert config` or `telert init` to set up a provider.")
         return
@@ -1669,6 +1714,34 @@ def main():
         "--set-default", action="store_true", help="set as the only default provider"
     )
     email_parser.add_argument(
+        "--add-to-defaults",
+        action="store_true",
+        help="add to existing default providers",
+    )
+
+    # XMPP configuration subparser
+    xmpp_parser = config_sp.add_parser(
+        "xmpp", help="configure XMPP messaging"
+    )
+    xmpp_parser.add_argument(
+        "--jid", required=True, help="XMPP Jabber ID (username@domain)"
+    )
+    xmpp_parser.add_argument(
+        "--password", required=True, help="XMPP account password"
+    )
+    xmpp_parser.add_argument(
+        "--recipient-jid", required=True, help="recipient Jabber ID (username@domain)"
+    )
+    xmpp_parser.add_argument(
+        "--server", help="XMPP server address (optional, can be derived from JID)"
+    )
+    xmpp_parser.add_argument(
+        "--port", type=int, default=5222, help="XMPP server port (default: 5222)"
+    )
+    xmpp_parser.add_argument(
+        "--set-default", action="store_true", help="set as the only default provider"
+    )
+    xmpp_parser.add_argument(
         "--add-to-defaults",
         action="store_true",
         help="add to existing default providers",

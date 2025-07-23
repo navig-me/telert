@@ -23,6 +23,8 @@ keywords = [
     "pushover", 
     "slack", 
     "discord", 
+    "xmpp",
+    "jabber",
     "microsoft-teams", 
     "desktop-notifications", 
     "monitoring", 

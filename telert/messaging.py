@@ -1558,24 +1558,26 @@ class XMPPProvider:
 
         # Create a simple XMPP client for sending messages
         class XMPPSender(ClientXMPP):
-            def __init__(self, jid, password, recipient, message):
+            def __init__(self, jid, password, recipient, message_text):
                 super().__init__(jid, password)
                 self.recipient = recipient
-                self.message_to_send = message
-                self.message_sent = False
-                self.error_message = None
-                self.connected_event = asyncio.Event()
+                self.message_to_send = message_text
+                self.success = False
+                self.error_msg = None
+                self.done_event = asyncio.Event()
                 
                 # Register event handlers
-                self.add_event_handler("session_start", self.session_start)
-                self.add_event_handler("failed_auth", self.failed_auth)
-                self.add_event_handler("disconnected", self.disconnected)
+                self.add_event_handler("session_start", self.on_session_start)
+                self.add_event_handler("failed_auth", self.on_failed_auth)
+                self.add_event_handler("connection_failed", self.on_connection_failed)
 
-            async def session_start(self, event):
-                """Called when XMPP session starts."""
+            async def on_session_start(self, event):
+                """Called when XMPP session starts successfully."""
                 try:
-                    # Send initial presence
+                    # Send initial presence to appear online
                     self.send_presence()
+                    
+                    # Get roster (optional, but helps with delivery)
                     await self.get_roster()
                     
                     # Send the message
@@ -1585,62 +1587,80 @@ class XMPPProvider:
                         mtype='chat'
                     )
                     
-                    self.message_sent = True
-                    self.connected_event.set()
-                    
-                    # Disconnect after sending
-                    self.disconnect()
+                    self.success = True
                     
                 except Exception as e:
-                    self.error_message = str(e)
-                    self.connected_event.set()
+                    self.error_msg = f"Error during message sending: {str(e)}"
+                finally:
+                    # Always signal completion and disconnect
+                    self.done_event.set()
                     self.disconnect()
 
-            def failed_auth(self, event):
+            def on_failed_auth(self, event):
                 """Called when authentication fails."""
-                self.error_message = "XMPP authentication failed"
-                self.connected_event.set()
+                self.error_msg = "XMPP authentication failed - check username and password"
+                self.done_event.set()
                 self.disconnect()
                 
-            def disconnected(self, event):
-                """Called when disconnected."""
-                self.connected_event.set()
+            def on_connection_failed(self, event):
+                """Called when connection fails."""
+                self.error_msg = f"XMPP connection failed: {str(event)}"
+                self.done_event.set()
 
-        async def _send_xmpp_message():
-            """Async function to send XMPP message."""
+        async def _send_message_async():
+            """Send XMPP message asynchronously."""
+            client = XMPPSender(self.jid, self.password, self.recipient_jid, message)
+            
             try:
-                # Create and configure the client
-                client = XMPPSender(self.jid, self.password, self.recipient_jid, message)
-                
-                # Connect to server
+                # Attempt to connect
                 if self.server:
-                    await client.connect(address=(self.server, self.port))
+                    success = await client.connect(address=(self.server, self.port))
                 else:
-                    await client.connect()
+                    success = await client.connect()
                 
-                # Wait for connection to complete or timeout
+                if not success:
+                    raise RuntimeError("Failed to connect to XMPP server")
+                
+                # Wait for the operation to complete with timeout
                 try:
-                    await asyncio.wait_for(client.connected_event.wait(), timeout=30.0)
+                    await asyncio.wait_for(client.done_event.wait(), timeout=30.0)
                 except asyncio.TimeoutError:
                     client.disconnect()
-                    raise RuntimeError("XMPP connection timeout")
+                    raise RuntimeError("XMPP operation timed out after 30 seconds")
                 
-                if client.error_message:
-                    raise RuntimeError(f"XMPP error: {client.error_message}")
+                # Check results
+                if client.error_msg:
+                    raise RuntimeError(client.error_msg)
                     
-                if not client.message_sent:
-                    raise RuntimeError("XMPP message sending failed")
+                if not client.success:
+                    raise RuntimeError("XMPP message sending failed for unknown reason")
                     
                 return True
                 
             except Exception as e:
-                raise RuntimeError(f"Failed to send XMPP message: {str(e)}")
+                # Ensure client is disconnected
+                try:
+                    client.disconnect()
+                except:
+                    pass
+                raise e
 
         try:
-            # Run the async function
-            return asyncio.run(_send_xmpp_message())
+            # Run the async operation
+            return asyncio.run(_send_message_async())
         except Exception as e:
-            raise RuntimeError(f"Failed to send XMPP message: {str(e)}")
+            # Provide helpful error messages
+            error_str = str(e)
+            if "authentication failed" in error_str.lower():
+                raise RuntimeError(f"XMPP authentication failed. Please check your JID and password.")
+            elif "connection failed" in error_str.lower() or "timed out" in error_str.lower():
+                if self.server:
+                    raise RuntimeError(f"Could not connect to XMPP server {self.server}:{self.port}. Please check server address and network connectivity.")
+                else:
+                    domain = self.jid.split('@')[1] if '@' in self.jid else 'unknown'
+                    raise RuntimeError(f"Could not connect to XMPP server for domain {domain}. You may need to specify --server explicitly.")
+            else:
+                raise RuntimeError(f"XMPP error: {error_str}")
 
 
 class EndpointProvider:

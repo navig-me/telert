@@ -20,7 +20,7 @@
 
 Telert is a lightweight utility for multi-channel notifications for alerting when terminal commands or Python code completes. It also extends this notification capability to easily monitor processes, log files, and HTTP endpoints uptime. The tool supports multiple notification channels:
 
-- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
+- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord, XMPP
 - **Email**: SMTP email notifications
 - **Mobile Devices**: Pushover (Android & iOS)
 - **Local Notifications**: Desktop notifications, Audio alerts
@@ -69,6 +69,7 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
   - [Slack](#slack-setup)
   - [Discord](#discord-setup)
   - [Email](#email-setup)
+  - [XMPP](#xmpp-setup)
   - [Pushover](#pushover-setup)
   - [Custom HTTP Endpoints](#custom-http-endpoint-setup)
   - [Audio Alerts](#audio-alerts-setup)
@@ -264,6 +265,34 @@ telert config email \
 ```
 
 [**Detailed Email Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/EMAIL.md)
+
+### XMPP Setup
+
+XMPP (Extensible Messaging and Presence Protocol) provides instant messaging to any XMPP-compatible service like Jabber, Prosody, ejabberd, or corporate XMPP servers.
+
+```bash
+# Basic configuration
+telert config xmpp --jid "your-account@xmpp-server.com" --password "your-password" --recipient-jid "recipient@xmpp-server.com" --set-default
+telert status  # Test your configuration
+
+# Configuration with custom server (if auto-discovery fails)
+telert config xmpp \
+  --jid "your-account@example.com" \
+  --password "your-password" \
+  --recipient-jid "recipient@example.com" \
+  --server "xmpp.example.com" \
+  --port 5222 \
+  --set-default
+```
+
+**Requirements**: XMPP support requires the `slixmpp` library: `pip install slixmpp>=1.8.0`
+
+**Configuration Parameters**:
+- `--jid`: Your XMPP Jabber ID (username@domain)
+- `--password`: Your XMPP account password  
+- `--recipient-jid`: Target Jabber ID to send messages to
+- `--server`: XMPP server address (optional, auto-discovered from JID domain)
+- `--port`: XMPP server port (default: 5222)
 
 ### Pushover Setup
 

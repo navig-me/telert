@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.2.6**
+**Version 0.2.7**
 
 [![PyPI Downloads](https://static.pepy.tech/badge/telert)](https://pepy.tech/projects/telert)
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
@@ -531,11 +531,18 @@ fi
 Get notifications for ALL commands that take longer than a certain time:
 
 ```bash
-# Configure Bash to notify for any command taking longer than 30 seconds
+# Configure hook to notify for any command taking longer than 30 seconds
 eval "$(telert hook -l 30)"
+```
 
-# Add to your .bashrc for persistent configuration
+**For persistent configuration:**
+
+```bash
+# Add to your .bashrc (Bash users)
 echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
+
+# Add to your .zshrc (Zsh users)
+echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
 ```
 
 #### CLI Help

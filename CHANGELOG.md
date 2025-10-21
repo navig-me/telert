@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.7 (2025-10-18)
+- Add zsh support to hook functionality
+
 ## 0.2.6 (2025-08-27)
 - Fix configure_endpoint and configure_email Python functions
 

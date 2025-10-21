@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**版本 0.2.6**
+**版本 0.2.7**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -49,6 +49,34 @@ telert init
 - 捕获成功/失败状态码和异常信息
 - 在通知中直接查看命令输出片段
 - 兼容 shell 命令、管道和 Python 代码
+
+## 💻 基本用法
+
+包装任何命令，在完成时接收通知：
+
+```bash
+# 命令完成时发送通知
+telert run npm run build
+
+# 添加描述性标签
+telert run --label "数据库备份" pg_dump -U postgres 我的数据库 > backup.sql
+
+# 仅在命令失败时通知
+telert run --only-fail rsync -av /来源/ /备份/
+
+# 为所有耗时超过指定时间的命令获取通知
+eval "$(telert hook -l 30)"
+```
+
+**永久配置：**
+
+```bash
+# 添加到你的 .bashrc（Bash 用户）
+echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
+
+# 添加到你的 .zshrc（Zsh 用户）
+echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
+```
 
 ## 监控功能
 

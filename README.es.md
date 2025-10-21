@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Versión 0.2.6**
+**Versión 0.2.7**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -50,6 +50,33 @@ telert init
 - 📃 Visualiza fragmentos de salida del comando en la notificación
 - 🔄 Funciona con comandos shell, tuberías y código en Python
 
+## 💻 Uso básico
+
+Envuelve cualquier comando para recibir una notificación cuando termine:
+
+```bash
+# Notificar cuando un comando termine
+telert run npm run build
+
+# Agregar una etiqueta descriptiva
+telert run --label "Copia de seguridad BD" pg_dump -U postgres midb > backup.sql
+
+# Notificar solo cuando un comando falle
+telert run --only-fail rsync -av /origen/ /respaldo/
+
+# Obtener notificaciones para TODOS los comandos que tarden más de cierto tiempo
+eval "$(telert hook -l 30)"
+```
+
+**Para configuración persistente:**
+
+```bash
+# Agregar a tu .bashrc (usuarios de Bash)
+echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
+
+# Agregar a tu .zshrc (usuarios de Zsh)
+echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
+```
 
 ## 🚦 Monitorización
 

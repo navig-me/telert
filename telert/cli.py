@@ -538,7 +538,9 @@ def do_status(a):
         or discord_config
         or email_config
     ):
-        print("No providers configured. Use `telert config` or `telert init` to set up a provider.")
+        print(
+            "No providers configured. Use `telert config` or `telert init` to set up a provider."
+        )
         return
 
     # Show environment variable information
@@ -622,16 +624,82 @@ def do_status(a):
 
 def do_hook(a):
     """Generate a shell hook for command notifications."""
-    t = a.longer_than
-    print(
-        textwrap.dedent(f"""
-        telert_preexec() {{ TELERT_CMD=\"$BASH_COMMAND\"; TELERT_START=$EPOCHSECONDS; }}
-        telert_precmd()  {{ local st=$?; local d=$((EPOCHSECONDS-TELERT_START));
-          if (( d >= {t} )); then telert send \"$TELERT_CMD exited $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))\"; fi; }}
-        trap telert_preexec DEBUG
-        PROMPT_COMMAND=telert_precmd:$PROMPT_COMMAND
-    """).strip()
-    )
+    shell = a.shell or os.path.basename(os.environ.get("SHELL", "bash"))
+    threshold = a.longer_than
+
+    if "zsh" in shell:
+        hook_script = textwrap.dedent(f"""
+            # Load zsh hooks module if not already loaded
+            if [[ -z "$__TELERT_HOOKS_LOADED" ]]; then
+                autoload -U add-zsh-hook 2>/dev/null || {{
+                    echo "Warning: add-zsh-hook not available, using fallback implementation... Please ensure zsh is properly installed and configured."
+                    # Fallback for systems without zsh-hooks
+                    _telert_preexec() {{
+                        __TELERT_CMD__="$1"
+                        __TELERT_START__=$EPOCHSECONDS
+                    }}
+
+                    _telert_precmd() {{
+                        if [[ -n "$__TELERT_START__" ]]; then
+                            local st=$?
+                            local end=$EPOCHSECONDS
+                            local duration=$((end - __TELERT_START__))
+                            if (( duration >= {threshold} )); then
+                                telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                            fi
+                            unset __TELERT_START__
+                        fi
+                    }}
+
+                    # Set up hooks manually
+                    preexec_functions=(_telert_preexec ${{preexec_functions[@]}})
+                    precmd_functions=(_telert_precmd ${{precmd_functions[@]}})
+                    export __TELERT_HOOKS_LOADED=1
+                    return
+                }}
+            fi
+
+            # Standard hook setup
+            autoload -U zsh/datetime
+
+            _telert_preexec() {{
+                # Try multiple methods to get the command
+                if [[ -n "$1" ]]; then
+                    typeset -g __TELERT_CMD__="$1"
+                elif [[ -n "$HISTCMD" ]] && [[ -n "${{history[$HISTCMD]}}" ]]; then
+                    typeset -g __TELERT_CMD__="${{history[$HISTCMD]}}"
+                else
+                    # Last resort: try to get from history builtin
+                    typeset -g __TELERT_CMD__="$(history -1 2>/dev/null | head -1 | sed 's/^[[:space:]]*[0-9]*[[:space:]]*//')"
+                fi
+                typeset -g __TELERT_START__=$EPOCHSECONDS
+            }}
+
+            _telert_precmd() {{
+                if [[ -n "$__TELERT_START__" ]]; then
+                    local st=$?
+                    local end=$EPOCHSECONDS
+                    local duration=$((end - __TELERT_START__))
+                    if (( duration >= {threshold} )); then
+                        telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                    fi
+                    unset __TELERT_START__
+                    unset __TELERT_CMD__
+                fi
+            }}
+
+            add-zsh-hook preexec _telert_preexec
+            add-zsh-hook precmd _telert_precmd
+        """).strip()
+    else:  # Default to bash
+        hook_script = textwrap.dedent(f"""
+            telert_preexec() {{{{ export __TELERT_CMD__="$BASH_COMMAND"; export TELERT_START=$EPOCHSECONDS; }}}}
+            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )); then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
+            trap 'telert_preexec' DEBUG
+            PROMPT_COMMAND="telert_precmd${{{{PROMPT_COMMAND:+;}}}}$PROMPT_COMMAND"
+        """).strip()
+
+    print(hook_script)
 
 
 def do_send(a):
@@ -1276,7 +1344,9 @@ def do_init(a):
                 print("❌ SMTP server is required. Skipping email setup.")
                 continue
 
-            port_str = input("SMTP server port (optional, default: 587 for TLS): ").strip()
+            port_str = input(
+                "SMTP server port (optional, default: 587 for TLS): "
+            ).strip()
             if port_str:
                 try:
                     port = int(port_str)
@@ -1290,7 +1360,9 @@ def do_init(a):
             password = input("SMTP password (optional): ").strip()
 
             from_addr = input("Sender email address (optional): ").strip()
-            to_addrs = input("Recipient email address(es) - comma separated for multiple: ").strip()
+            to_addrs = input(
+                "Recipient email address(es) - comma separated for multiple: "
+            ).strip()
 
             if not to_addrs:
                 print("❌ At least one recipient email address is required")
@@ -1298,11 +1370,15 @@ def do_init(a):
 
             to_list = [addr.strip() for addr in to_addrs.split(",")]
 
-            subject_template = input("Subject template (optional, default: 'Telert Alert: {label} - {status}'): ").strip()
+            subject_template = input(
+                "Subject template (optional, default: 'Telert Alert: {label} - {status}'): "
+            ).strip()
             if not subject_template:
                 subject_template = "Telert Alert: {label} - {status}"
 
-            use_html_str = input("Send HTML formatted emails? (y/n, default: n): ").strip().lower()
+            use_html_str = (
+                input("Send HTML formatted emails? (y/n, default: n): ").strip().lower()
+            )
             use_html = use_html_str in ("y", "yes", "true", "1")
 
             config_params = {
@@ -1439,22 +1515,18 @@ def main():
         description="Send alerts from shell commands to messaging services",
         epilog="Example: telert run ls -la",
     )
-    p.add_argument(
-        "--version", action="version", version=f"telert {__version__}"
-    )
+    p.add_argument("--version", action="version", version=f"telert {__version__}")
 
     sp = p.add_subparsers(dest="command", metavar="COMMAND")
-    
+
     # Add monitoring commands
     setup_monitor_cli(sp)
 
     # config
     c = sp.add_parser("config", help="configure messaging providers")
-    config_sp = c.add_subparsers(
-        dest="provider", help="provider type to configure"
-    )
-    
-    # Set defaults command 
+    config_sp = c.add_subparsers(dest="provider", help="provider type to configure")
+
+    # Set defaults command
     set_defaults_parser = config_sp.add_parser(
         "set-defaults", help="set multiple default providers in priority order"
     )
@@ -1634,36 +1706,33 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
-    
+
     # Email configuration subparser
     email_parser = config_sp.add_parser(
         "email", help="configure email (SMTP) messaging"
     )
-    email_parser.add_argument(
-        "--server", required=True, help="SMTP server address"
-    )
+    email_parser.add_argument("--server", required=True, help="SMTP server address")
     email_parser.add_argument(
         "--port", type=int, default=587, help="SMTP server port (default: 587 for TLS)"
     )
+    email_parser.add_argument("--username", help="SMTP username for authentication")
+    email_parser.add_argument("--password", help="SMTP password for authentication")
+    email_parser.add_argument("--from", dest="from_addr", help="sender email address")
     email_parser.add_argument(
-        "--username", help="SMTP username for authentication"
-    )
-    email_parser.add_argument(
-        "--password", help="SMTP password for authentication"
-    )
-    email_parser.add_argument(
-        "--from", dest="from_addr", help="sender email address"
-    )
-    email_parser.add_argument(
-        "--to", dest="to_addrs", help="recipient email address(es) - comma separated for multiple"
+        "--to",
+        dest="to_addrs",
+        help="recipient email address(es) - comma separated for multiple",
     )
     email_parser.add_argument(
         "--subject-template",
         default="Telert Alert: {label} - {status}",
-        help="template for email subject line (default: 'Telert Alert: {label} - {status}')"
+        help="template for email subject line (default: 'Telert Alert: {label} - {status}')",
     )
     email_parser.add_argument(
-        "--html", dest="use_html", action="store_true", help="send HTML formatted emails"
+        "--html",
+        dest="use_html",
+        action="store_true",
+        help="send HTML formatted emails",
     )
     email_parser.add_argument(
         "--set-default", action="store_true", help="set as the only default provider"
@@ -1692,6 +1761,11 @@ def main():
         type=int,
         default=10,
         help="minimum duration in seconds to trigger notification",
+    )
+    hk.add_argument(
+        "--shell",
+        choices=["bash", "zsh"],
+        help="specify the shell type (default: auto-detect from $SHELL)",
     )
     hk.set_defaults(func=do_hook)
 

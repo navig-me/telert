@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**संस्करण 0.2.7**
+**संस्करण 0.2.8**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -77,6 +77,28 @@ echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
 # अपनी .zshrc में जोड़ें (Zsh उपयोगकर्ता)
 echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
 ```
+
+**हुक संदेशों को फ़िल्टर करना:**
+
+आप वाइल्डकार्ड पैटर्न का उपयोग करके विशिष्ट कमांड के नोटिफिकेशन को साइलेंस कर सकते हैं:
+
+```bash
+# सामान्य कमांड को साइलेंस करने के लिए फ़िल्टर जोड़ें
+telert hook-filter add "cd *"        # सभी cd कमांड (आर्ग्युमेंट के साथ) साइलेंस करें
+telert hook-filter add "ls*"         # ls, lsof, lsblk आदि साइलेंस करें
+telert hook-filter add "git status"  # सटीक कमांड साइलेंस करें
+
+# कॉन्फ़िगर किए गए फ़िल्टर की सूची देखें
+telert hook-filter list
+
+# फ़िल्टर हटाएं
+telert hook-filter remove "ls*"
+
+# सभी फ़िल्टर साफ़ करें
+telert hook-filter clear
+```
+
+फ़िल्टर शेल-स्टाइल वाइल्डकार्ड का उपयोग करते हैं: `*` किसी भी अनुक्रम से मेल खाता है, `?` किसी भी एकल वर्ण से मेल खाता है, `[seq]` seq में किसी भी वर्ण से मेल खाता है।
 
 ## 🚦 मॉनिटरिंग
 

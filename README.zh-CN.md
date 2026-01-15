@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**版本 0.2.7**
+**版本 0.2.8**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -77,6 +77,28 @@ echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
 # 添加到你的 .zshrc（Zsh 用户）
 echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
 ```
+
+**过滤钩子消息：**
+
+你可以使用通配符模式来静默特定命令的通知：
+
+```bash
+# 添加过滤器以静默常见命令
+telert hook-filter add "cd *"        # 静默所有带参数的 cd 命令
+telert hook-filter add "ls*"         # 静默 ls、lsof、lsblk 等
+telert hook-filter add "git status"  # 静默特定命令
+
+# 列出已配置的过滤器
+telert hook-filter list
+
+# 移除过滤器
+telert hook-filter remove "ls*"
+
+# 清除所有过滤器
+telert hook-filter clear
+```
+
+过滤器使用 shell 风格的通配符：`*` 匹配任意序列，`?` 匹配任意单个字符，`[seq]` 匹配 seq 中的任意字符。
 
 ## 监控功能
 

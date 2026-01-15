@@ -622,6 +622,57 @@ def do_status(a):
             sys.exit(f"❌ Failed to send message: {str(e)}")
 
 
+def do_hook_filter(a):
+    """Manage hook message filters."""
+    config = MessagingConfig()
+
+    if a.action == "add":
+        if not a.pattern:
+            sys.exit("❌ You must specify a pattern to add")
+        if config.add_hook_filter(a.pattern):
+            print(f"✔ Filter added: {a.pattern}")
+        else:
+            print(f"Filter already exists: {a.pattern}")
+
+    elif a.action == "remove":
+        if not a.pattern:
+            sys.exit("❌ You must specify a pattern to remove")
+        if config.remove_hook_filter(a.pattern):
+            print(f"✔ Filter removed: {a.pattern}")
+        else:
+            sys.exit(f"❌ Filter not found: {a.pattern}")
+
+    elif a.action == "list":
+        filters = config.get_hook_filters()
+        if not filters:
+            print("No hook filters configured.")
+        else:
+            print("Hook filters:")
+            for f in filters:
+                print(f"  {f}")
+
+    elif a.action == "clear":
+        config.clear_hook_filters()
+        print("✔ All hook filters cleared.")
+
+
+def do_hook_check_filter(a):
+    """Check if a command matches any hook filter (for shell hook use)."""
+    import fnmatch
+
+    config = MessagingConfig()
+    filters = config.get_hook_filters()
+    command = a.command
+
+    for pattern in filters:
+        if fnmatch.fnmatch(command, pattern):
+            # Match found - exit with 0 (filtered)
+            sys.exit(0)
+
+    # No match - exit with 1 (not filtered)
+    sys.exit(1)
+
+
 def do_hook(a):
     """Generate a shell hook for command notifications."""
     shell = a.shell or os.path.basename(os.environ.get("SHELL", "bash"))
@@ -645,7 +696,10 @@ def do_hook(a):
                             local end=$EPOCHSECONDS
                             local duration=$((end - __TELERT_START__))
                             if (( duration >= {threshold} )); then
-                                telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                                # Check if command matches any filter
+                                if ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                                    telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                                fi
                             fi
                             unset __TELERT_START__
                         fi
@@ -681,7 +735,10 @@ def do_hook(a):
                     local end=$EPOCHSECONDS
                     local duration=$((end - __TELERT_START__))
                     if (( duration >= {threshold} )); then
-                        telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                        # Check if command matches any filter
+                        if ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                            telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                        fi
                     fi
                     unset __TELERT_START__
                     unset __TELERT_CMD__
@@ -694,7 +751,7 @@ def do_hook(a):
     else:  # Default to bash
         hook_script = textwrap.dedent(f"""
             telert_preexec() {{{{ export __TELERT_CMD__="$BASH_COMMAND"; export TELERT_START=$EPOCHSECONDS; }}}}
-            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )); then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
+            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )) && ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
             trap 'telert_preexec' DEBUG
             PROMPT_COMMAND="telert_precmd${{{{PROMPT_COMMAND:+;}}}}$PROMPT_COMMAND"
         """).strip()
@@ -1768,6 +1825,25 @@ def main():
         help="specify the shell type (default: auto-detect from $SHELL)",
     )
     hk.set_defaults(func=do_hook)
+
+    # hook-filter
+    hf = sp.add_parser("hook-filter", help="manage hook message filters (wildcard patterns)")
+    hf.add_argument(
+        "action",
+        choices=["add", "remove", "list", "clear"],
+        help="action to perform",
+    )
+    hf.add_argument(
+        "pattern",
+        nargs="?",
+        help="wildcard pattern to filter (e.g., 'cd *', 'ls*', 'git status')",
+    )
+    hf.set_defaults(func=do_hook_filter)
+
+    # hook-check-filter (internal command for shell hook use)
+    hcf = sp.add_parser("hook-check-filter", help="check if command matches a filter (internal)")
+    hcf.add_argument("command", help="command to check against filters")
+    hcf.set_defaults(func=do_hook_check_filter)
 
     # send
     sd = sp.add_parser("send", help="send arbitrary text")

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8 (2026-01-12)
+- Add hook message filtering with wildcard patterns
+  - New `telert hook-filter` command to manage filters (add/remove/list/clear)
+  - Filters use shell-style wildcards (*, ?, [seq]) to match commands
+  - Filtered commands are silenced and won't trigger notifications
+
 ## 0.2.7 (2025-10-18)
 - Add zsh support to hook functionality
 

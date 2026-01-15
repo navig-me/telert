@@ -326,6 +326,49 @@ class MessagingConfig:
         self.set_default_providers([provider])
         self.save()
 
+    def get_hook_filters(self) -> List[str]:
+        """Get the list of hook message filters (wildcard patterns)."""
+        return self._config.get("hook_filters", [])
+
+    def add_hook_filter(self, pattern: str) -> bool:
+        """Add a hook message filter pattern.
+
+        Args:
+            pattern: Wildcard pattern to filter messages (e.g., "cd *", "ls*")
+
+        Returns:
+            True if added, False if already exists
+        """
+        filters = self.get_hook_filters()
+        if pattern in filters:
+            return False
+        filters.append(pattern)
+        self._config["hook_filters"] = filters
+        self.save()
+        return True
+
+    def remove_hook_filter(self, pattern: str) -> bool:
+        """Remove a hook message filter pattern.
+
+        Args:
+            pattern: The exact pattern to remove
+
+        Returns:
+            True if removed, False if not found
+        """
+        filters = self.get_hook_filters()
+        if pattern not in filters:
+            return False
+        filters.remove(pattern)
+        self._config["hook_filters"] = filters
+        self.save()
+        return True
+
+    def clear_hook_filters(self):
+        """Remove all hook message filters."""
+        self._config["hook_filters"] = []
+        self.save()
+
 
 def prepare_telegram_html(message: str) -> str:
     """

@@ -339,6 +339,8 @@ class MessagingConfig:
         Returns:
             True if added, False if already exists
         """
+        if not pattern or not pattern.strip():
+            return False
         filters = self.get_hook_filters()
         if pattern in filters:
             return False

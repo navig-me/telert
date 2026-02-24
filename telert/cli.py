@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import traceback
 import argparse
+import fnmatch
 import os
 import subprocess
 import sys
@@ -658,19 +659,17 @@ def do_hook_filter(a):
 
 def do_hook_check_filter(a):
     """Check if a command matches any hook filter (for shell hook use)."""
-    import fnmatch
-
     config = MessagingConfig()
     filters = config.get_hook_filters()
     command = a.command
 
     for pattern in filters:
         if fnmatch.fnmatch(command, pattern):
-            # Match found - exit with 0 (filtered)
-            sys.exit(0)
+            # Match found - exit with 1 (filtered, suppress notification)
+            sys.exit(1)
 
-    # No match - exit with 1 (not filtered)
-    sys.exit(1)
+    # No match - exit with 0 (not filtered, allow notification)
+    sys.exit(0)
 
 
 def do_hook(a):
@@ -697,7 +696,7 @@ def do_hook(a):
                             local duration=$((end - __TELERT_START__))
                             if (( duration >= {threshold} )); then
                                 # Check if command matches any filter
-                                if ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                                if telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
                                     telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
                                 fi
                             fi
@@ -736,7 +735,7 @@ def do_hook(a):
                     local duration=$((end - __TELERT_START__))
                     if (( duration >= {threshold} )); then
                         # Check if command matches any filter
-                        if ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                        if telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
                             telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
                         fi
                     fi
@@ -751,7 +750,7 @@ def do_hook(a):
     else:  # Default to bash
         hook_script = textwrap.dedent(f"""
             telert_preexec() {{{{ export __TELERT_CMD__="$BASH_COMMAND"; export TELERT_START=$EPOCHSECONDS; }}}}
-            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )) && ! telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
+            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )) && telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
             trap 'telert_preexec' DEBUG
             PROMPT_COMMAND="telert_precmd${{{{PROMPT_COMMAND:+;}}}}$PROMPT_COMMAND"
         """).strip()

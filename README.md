@@ -6,7 +6,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Version 0.2.7**
+**Version 0.2.8**
 
 [![PyPI Downloads](https://static.pepy.tech/badge/telert)](https://pepy.tech/projects/telert)
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
@@ -354,7 +354,7 @@ Configuration is stored in `~/.config/telert/config.json` and can be overridden 
 |----------------|--------------|---------|
 | **Run**        | Wraps a command, times it, sends notification with exit code. | `telert run --label "RSYNC" rsync -a /src /dst` |
 | **Filter**     | Reads from stdin so you can pipe command output. | `long_job \| telert "compile done"` |
-| **Hook**       | Generates a Bash snippet so **every** command > *N* seconds notifies automatically. | `eval "$(telert hook -l 30)"` |
+| **Hook**       | Generates a Bash/Zsh snippet so **every** command > *N* seconds notifies automatically. Supports wildcard filters to silence specific commands. | `eval "$(telert hook -l 30)"` |
 | **Monitor**    | Watches processes, log files, and network endpoints. | `telert monitor process --name "nginx" --notify-on stop` |
 | **Send**       | Low-level "send arbitrary text" helper. | `telert send --provider slack "Build complete"` |
 | **Python API** | Use directly in Python code with context managers and decorators. | `from telert import telert, send, notify` |
@@ -544,6 +544,28 @@ echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
 # Add to your .zshrc (Zsh users)
 echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
 ```
+
+**Filtering hook messages:**
+
+You can silence notifications for specific commands using wildcard patterns:
+
+```bash
+# Add filters to silence common commands
+telert hook-filter add "cd *"        # Silence all cd commands with arguments
+telert hook-filter add "ls*"         # Silence ls, lsof, lsblk, etc.
+telert hook-filter add "git status"  # Silence exact command
+
+# List configured filters
+telert hook-filter list
+
+# Remove a filter
+telert hook-filter remove "ls*"
+
+# Clear all filters
+telert hook-filter clear
+```
+
+Filters use shell-style wildcards: `*` matches any sequence, `?` matches any single character, `[seq]` matches any character in seq.
 
 #### CLI Help
 ```bash

@@ -7,7 +7,7 @@
   <img src="https://github.com/navig-me/telert/raw/main/telert.png" alt="telert logo" width="150">
 </p>
 
-**Versión 0.2.7**
+**Versión 0.2.8**
 
 [![GitHub Stars](https://img.shields.io/github/stars/navig-me/telert?style=social)](https://github.com/navig-me/telert/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/telert)](https://pypi.org/project/telert/)
@@ -77,6 +77,28 @@ echo 'eval "$(telert hook -l 30)"' >> ~/.bashrc
 # Agregar a tu .zshrc (usuarios de Zsh)
 echo 'eval "$(telert hook -l 30)"' >> ~/.zshrc
 ```
+
+**Filtrar mensajes del hook:**
+
+Puedes silenciar notificaciones para comandos específicos usando patrones con comodines:
+
+```bash
+# Agregar filtros para silenciar comandos comunes
+telert hook-filter add "cd *"        # Silenciar todos los comandos cd con argumentos
+telert hook-filter add "ls*"         # Silenciar ls, lsof, lsblk, etc.
+telert hook-filter add "git status"  # Silenciar comando exacto
+
+# Listar filtros configurados
+telert hook-filter list
+
+# Eliminar un filtro
+telert hook-filter remove "ls*"
+
+# Limpiar todos los filtros
+telert hook-filter clear
+```
+
+Los filtros usan comodines estilo shell: `*` coincide con cualquier secuencia, `?` coincide con cualquier carácter individual, `[seq]` coincide con cualquier carácter en seq.
 
 ## 🚦 Monitorización
 

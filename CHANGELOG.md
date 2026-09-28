@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.9 (2026-09-28)
 - Fix Docker build: `python3-distutils` no longer exists in the `python:3.13-slim` (Debian trixie) base image; drop it and the redundant `python3-setuptools`/`python3-wheel` apt packages (already installed via pip)
 - Pin `playsound==1.2.2` to avoid the broken 1.3.0 sdist build (`OSError: could not get source code`) under pip build isolation
 - Fix CLI misbehaving on any non-TTY stdin invocation (e.g. `docker run --rm <image> <command>` without `-it`, or CI runners): recognized subcommands (`config`, `status`, `hook`, `hook-filter`, `hook-check-filter`, `send`, `run`, `help`, `init`, `monitor`) and `--help`/`-h` now always go through normal argument parsing instead of being swallowed by pipeline (filter) mode
 - Fix `SyntaxWarning: invalid escape sequence '\('` on import (`telert/messaging.py`) by marking the `prepare_telegram_plain_text` docstring as a raw string
+- Bump Docker base image from `python:3.13-slim` to `python:3.14-slim`
+- Bump CI dependencies: `actions/checkout` v4→v6, `actions/setup-python` v5→v6, `actions/setup-node` v4→v6, `actions/upload-artifact` v4→v6
 
 ## 0.2.8 (2026-01-12)
 - Add hook message filtering with wildcard patterns

@@ -33,6 +33,23 @@ from telert.monitoring.cli import setup_monitor_cli, handle_monitor_commands
 CFG_DIR = CONFIG_DIR
 CFG_FILE = CFG_DIR / "config.json"
 
+# Top-level subcommands recognized by the argparse CLI. Used to distinguish a
+# genuine CLI invocation (e.g. `telert config ...`, `telert --help`) from
+# piped-mode usage (`some_command | telert "message"`) when stdin isn't a
+# TTY — which is the default for `docker run image <command>` without `-it`.
+KNOWN_COMMANDS = {
+    "monitor",
+    "config",
+    "status",
+    "hook",
+    "hook-filter",
+    "hook-check-filter",
+    "send",
+    "run",
+    "help",
+    "init",
+}
+
 # ───────────────────────────────── helpers ──────────────────────────────────
 
 
@@ -1564,7 +1581,10 @@ def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "--version":
         print(f"telert {__version__}")
         return
-    if not sys.stdin.isatty():
+    is_known_invocation = len(sys.argv) >= 2 and (
+        sys.argv[1] in KNOWN_COMMANDS or sys.argv[1] in ("--help", "-h")
+    )
+    if not is_known_invocation and not sys.stdin.isatty():
         piped_mode()
         return
     p = argparse.ArgumentParser(

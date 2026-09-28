@@ -427,7 +427,7 @@ def prepare_telegram_html(message: str) -> str:
 
 
 def prepare_telegram_plain_text(message: str) -> str:
-    """
+    r"""
     Return the message unchanged for plain-text Telegram delivery.
 
     When *no* ``parse_mode`` is supplied the Telegram Bot API treats the text as

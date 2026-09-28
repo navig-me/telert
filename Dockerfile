@@ -6,9 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     alsa-utils \
     pulseaudio \
     libnotify-bin \
-    python3-distutils \
-    python3-setuptools \
-    python3-wheel \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade --no-cache-dir pip setuptools wheel build

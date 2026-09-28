@@ -62,9 +62,9 @@ telert = "telert.cli:main"
 
 [project.optional-dependencies]
 dev = ["build", "twine", "pytest"]
-audio = ["playsound"]
+audio = ["playsound==1.2.2"]
 desktop = []
-all = ["playsound", "psutil", "ping3"]
+all = ["playsound==1.2.2", "psutil", "ping3"]
 
 [tool.setuptools]
 packages = ["telert", "telert.data", "telert.monitoring"]

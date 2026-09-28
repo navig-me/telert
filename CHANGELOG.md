@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Fix Docker build: `python3-distutils` no longer exists in the `python:3.13-slim` (Debian trixie) base image; drop it and the redundant `python3-setuptools`/`python3-wheel` apt packages (already installed via pip)
+- Pin `playsound==1.2.2` to avoid the broken 1.3.0 sdist build (`OSError: could not get source code`) under pip build isolation
+
 ## 0.2.8 (2026-01-12)
 - Add hook message filtering with wildcard patterns
   - New `telert hook-filter` command to manage filters (add/remove/list/clear)

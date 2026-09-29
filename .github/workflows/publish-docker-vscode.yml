@@ -61,7 +61,13 @@ jobs:
         cache-to:   type=gha,mode=max
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2)  Build & publish VS Code extension (only on tags or manual)
+# 2)  Build VS Code extension (only on tags or manual)
+#     NOTE: Marketplace publishing is disabled here — the VSCODE_MARKETPLACE_TOKEN
+#     secret (Azure DevOps PAT) expired and needs to be rotated manually at
+#     https://aka.ms/vscodepat before automated publishing can be re-enabled.
+#     Until then, this job only builds the .vsix and uploads it as a workflow
+#     artifact; publish manually with `vsce publish -p <PAT>` or via the
+#     Marketplace web UI using the downloaded artifact.
 # ─────────────────────────────────────────────────────────────────────────────
   build-and-publish-vscode:
     runs-on: ubuntu-latest
@@ -100,13 +106,6 @@ jobs:
         cd vscode-telert
         npm ci
         vsce package
-
-    - name: Publish to VS Code Marketplace
-      env:
-        VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
-      run: |
-        cd vscode-telert
-        vsce publish -p "$VSCE_PAT"
 
     - name: Upload VSIX as artifact
       uses: actions/upload-artifact@v6

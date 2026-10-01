@@ -63,7 +63,7 @@ telert = "telert.cli:main"
 [project.optional-dependencies]
 dev = ["build", "twine", "pytest"]
 audio = ["playsound==1.2.2"]
-desktop = []
+desktop = ["pymacos; sys_platform == 'darwin' and python_version >= '3.9'"]
 all = ["playsound==1.2.2", "psutil", "ping3"]
 
 [tool.setuptools]

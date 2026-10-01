@@ -323,7 +323,7 @@ telert config desktop --app-name "My App" --set-default
 telert config desktop --app-name "My App" --icon-path "/path/to/icon.png" --set-default
 ```
 
-**macOS users**: Install terminal-notifier for better reliability: `brew install terminal-notifier`  
+**macOS users**: Install terminal-notifier for better reliability: `brew install terminal-notifier`, or install telert with `pip install "telert[desktop]"` to send them with [pymacos](https://github.com/JeanExtreme002/pymacos) when terminal-notifier isn't there  
 **Linux users**: Install notify-send: `sudo apt install libnotify-bin` (Debian/Ubuntu)
 
 ### Managing Multiple Providers

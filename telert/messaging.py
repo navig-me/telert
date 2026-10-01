@@ -984,9 +984,10 @@ class DesktopProvider:
         self.icon_path = icon_path or str(DEFAULT_ICON_FILE)
 
     def _notify_macos(self, message: str) -> bool:
-        """Send a macOS notification, trying 3 helpers in order.
+        """Send a macOS notification, trying 4 helpers in order.
 
         • terminal-notifier  (best UX; brew install terminal-notifier)
+        • pymacos            (pip install "telert[desktop]")
         • osascript 'display notification …'            (fast)
         • osascript 'tell application "System Events"'  (older Macs / stricter setups)
 
@@ -1032,21 +1033,34 @@ class DesktopProvider:
                 "terminal-notifier. Falling back to AppleScript."
             )
 
-        # Helper to build AppleScript command safely
-        def _osascript(expr: str) -> bool:
-            return _run(["osascript", "-e", expr])
+        # 2️⃣ pymacos, when installed (pip install "telert[desktop]"): passes the
+        # text safely and raises a clear error when notifications are turned off
+        try:
+            import macos  # type: ignore[import-not-found]
+        except ImportError:
+            macos = None
+        if macos is not None:
+            try:
+                macos.notify(message, title=self.app_name)
+                return True
+            except Exception as e:  # e.g. notifications turned off in System Settings
+                print("macOS-notify error:", e)
 
-        # 2️⃣ plain 'display notification'
-        if _osascript(
-            f"display notification {json.dumps(message)} "
-            f"with title {json.dumps(self.app_name)}"
-        ):
+        # Helper to run AppleScript with the text passed as arguments: building the
+        # script from the text breaks on quotes, and json.dumps turns accents and
+        # emoji into \uXXXX escapes, which AppleScript rejects as a syntax error.
+        def _osascript(statement: str) -> bool:
+            script = ["-e", "on run argv", "-e", statement, "-e", "end run"]
+            return _run(["osascript", *script, message, self.app_name])
+
+        # 3️⃣ plain 'display notification'
+        if _osascript("display notification (item 1 of argv) with title (item 2 of argv)"):
             return True
 
-        # 3️⃣ older fallback via System Events
+        # 4️⃣ older fallback via System Events
         if _osascript(
-            f'tell application "System Events" to display notification '
-            f"{json.dumps(message)} with title {json.dumps(self.app_name)}"
+            'tell application "System Events" to display notification (item 1 of argv) '
+            "with title (item 2 of argv)"
         ):
             return True
 

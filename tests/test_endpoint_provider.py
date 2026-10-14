@@ -70,6 +70,57 @@ class EndpointProviderTests(unittest.TestCase):
         post, _ = self.send_with_mock(message, payload_template="{message}")
         self.assertEqual(post.call_args.kwargs["data"], message)
 
+    def test_bare_scalar_templates_preserve_wire_text(self):
+        # A JSON-looking message must stay raw text for a bare template.
+        for message in ("42", "true", "null", '{"a": 1}', "[1, 2]"):
+            with self.subTest(message=message):
+                post, _ = self.send_with_mock(message, payload_template="{message}")
+                self.assertEqual(post.call_args.kwargs["data"], message)
+                self.assertIs(type(post.call_args.kwargs["data"]), str)
+
+        for template, expected in (
+            ("{status_code}", "0"),
+            ("{duration_seconds}", "0"),
+        ):
+            with self.subTest(template=template):
+                post, _ = self.send_with_mock("something", payload_template=template)
+                self.assertEqual(post.call_args.kwargs["data"], expected)
+
+    def test_quoted_plain_text_template_preserves_its_quotes(self):
+        post, _ = self.send_with_mock(
+            "disk full", payload_template='"Alert: {message}"'
+        )
+        self.assertEqual(post.call_args.kwargs["data"], '"Alert: disk full"')
+
+    def test_unquoted_message_placeholder_is_always_a_json_string(self):
+        for message in ('{"admin": true}', "[1, 2]", "true", "null", "42"):
+            with self.subTest(message=message):
+                post, _ = self.send_with_mock(
+                    message, payload_template='{"raw": {message}}'
+                )
+                self.assertEqual(post.call_args.kwargs["json"], {"raw": message})
+
+    def test_unquoted_message_placeholder_in_key_does_not_crash(self):
+        post, _ = self.send_with_mock(
+            "[1, 2]", payload_template="{{message}: 1}"
+        )
+        self.assertEqual(post.call_args.kwargs["json"], {"[1, 2]": 1})
+
+    def test_timestamp_is_consistent_across_url_and_payload(self):
+        provider = EndpointProvider(
+            url="https://example.invalid/{timestamp}",
+            payload_template='{"timestamp": {timestamp}, "text": "{message}"}',
+        )
+        with patch("telert.messaging.time.time", side_effect=[100, 101]) as now:
+            with patch(
+                "telert.messaging.requests.post",
+                return_value=Mock(status_code=200),
+            ) as post:
+                self.assertTrue(provider.send("test"))
+        self.assertEqual(post.call_args.args[0], "https://example.invalid/100")
+        self.assertEqual(post.call_args.kwargs["json"]["timestamp"], 100)
+        now.assert_called_once()
+
     def test_url_placeholders_not_json_escaped(self):
         url = "https://example.invalid/notify/{status_code}"
         post, _ = self.send_with_mock('failed "quoted"', url=url)

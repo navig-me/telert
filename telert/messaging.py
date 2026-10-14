@@ -1563,6 +1563,13 @@ class EndpointProvider:
                 },
             )
 
+    _PLACEHOLDER_RE = re.compile(
+        r"\{(message|status_code|duration_seconds|timestamp)\}"
+    )
+    _JSON_TOKEN_RE = re.compile(
+        r'"(?:\\.|[^"\\])*"|\{(message|status_code|duration_seconds|timestamp)\}'
+    )
+
     @staticmethod
     def _placeholder_values(message: str) -> Dict[str, str]:
         """Values available in endpoint URLs and payload templates."""
@@ -1573,76 +1580,55 @@ class EndpointProvider:
             "timestamp": str(int(time.time())),
         }
 
-    def _replace_placeholders(self, template: str, message: str) -> str:
-        """Expand each placeholder once; do not interpret inserted user text."""
-        values = self._placeholder_values(message)
-        return re.sub(
-            r"\{(message|status_code|duration_seconds|timestamp)\}",
-            lambda match: values[match.group(1)],
-            template,
-        )
+    def _replace_placeholders(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Replace tokens once, without interpreting inserted message content."""
+        vals = values if values is not None else self._placeholder_values(message)
+        return self._PLACEHOLDER_RE.sub(lambda match: vals[match.group(1)], template)
 
-    def _render_payload_template(self, template: str, message: str) -> Any:
-        """Expand JSON templates as data, preserving escaping and value types.
+    def _render_payload_template(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> Any:
+        """Render JSON objects/arrays safely; preserve plain-text templates."""
+        vals = values if values is not None else self._placeholder_values(message)
 
-        Plain-text templates remain plain text. JSON placeholders outside a
-        quoted string can also produce non-string JSON values.
-        """
-        values = self._placeholder_values(message)
-        names = "message|status_code|duration_seconds|timestamp"
-        placeholder = re.compile(r"\{(" + names + r")\}")
-        token = re.compile(r'"(?:\\.|[^"\\])*"|\{(' + names + r')\}')
-
-        # Mask placeholders outside JSON strings so templates such as
-        # {"status": {status_code}} can be parsed before substitution.
-        prefix = "__telert_raw_placeholder__"
-        while prefix in template:
-            prefix += "_"
-        markers = {name: prefix + name for name in values}
-
-        def mask(match):
+        def replace_token(match: re.Match) -> str:
             key = match.group(1)
-            return json.dumps(markers[key]) if key else match.group(0)
+            if key is not None:
+                # Raw message content must never be interpreted as JSON data.
+                return json.dumps(vals[key]) if key == "message" else vals[key]
+            return self._PLACEHOLDER_RE.sub(
+                lambda inner: json.dumps(vals[inner.group(1)])[1:-1],
+                match.group(0),
+            )
 
         try:
-            parsed = json.loads(token.sub(mask, template))
+            parsed = json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
+            if isinstance(parsed, (dict, list)):
+                return parsed
         except json.JSONDecodeError:
-            # Custom endpoints also accept non-JSON bodies.
-            return self._replace_placeholders(template, message)
-
-        reverse_markers = {value: name for name, value in markers.items()}
-
-        def expand(value):
-            if isinstance(value, str):
-                key = reverse_markers.get(value)
-                if key is not None:
-                    # Preserve the type of unquoted JSON placeholders, e.g.
-                    # {"status": {status_code}} -> {"status": 0}.
-                    try:
-                        return json.loads(values[key])
-                    except json.JSONDecodeError:
-                        return values[key]
-                return placeholder.sub(lambda match: values[match.group(1)], value)
-            if isinstance(value, list):
-                return [expand(item) for item in value]
-            if isinstance(value, dict):
-                return {expand(key): expand(item) for key, item in value.items()}
-            return value
-
-        return expand(parsed)
+            pass
+        return self._replace_placeholders(template, message, vals)
 
     def send(self, message: str) -> bool:
         """Send a message via the custom endpoint."""
         if not self.url:
             raise ValueError("Endpoint provider not configured")
 
-        # Format URL if it contains placeholders
-        url = self._replace_placeholders(self.url, message)
+        # Reuse one context so URL and payload timestamps agree.
+        values = self._placeholder_values(message)
+        url = self._replace_placeholders(self.url, message, values)
 
-        # Parse the template before inserting message content. Substituting raw
-        # text first breaks JSON on quotes, backslashes and newlines.
+        # Parse JSON structure before inserting user-provided text.
         if self.payload_template:
-            payload = self._render_payload_template(self.payload_template, message)
+            payload = self._render_payload_template(self.payload_template, message, values)
         else:
             payload = {"text": message}
 

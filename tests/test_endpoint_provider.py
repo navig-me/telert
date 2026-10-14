@@ -84,7 +84,7 @@ class EndpointProviderTests(unittest.TestCase):
         self.assertNotIn("data", post.call_args.kwargs)
 
     def test_escaped_quotes_in_json_template(self):
-        template = r'{"text": "\"{message}\"", "extra": "a\\b"}' 
+        template = r'{"text": "\"{message}\"", "extra": "a\\b"}'
         message = 'backslash \\\\ quote " and newline\\n'
         post, _ = self.send_with_mock(message, payload_template=template)
         self.assertEqual(post.call_args.kwargs["json"]["text"], '"' + message + '"')

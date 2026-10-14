@@ -1626,7 +1626,7 @@ class EndpointProvider:
         values = self._placeholder_values(message)
         url = self._replace_placeholders(self.url, message, values)
 
-        # Parse JSON structure before inserting user-provided text.
+        # Safely substitute template values, then parse the JSON result.
         if self.payload_template:
             payload = self._render_payload_template(self.payload_template, message, values)
         else:

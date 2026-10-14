@@ -1563,48 +1563,73 @@ class EndpointProvider:
                 },
             )
 
-    def _replace_placeholders(self, template: str, message: str) -> str:
-        """Replace placeholders in the template with actual values."""
-        # Basic placeholders
-        replacements = {
+    _PLACEHOLDER_RE = re.compile(
+        r"\{(message|status_code|duration_seconds|timestamp)\}"
+    )
+    _JSON_TOKEN_RE = re.compile(
+        r'"(?:\\.|[^"\\])*"|\{(message|status_code|duration_seconds|timestamp)\}'
+    )
+
+    @staticmethod
+    def _placeholder_values(message: str) -> Dict[str, str]:
+        """Values available in endpoint URLs and payload templates."""
+        return {
             "message": message,
             "status_code": "0",  # Default values for non-run contexts
             "duration_seconds": "0",
+            "timestamp": str(int(time.time())),
         }
 
-        # Get current timestamp
-        replacements["timestamp"] = str(int(time.time()))
+    def _replace_placeholders(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Replace tokens once, without interpreting inserted message content."""
+        vals = values if values is not None else self._placeholder_values(message)
+        return self._PLACEHOLDER_RE.sub(lambda match: vals[match.group(1)], template)
 
-        # Use a safer string formatting approach than direct format()
-        result = template
-        for key, value in replacements.items():
-            placeholder = "{" + key + "}"
-            result = result.replace(placeholder, value)
+    def _render_payload_template(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> Any:
+        """Render JSON objects/arrays safely; preserve plain-text templates."""
+        vals = values if values is not None else self._placeholder_values(message)
 
-        return result
+        def replace_token(match: re.Match) -> str:
+            key = match.group(1)
+            if key is not None:
+                # Raw message content must never be interpreted as JSON data.
+                return json.dumps(vals[key]) if key == "message" else vals[key]
+            return self._PLACEHOLDER_RE.sub(
+                lambda inner: json.dumps(vals[inner.group(1)])[1:-1],
+                match.group(0),
+            )
+
+        try:
+            parsed = json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
+            if isinstance(parsed, (dict, list)):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return self._replace_placeholders(template, message, vals)
 
     def send(self, message: str) -> bool:
         """Send a message via the custom endpoint."""
         if not self.url:
             raise ValueError("Endpoint provider not configured")
 
-        # Format URL if it contains placeholders
-        url = self._replace_placeholders(self.url, message)
+        # Reuse one context so URL and payload timestamps agree.
+        values = self._placeholder_values(message)
+        url = self._replace_placeholders(self.url, message, values)
 
-        # Prepare payload from template
+        # Safely substitute template values, then parse the JSON result.
         if self.payload_template:
-            try:
-                payload_str = self._replace_placeholders(self.payload_template, message)
-                # Check if payload is valid JSON
-                try:
-                    payload = json.loads(payload_str)
-                except json.JSONDecodeError:
-                    # If not JSON, use as raw string body
-                    payload = payload_str
-            except Exception as e:
-                raise RuntimeError(f"Failed to format payload template: {str(e)}")
+            payload = self._render_payload_template(self.payload_template, message, values)
         else:
-            # Default to simple JSON with message
             payload = {"text": message}
 
         try:
@@ -1617,7 +1642,7 @@ class EndpointProvider:
                 )
             elif self.method.upper() == "POST":
                 # Determine if we're sending JSON or form data
-                if isinstance(payload, dict):
+                if isinstance(payload, (dict, list)):
                     response = requests.post(
                         url,
                         json=payload,
@@ -1637,8 +1662,8 @@ class EndpointProvider:
                 response = requests.request(
                     self.method.upper(),
                     url,
-                    json=payload if isinstance(payload, dict) else None,
-                    data=None if isinstance(payload, dict) else payload,
+                    json=payload if isinstance(payload, (dict, list)) else None,
+                    data=None if isinstance(payload, (dict, list)) else payload,
                     headers=self.headers,
                     timeout=self.timeout,
                 )

@@ -1,6 +1,5 @@
 """Regression tests for custom endpoint payload rendering."""
 
-import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -16,9 +15,13 @@ class EndpointProviderTests(unittest.TestCase):
         if payload_template is not None:
             kwargs["payload_template"] = payload_template
         provider = EndpointProvider(**kwargs)
-        with patch("telert.messaging.requests.post", return_value=Mock(status_code=200)) as post, \
-             patch("telert.messaging.requests.request", return_value=Mock(status_code=200)) as request:
-            self.assertTrue(provider.send(message))
+        with patch(
+            "telert.messaging.requests.post", return_value=Mock(status_code=200)
+        ) as post:
+            with patch(
+                "telert.messaging.requests.request", return_value=Mock(status_code=200)
+            ) as request:
+                self.assertTrue(provider.send(message))
         return post, request
 
     def test_default_json_payload_escapes_special_characters(self):
@@ -55,7 +58,9 @@ class EndpointProviderTests(unittest.TestCase):
 
     def test_plain_text_templates_send_raw_data_without_escaping(self):
         message = 'failed "build"\nline two {status_code}'
-        post, _ = self.send_with_mock(message, payload_template="Alert: {message} ({status_code})")
+        post, _ = self.send_with_mock(
+            message, payload_template="Alert: {message} ({status_code})"
+        )
         payload = post.call_args.kwargs
         self.assertNotIn("json", payload)
         self.assertEqual(payload["data"], "Alert: " + message + " (0)")
@@ -85,11 +90,13 @@ class EndpointProviderTests(unittest.TestCase):
         self.assertEqual(post.call_args.kwargs["json"]["text"], '"' + message + '"')
         self.assertEqual(post.call_args.kwargs["json"]["extra"], "a\\b")
 
-    def test_malformed_json_template_remains_raw_text(self):
-        template = '{"text": "{message}"'
-        message = 'a "quote"'
-        post, _ = self.send_with_mock(message, payload_template=template)
-        self.assertEqual(post.call_args.kwargs["data"], '{"text": "a "quote""')
+    def test_unknown_placeholders_are_preserved(self):
+        template = '{"text": "{message}", "unknown": "{not_supported}"}'
+        post, _ = self.send_with_mock("hello", payload_template=template)
+        self.assertEqual(
+            post.call_args.kwargs["json"],
+            {"text": "hello", "unknown": "{not_supported}"},
+        )
 
     def test_put_uses_json_payload_for_special_characters(self):
         message = 'Quote "line"\nnext'

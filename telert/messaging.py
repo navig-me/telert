@@ -62,7 +62,7 @@ class Provider(enum.Enum):
         """Convert string to Provider enum."""
         try:
             return cls(value.lower())
-        except ValueError:
+        except (ValueError, AttributeError):
             valid_values = ", ".join([f"'{p.value}'" for p in cls])
             raise ValueError(
                 f"Invalid provider: '{value}'. Valid values are: {valid_values}"

@@ -56,6 +56,71 @@ Use it as a CLI tool, Python library, or a notification API. Telert is available
 
 <img src="https://github.com/navig-me/telert/raw/main/docs/telert-demo.svg" alt="telert demo" width="700">
 
+## Named targets and configuration files
+
+Configure multiple destinations of the same provider with aliases:
+
+```bash
+telert config discord --webhook-url https://discord.com/api/webhooks/... --name alerts
+telert config discord --webhook-url https://discord.com/api/webhooks/... --name audit
+telert send "Build failed" --provider alerts
+telert send "Build finished" --provider discord:audit
+telert config set-defaults --providers alerts,audit
+telert config list-providers
+telert status --provider alerts
+```
+
+Aliases work with `send`, `run`, pipeline notifications, default-provider lists,
+and `--all-providers`. `--instance-name` is a universal spelling of `--name`.
+For HTTP endpoints, use `--instance-name`: the existing `--name` option remains
+the endpoint's friendly display label. Aliases must use letters, numbers,
+underscores or hyphens and cannot collide with built-in provider names (or `all`).
+An alias cannot be reused for a different provider type.
+
+Existing configurations require no migration. `--provider discord` (equivalently
+`discord:default`) still selects the unnamed Discord instance. Provider credential
+environment variables override only unnamed instances, never named destinations.
+New aliases are stored in an `instances` object mapping each alias to
+`{"type": "discord", "settings": {"webhook_url": "..."}}`; existing provider
+entries and unrelated configuration settings are preserved.
+
+Select an independent configuration file with a global option **before** the command:
+
+```bash
+telert --config ./work.json config discord --webhook-url https://discord.com/api/webhooks/...
+telert --config ./work.json send "Work notification"
+TELERT_CONFIG=./personal.json telert send "Personal notification"
+```
+
+Precedence is `--config PATH`, then `TELERT_CONFIG`, then
+`~/.config/telert/config.json`. Reading provider configuration does not create its
+directory; saving creates the selected file's parent directory. Monitoring keeps
+its existing separate data/log directories.
+
+Generated shell hooks embed the selected configuration file's absolute path in
+both notification and filter commands, so they keep using it in the parent shell,
+even after changing directories.
+
+The Python API uses `TELERT_CONFIG` and accepts the same aliases:
+
+```python
+from telert import configure_discord, configure_endpoint, send, set_default_providers
+
+configure_discord("https://discord.com/api/webhooks/...", name="alerts")
+send("Build failed", provider="alerts")
+send("Build failed", provider="discord", name="alerts")
+configure_endpoint("https://example.com/hook", name="My API", instance_name="audit")
+set_default_providers(["alerts", "endpoint:audit"])
+```
+
+Send results use qualified `type:alias` keys for named instances (for example,
+`{"discord:alerts": True}`). Unnamed instances retain their legacy class-name keys
+(for example, `{"DiscordProvider": True}`), keeping each destination's result distinct.
+
+All `configure_*` provider helpers and `send` accept `instance_name`; provider
+helpers other than `configure_endpoint` also accept the equivalent `name`.
+For `configure_endpoint`, `name` retains its existing display-label meaning.
+
 
 ## 📋 Table of Contents
 

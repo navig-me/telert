@@ -37,7 +37,6 @@ from bs4 import BeautifulSoup
 
 # Config paths
 CONFIG_DIR = pathlib.Path(os.path.expanduser("~/.config/telert"))
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default resources
 DATA_DIR = pathlib.Path(os.path.dirname(__file__)) / "data"
@@ -79,8 +78,10 @@ class Provider(enum.Enum):
 class MessagingConfig:
     """Configuration manager for messaging providers."""
 
-    def __init__(self):
-        self.config_file = CONFIG_DIR / "config.json"
+    def __init__(self, config_file=None, instance_name=None):
+        selected = config_file or os.environ.get("TELERT_CONFIG")
+        self.config_file = pathlib.Path(selected).expanduser() if selected else CONFIG_DIR / "config.json"
+        self.instance_name = instance_name
         self._config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
@@ -96,12 +97,48 @@ class MessagingConfig:
 
     def save(self):
         """Save configuration to file."""
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.config_file.write_text(json.dumps(self._config, indent=2))
+
+    def resolve_provider(self, provider):
+        """Resolve a built-in, alias, or type:alias to its type and canonical key."""
+        value = str(provider)
+        if ":" in value:
+            provider_type, alias = value.split(":", 1)
+            kind = Provider.from_string(provider_type)
+            if alias == "default":
+                return kind, kind.value
+            entry = self._config.get("instances", {}).get(alias)
+            if not entry or entry["type"] != kind.value:
+                raise ValueError(f"Unknown provider instance: {value}")
+            return kind, alias
+        try:
+            kind = Provider.from_string(value)
+            return kind, kind.value
+        except ValueError:
+            entry = self._config.get("instances", {}).get(value)
+            if entry:
+                return Provider.from_string(entry["type"]), value
+            raise ValueError(f"Unknown provider: {value}")
+
+    def validate_instance_name(self, name):
+        if name is None or name == "default":
+            return
+        if not name or not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+            raise ValueError("Instance name must contain only letters, numbers, underscores or hyphens")
+        if name.lower() in {p.value for p in Provider} | {"all", "default"}:
+            raise ValueError(f"Instance name '{name}' collides with a built-in provider name")
 
     def get_provider_config(self, provider: Union[Provider, str]) -> Dict[str, Any]:
         """Get configuration for a specific provider."""
-        if isinstance(provider, str):
-            provider = Provider.from_string(provider)
+        provider, key = self.resolve_provider(provider)
+        if self.instance_name and self.instance_name != "default":
+            key = self.instance_name
+        if key != provider.value:
+            entry = self._config.get("instances", {}).get(key, {})
+            if entry.get("type") != provider.value:
+                return {}
+            return entry.get("settings", {})
 
         # Check environment variables first
         if provider == Provider.TELEGRAM:
@@ -241,17 +278,23 @@ class MessagingConfig:
         self, provider: Union[Provider, str], config: Dict[str, Any]
     ):
         """Set configuration for a specific provider."""
-        if isinstance(provider, str):
-            provider = Provider.from_string(provider)
-
-        self._config[provider.value] = config
+        provider = Provider.from_string(str(provider))
+        name = self.instance_name
+        self.validate_instance_name(name)
+        if name and name != "default":
+            instances = self._config.setdefault("instances", {})
+            if name in instances and instances[name]["type"] != provider.value:
+                raise ValueError(f"Instance name '{name}' is already used by another provider")
+            instances[name] = {"type": provider.value, "settings": config}
+        else:
+            self._config[provider.value] = config
         self.save()
 
     def is_provider_configured(self, provider: Union[Provider, str]) -> bool:
         """Check if a provider is configured."""
         return bool(self.get_provider_config(provider))
 
-    def get_providers(self) -> List[Provider]:
+    def get_providers(self) -> List[Union[Provider, str]]:
         """Return a list of all providers that are configured.
 
         A provider is considered configured if configuration exists in the
@@ -265,58 +308,31 @@ class MessagingConfig:
             except Exception:
                 # Ignore any provider-specific errors when checking configuration
                 pass
+        configured.extend(self._config.get("instances", {}))
         return configured
 
-    def get_default_providers(self) -> List[Provider]:
-        """Get the default providers if configured.
-
-        Returns a list of Provider enums in priority order.
-        """
-        # Check environment variable first
-        env_default = os.environ.get("TELERT_DEFAULT_PROVIDER")
-        if env_default:
-            try:
-                # Multiple providers can be specified with comma separation
-                if "," in env_default:
-                    providers = []
-                    for p in env_default.split(","):
-                        try:
-                            providers.append(Provider.from_string(p.strip()))
-                        except ValueError:
-                            # Skip invalid providers
-                            pass
-                    if providers:
-                        return providers
-                else:
-                    # Single provider
-                    return [Provider.from_string(env_default)]
-            except ValueError:
-                # Invalid provider, fall through to config
-                pass
-
-        # Next check config file for "defaults" array (new format)
-        defaults = self._config.get("defaults", [])
-        if defaults and isinstance(defaults, list):
+    def get_default_providers(self) -> List[Union[Provider, str]]:
+        """Get default built-ins or aliases in priority order."""
+        for candidates in (
+            os.environ.get("TELERT_DEFAULT_PROVIDER", "").split(","),
+            self._config.get("defaults", []),
+            [self._config.get("default")],
+        ):
             providers = []
-            for p in defaults:
-                if p in [provider.value for provider in Provider]:
-                    providers.append(Provider.from_string(p))
+            for candidate in candidates:
+                if not candidate:
+                    continue
+                try:
+                    kind, key = self.resolve_provider(str(candidate).strip())
+                    providers.append(kind if key == kind.value else key)
+                except ValueError:
+                    continue
             if providers:
                 return providers
+        configured = self.get_providers()
+        return configured if len(configured) == 1 else []
 
-        # Finally check for legacy "default" string
-        default = self._config.get("default")
-        if default and default in [p.value for p in Provider]:
-            return [Provider.from_string(default)]
-
-        # If no default is set but only one provider is configured, use that
-        configured = [p for p in Provider if self.is_provider_configured(p)]
-        if len(configured) == 1:
-            return [configured[0]]
-
-        return []
-
-    def get_default_provider(self) -> Optional[Provider]:
+    def get_default_provider(self) -> Optional[Union[Provider, str]]:
         """Get the default provider if configured (legacy support).
 
         Returns the first default provider or None if none configured.
@@ -328,9 +344,8 @@ class MessagingConfig:
         """Set the default providers in priority order."""
         provider_values = []
         for provider in providers:
-            if isinstance(provider, str):
-                provider = Provider.from_string(provider)
-            provider_values.append(provider.value)
+            _, key = self.resolve_provider(provider)
+            provider_values.append(key)
 
         self._config["defaults"] = provider_values
         # Maintain backwards compatibility
@@ -344,9 +359,6 @@ class MessagingConfig:
 
     def set_default_provider(self, provider: Union[Provider, str]):
         """Set a single default provider (legacy support)."""
-        if isinstance(provider, str):
-            provider = Provider.from_string(provider)
-
         self.set_default_providers([provider])
         self.save()
 
@@ -1718,48 +1730,78 @@ class EndpointProvider:
                 },
             )
 
-    def _replace_placeholders(self, template: str, message: str) -> str:
-        """Replace placeholders in the template with actual values."""
-        # Basic placeholders
-        replacements = {
+    _PLACEHOLDER_RE = re.compile(
+        r"\{(message|status_code|duration_seconds|timestamp)\}"
+    )
+    _JSON_TOKEN_RE = re.compile(
+        r'"(?:\\.|[^"\\])*"|\{(message|status_code|duration_seconds|timestamp)\}'
+    )
+
+    @staticmethod
+    def _placeholder_values(message: str) -> Dict[str, str]:
+        """Values available in endpoint URLs and payload templates."""
+        return {
             "message": message,
             "status_code": "0",  # Default values for non-run contexts
             "duration_seconds": "0",
+            "timestamp": str(int(time.time())),
         }
 
-        # Get current timestamp
-        replacements["timestamp"] = str(int(time.time()))
+    def _replace_placeholders(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Replace tokens once, without interpreting inserted message content."""
+        vals = values if values is not None else self._placeholder_values(message)
+        return self._PLACEHOLDER_RE.sub(lambda match: vals[match.group(1)], template)
 
-        # Use a safer string formatting approach than direct format()
-        result = template
-        for key, value in replacements.items():
-            placeholder = "{" + key + "}"
-            result = result.replace(placeholder, value)
+    def _render_payload_template(
+        self,
+        template: str,
+        message: str,
+        values: Optional[Dict[str, str]] = None,
+    ) -> Any:
+        """Render JSON objects/arrays safely; preserve plain-text templates."""
+        vals = values if values is not None else self._placeholder_values(message)
+        stripped = template.lstrip()
+        if not stripped.startswith(("{", "[")) or self._PLACEHOLDER_RE.match(stripped):
+            return self._replace_placeholders(template, message, vals)
 
-        return result
+        def replace_token(match: re.Match) -> str:
+            key = match.group(1)
+            if key is not None:
+                # Raw message content must never be interpreted as JSON data.
+                return json.dumps(vals[key]) if key == "message" else vals[key]
+            # Decode the template string before substitution, so JSON escapes
+            # adjacent to a placeholder cannot change the inserted value.
+            text = json.loads(match.group(0))
+            return json.dumps(self._replace_placeholders(text, message, vals))
+
+        try:
+            return json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
+        except json.JSONDecodeError:
+            # Braces and brackets can also begin ordinary text templates.
+            return self._replace_placeholders(template, message, vals)
 
     def send(self, message: str) -> bool:
         """Send a message via the custom endpoint."""
         if not self.url:
             raise ValueError("Endpoint provider not configured")
 
-        # Format URL if it contains placeholders
-        url = self._replace_placeholders(self.url, message)
+        # Reuse one context so URL, headers and payload timestamps agree.
+        values = self._placeholder_values(message)
+        url = self._replace_placeholders(self.url, message, values)
+        headers = {
+            key: self._replace_placeholders(value, message, values)
+            for key, value in self.headers.items()
+        }
 
-        # Prepare payload from template
+        # Safely substitute template values, then parse the JSON result.
         if self.payload_template:
-            try:
-                payload_str = self._replace_placeholders(self.payload_template, message)
-                # Check if payload is valid JSON
-                try:
-                    payload = json.loads(payload_str)
-                except json.JSONDecodeError:
-                    # If not JSON, use as raw string body
-                    payload = payload_str
-            except Exception as e:
-                raise RuntimeError(f"Failed to format payload template: {str(e)}")
+            payload = self._render_payload_template(self.payload_template, message, values)
         else:
-            # Default to simple JSON with message
             payload = {"text": message}
 
         try:
@@ -1767,16 +1809,16 @@ class EndpointProvider:
             if self.method.upper() == "GET":
                 response = requests.get(
                     url,
-                    headers=self.headers,
+                    headers=headers,
                     timeout=self.timeout,
                 )
             elif self.method.upper() == "POST":
                 # Determine if we're sending JSON or form data
-                if isinstance(payload, dict):
+                if isinstance(payload, (dict, list)):
                     response = requests.post(
                         url,
                         json=payload,
-                        headers=self.headers,
+                        headers=headers,
                         timeout=self.timeout,
                     )
                 else:
@@ -1784,7 +1826,7 @@ class EndpointProvider:
                     response = requests.post(
                         url,
                         data=payload,
-                        headers=self.headers,
+                        headers=headers,
                         timeout=self.timeout,
                     )
             else:
@@ -1792,9 +1834,9 @@ class EndpointProvider:
                 response = requests.request(
                     self.method.upper(),
                     url,
-                    json=payload if isinstance(payload, dict) else None,
-                    data=None if isinstance(payload, dict) else payload,
-                    headers=self.headers,
+                    json=payload if isinstance(payload, (dict, list)) else None,
+                    data=None if isinstance(payload, (dict, list)) else payload,
+                    headers=headers,
                     timeout=self.timeout,
                 )
 
@@ -1868,32 +1910,17 @@ def get_providers(
     config = MessagingConfig()
     result_providers = []
 
-    # Convert input to list of Provider enums
-    provider_names = []
-
     if provider_name is None:
-        # Use default providers if none specified
         provider_names = config.get_default_providers()
     elif isinstance(provider_name, list):
-        # If a list was provided, convert to Provider enums
-        for p in provider_name:
-            if isinstance(p, str):
-                try:
-                    provider_names.append(Provider.from_string(p))
-                except ValueError:
-                    # Skip invalid providers
-                    pass
-            else:
-                provider_names.append(p)
+        provider_names = provider_name
     else:
-        # Single provider specified
-        if isinstance(provider_name, str):
-            provider_name = Provider.from_string(provider_name)
         provider_names = [provider_name]
 
     # If we have specific providers to use, create and configure them
     if provider_names:
-        for provider_enum in provider_names:
+        for reference in provider_names:
+            provider_enum, key = config.resolve_provider(reference)
             # Create provider instance
             if provider_enum == Provider.TELEGRAM:
                 provider = TelegramProvider()
@@ -1918,16 +1945,19 @@ def get_providers(
             else:
                 continue  # Skip unsupported providers
 
-            # Try to configure from environment first
-            if provider.configure_from_env():
+            scoped_config = MessagingConfig(config.config_file, instance_name=key)
+            if key == provider_enum.value and provider.configure_from_env():
                 result_providers.append(provider)
-            # Fall back to saved config
-            elif provider.configure_from_config(config):
+            elif provider.configure_from_config(scoped_config):
                 result_providers.append(provider)
+            else:
+                raise ValueError(f"Provider '{reference}' is not configured")
+            if key != provider_enum.value:
+                provider.result_name = f"{provider_enum.value}:{key}"
 
     # If no providers have been specified or successfully configured,
     # check environment variables to create providers on-the-fly
-    if not result_providers:
+    if not result_providers and not provider_names and provider_name is None:
         env_providers = []
 
         # Check each provider's environment variables
@@ -2092,6 +2122,7 @@ def send_message(
     provider: Optional[Union[Provider, str, List[Union[Provider, str]]]] = None,
     all_providers: bool = False,
     parse_mode: Optional[str] = None,
+    name: Optional[str] = None,
 ) -> Dict[str, bool]:
     """Send a message using the specified or default provider(s).
 
@@ -2108,11 +2139,15 @@ def send_message(
     Returns:
         A dictionary mapping provider names to success status
     """
+    if name is not None:
+        if provider is None or isinstance(provider, list):
+            raise ValueError("name requires a single provider type")
+        provider = f"{provider}:{name}"
     # If all_providers flag is True, get all configured providers
     if all_providers:
         config = MessagingConfig()
         providers_to_use = []
-        for p in Provider:
+        for p in config.get_providers():
             if config.is_provider_configured(p):
                 try:
                     provider_instance = get_provider(p)
@@ -2152,14 +2187,14 @@ def send_message(
             # Send the processed message
             result = provider_instance.send(processed_message)
             
-        return {providers_to_use[0].__class__.__name__: result}
+        return {getattr(provider_instance, "result_name", provider_instance.__class__.__name__): result}
 
     # Send to all specified providers and collect results
     results = {}
     exceptions = []
 
     for provider_instance in providers_to_use:
-        provider_name = provider_instance.__class__.__name__
+        provider_name = getattr(provider_instance, "result_name", provider_instance.__class__.__name__)
         try:
             # Check if the provider is Telegram
             if isinstance(provider_instance, TelegramProvider):
@@ -2230,7 +2265,6 @@ def configure_providers(
             {"provider": "audio"}
         ], set_as_defaults=True)
     """
-    config = MessagingConfig()
     configured_providers = []
 
     for p in providers:
@@ -2243,7 +2277,7 @@ def configure_providers(
             if "provider" not in p:
                 continue
 
-            provider_name = p.pop("provider")
+            provider_name = p["provider"]
             try:
                 if isinstance(provider_name, str):
                     provider_enum = Provider.from_string(provider_name)
@@ -2252,7 +2286,7 @@ def configure_providers(
             except ValueError:
                 continue  # Skip invalid providers
 
-            provider_config = p  # Remaining options
+            provider_config = {key: value for key, value in p.items() if key != "provider"}
         else:
             # Simple provider name or enum
             try:
@@ -2266,24 +2300,34 @@ def configure_providers(
         # Configure this provider
         try:
             configure_provider(provider_enum, **provider_config)
-            configured_providers.append(provider_enum)
+            alias = provider_config.get("instance_name")
+            if alias is None and provider_enum != Provider.ENDPOINT:
+                alias = provider_config.get("name")
+            configured_providers.append(alias if alias and alias != "default" else provider_enum)
         except Exception:
             # Skip providers that fail to configure
             pass
 
     # Set as defaults if requested
     if set_as_defaults and configured_providers:
-        config.set_default_providers(configured_providers)
+        MessagingConfig().set_default_providers(configured_providers)
 
     return len(configured_providers) > 0
 
 
 def configure_provider(provider: Union[Provider, str], **kwargs):
     """Configure a messaging provider."""
-    config = MessagingConfig()
-
     if isinstance(provider, str):
         provider = Provider.from_string(provider)
+    instance_name = kwargs.pop("instance_name", None)
+    if provider != Provider.ENDPOINT:
+        short_name = kwargs.pop("name", None)
+        if instance_name is not None and short_name is not None and instance_name != short_name:
+            raise ValueError("name and instance_name must match")
+        instance_name = instance_name if instance_name is not None else short_name
+    config = MessagingConfig(instance_name=instance_name)
+    config.validate_instance_name(instance_name)
+    target = instance_name if instance_name and instance_name != "default" else provider
 
     if provider == Provider.TELEGRAM:
         if "token" not in kwargs or "chat_id" not in kwargs:
@@ -2445,13 +2489,13 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
         if kwargs.get("add_to_defaults", False):
             # Add to existing defaults
             current_defaults = config.get_default_providers()
-            if provider not in current_defaults:
-                config.set_default_providers(current_defaults + [provider])
+            if target not in current_defaults:
+                config.set_default_providers(current_defaults + [target])
         else:
             # Set as the only default
-            config.set_default_provider(provider)
+            config.set_default_provider(target)
     elif not config.get_default_providers():
         # If no defaults exist, set this as default
-        config.set_default_provider(provider)
+        config.set_default_provider(target)
 
     return True

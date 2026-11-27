@@ -44,8 +44,14 @@ from telert.messaging import (
 # Type variable for function return type
 T = TypeVar("T")
 
+def _instance_options(name, instance_name):
+    if name is not None and instance_name is not None and name != instance_name:
+        raise ValueError("name and instance_name must match")
+    return {"instance_name": instance_name if instance_name is not None else name}
 
-def configure_telegram(token: str, chat_id: str, set_default: bool = True) -> None:
+
+
+def configure_telegram(token: str, chat_id: str, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None) -> None:
     """
     Configure Telert for Telegram.
 
@@ -60,11 +66,11 @@ def configure_telegram(token: str, chat_id: str, set_default: bool = True) -> No
         configure_telegram("123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ", "123456789")
     """
     configure_provider(
-        Provider.TELEGRAM, token=token, chat_id=chat_id, set_default=set_default
+        Provider.TELEGRAM, token=token, chat_id=chat_id, set_default=set_default, **_instance_options(name, instance_name)
     )
 
 
-def configure_teams(webhook_url: str, set_default: bool = True) -> None:
+def configure_teams(webhook_url: str, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None) -> None:
     """
     Configure Telert for Microsoft Teams using Power Automate.
 
@@ -77,10 +83,10 @@ def configure_teams(webhook_url: str, set_default: bool = True) -> None:
 
         configure_teams("https://prod-00.northcentralus.logic.azure.com/workflows/...")
     """
-    configure_provider(Provider.TEAMS, webhook_url=webhook_url, set_default=set_default)
+    configure_provider(Provider.TEAMS, webhook_url=webhook_url, set_default=set_default, **_instance_options(name, instance_name))
 
 
-def configure_slack(webhook_url: str, set_default: bool = True) -> None:
+def configure_slack(webhook_url: str, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None) -> None:
     """
     Configure Telert for Slack.
 
@@ -93,11 +99,11 @@ def configure_slack(webhook_url: str, set_default: bool = True) -> None:
 
         configure_slack("https://hooks.slack.com/services/...")
     """
-    configure_provider(Provider.SLACK, webhook_url=webhook_url, set_default=set_default)
+    configure_provider(Provider.SLACK, webhook_url=webhook_url, set_default=set_default, **_instance_options(name, instance_name))
 
 
 def configure_audio(
-    sound_file: Optional[str] = None, volume: float = 1.0, set_default: bool = True
+    sound_file: Optional[str] = None, volume: float = 1.0, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None
 ) -> None:
     """
     Configure Telert for audio notifications.
@@ -121,11 +127,11 @@ def configure_audio(
     if sound_file:
         config["sound_file"] = sound_file
 
-    configure_provider(Provider.AUDIO, **config)
+    configure_provider(Provider.AUDIO, **config, **_instance_options(name, instance_name))
 
 
 def configure_desktop(
-    app_name: str = "Telert", icon_path: Optional[str] = None, set_default: bool = True
+    app_name: str = "Telert", icon_path: Optional[str] = None, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None
 ) -> None:
     """
     Configure Telert for desktop notifications.
@@ -149,10 +155,10 @@ def configure_desktop(
     if icon_path:
         config["icon_path"] = icon_path
 
-    configure_provider(Provider.DESKTOP, **config)
+    configure_provider(Provider.DESKTOP, **config, **_instance_options(name, instance_name))
 
 
-def configure_pushover(token: str, user: str, set_default: bool = True) -> None:
+def configure_pushover(token: str, user: str, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None) -> None:
     """
     Configure Telert for Pushover notifications.
 
@@ -166,10 +172,10 @@ def configure_pushover(token: str, user: str, set_default: bool = True) -> None:
 
         configure_pushover("a1b2c3d4e5f6g7h8i9j0", "u1v2w3x4y5z6")
     """
-    configure_provider(Provider.PUSHOVER, token=token, user=user, set_default=set_default)
+    configure_provider(Provider.PUSHOVER, token=token, user=user, set_default=set_default, **_instance_options(name, instance_name))
 
 
-def configure_discord(webhook_url: str, username: Optional[str] = None, avatar_url: Optional[str] = None, set_default: bool = True) -> None:
+def configure_discord(webhook_url: str, username: Optional[str] = None, avatar_url: Optional[str] = None, set_default: bool = True, name: Optional[str] = None, instance_name: Optional[str] = None) -> None:
     """
     Configure Telert for Discord notifications.
 
@@ -200,7 +206,7 @@ def configure_discord(webhook_url: str, username: Optional[str] = None, avatar_u
     if avatar_url:
         config["avatar_url"] = avatar_url
         
-    configure_provider(Provider.DISCORD, **config)
+    configure_provider(Provider.DISCORD, **config, **_instance_options(name, instance_name))
 
 
 def configure_endpoint(
@@ -211,6 +217,7 @@ def configure_endpoint(
     name: str = "Custom Endpoint",
     timeout: int = 20,
     set_default: bool = True,
+    instance_name: Optional[str] = None,
 ) -> None:
     """
     Configure Telert for custom HTTP endpoint notifications.
@@ -250,7 +257,7 @@ def configure_endpoint(
         "set_default": set_default,
     }
     
-    configure_provider(Provider.ENDPOINT, **config)
+    configure_provider(Provider.ENDPOINT, **config, instance_name=instance_name)
 
 
 def configure_email(
@@ -263,6 +270,8 @@ def configure_email(
     subject_template: Optional[str] = None,
     use_html: bool = False,
     set_default: bool = True,
+    name: Optional[str] = None,
+    instance_name: Optional[str] = None,
 ) -> None:
     """
     Configure Telert for email notifications.
@@ -321,7 +330,7 @@ def configure_email(
     if use_html:
         config["use_html"] = use_html
     
-    configure_provider(Provider.EMAIL, **config)
+    configure_provider(Provider.EMAIL, **config, **_instance_options(name, instance_name))
 
 
 def configure_xmpp(
@@ -389,25 +398,15 @@ def get_config(provider: Optional[Union[str, Provider]] = None) -> Dict[str, Any
     config = MessagingConfig()
 
     if provider:
-        if isinstance(provider, str):
-            try:
-                provider = Provider.from_string(provider)
-            except ValueError:
-                return {}
-
-        return config.get_provider_config(provider)
+        try:
+            return config.get_provider_config(provider)
+        except ValueError:
+            return {}
     else:
-        # Return all provider configs
-        result = {}
-        for p in Provider:
-            p_config = config.get_provider_config(p)
-            if p_config:
-                result[p.value] = p_config
-
-        # Include default provider
+        result = {str(p): config.get_provider_config(p) for p in config.get_providers()}
         default = config.get_default_provider()
         if default:
-            result["default"] = default.value
+            result["default"] = str(default)
 
         return result
 
@@ -432,40 +431,11 @@ def is_configured(provider: Optional[Union[str, Provider]] = None) -> bool:
     config = MessagingConfig()
 
     if provider:
-        if isinstance(provider, str):
-            try:
-                provider = Provider.from_string(provider)
-            except ValueError:
-                return False
-
-        return config.is_provider_configured(provider)
-    else:
-        # Check if any provider is configured
-        for p in Provider:
-            if config.is_provider_configured(p):
-                return True
-
-        # Check for environment variables
-        if os.environ.get("TELERT_TOKEN") and os.environ.get("TELERT_CHAT_ID"):
-            return True
-        if os.environ.get("TELERT_TEAMS_WEBHOOK"):
-            return True
-        if os.environ.get("TELERT_SLACK_WEBHOOK"):
-            return True
-        if os.environ.get("TELERT_DISCORD_WEBHOOK"):
-            return True
-        if os.environ.get("TELERT_EMAIL_SERVER"):
-            return True
-        if os.environ.get("TELERT_PUSHOVER_TOKEN") and os.environ.get("TELERT_PUSHOVER_USER"):
-            return True
-        if os.environ.get("TELERT_AUDIO_FILE"):
-            return True
-        if os.environ.get("TELERT_DESKTOP_APP_NAME"):
-            return True
-        if os.environ.get("TELERT_DESKTOP_ICON"):
-            return True
-
-        return False
+        try:
+            return config.is_provider_configured(provider)
+        except ValueError:
+            return False
+    return bool(config.get_providers())
 
 
 def set_default_provider(provider: Union[str, Provider]) -> None:
@@ -481,9 +451,6 @@ def set_default_provider(provider: Union[str, Provider]) -> None:
         set_default_provider("slack")
     """
     config = MessagingConfig()
-
-    if isinstance(provider, str):
-        provider = Provider.from_string(provider)
 
     config.set_default_provider(provider)
 
@@ -502,20 +469,7 @@ def set_default_providers(providers: List[Union[str, Provider]]) -> None:
         set_default_providers(["slack", "desktop"])
     """
     config = MessagingConfig()
-    provider_enums = []
-
-    for p in providers:
-        if isinstance(p, str):
-            try:
-                provider_enums.append(Provider.from_string(p))
-            except ValueError:
-                # Skip invalid providers
-                pass
-        else:
-            provider_enums.append(p)
-
-    if provider_enums:
-        config.set_default_providers(provider_enums)
+    config.set_default_providers(providers)
 
 
 def list_providers() -> List[Dict[str, Any]]:
@@ -536,11 +490,11 @@ def list_providers() -> List[Dict[str, Any]]:
     default = config.get_default_provider()
     result = []
 
-    for p in Provider:
+    for p in config.get_providers():
         if config.is_provider_configured(p):
             provider_config = config.get_provider_config(p)
             info = {
-                "name": p.value,
+                "name": str(p),
                 "is_default": (default == p),
                 "config": provider_config,
             }
@@ -553,7 +507,9 @@ def send(
     message: str, 
     provider: Optional[Union[str, Provider, List[Union[str, Provider]]]] = None,
     all_providers: bool = False,
-    parse_mode: Optional[str] = None
+    parse_mode: Optional[str] = None,
+    name: Optional[str] = None,
+    instance_name: Optional[str] = None,
 ) -> Dict[str, bool]:
     """
     Send a message using configured provider(s).
@@ -608,24 +564,9 @@ def send(
         TELERT_EMAIL_FROM, TELERT_EMAIL_TO, TELERT_EMAIL_SUBJECT_TEMPLATE: Override Email configuration
     """
     try:
-        # Convert string providers to Provider enums
-        if provider is not None:
-            if isinstance(provider, list):
-                normalized_providers = []
-                for p in provider:
-                    if isinstance(p, str):
-                        try:
-                            normalized_providers.append(Provider.from_string(p))
-                        except ValueError:
-                            raise ValueError(f"Unknown provider: {p}")
-                    else:
-                        normalized_providers.append(p)
-                provider = normalized_providers
-            elif isinstance(provider, str):
-                provider = Provider.from_string(provider)
 
         # Send the message
-        return send_message(message, provider, all_providers, parse_mode)
+        return send_message(message, provider, all_providers, parse_mode, name=_instance_options(name, instance_name)["instance_name"])
     except Exception as e:
         traceback.print_exc()
         raise RuntimeError(f"Failed to send message: {str(e)}")

@@ -365,6 +365,21 @@ selects XMPP as the default. Configuration and status work without Slixmpp;
 only sending requires the extra. Passwords are saved in the existing local
 configuration file; avoid putting real passwords in shared shell history.
 
+Named XMPP instances use the same routing as other providers:
+
+```bash
+telert config xmpp --name alerts --jid 'sender@example.org' \
+  --password 'your-password' --recipient 'alerts@example.org'
+telert send --provider xmpp:alerts 'Job completed'
+telert send --provider alerts 'Job completed'
+```
+
+In Python, pass `name="alerts"` or `instance_name="alerts"` to
+`configure_xmpp`, then use `send("Job completed", provider="xmpp:alerts")`.
+Named instances return result keys such as `xmpp:alerts` and do not inherit
+the unnamed provider's environment overrides. Use global `--config PATH`
+or `TELERT_CONFIG` to select a different configuration file.
+
 The synchronous send API also works in threads and in running asyncio
 applications (it blocks until sending completes). A successful result means the
 message was queued and the stream closed, not that the recipient read it.

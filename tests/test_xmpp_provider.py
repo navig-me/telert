@@ -250,3 +250,52 @@ def test_cli_configuration_status_and_send(fake_xmpp, monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "XMPP" in output and "supersecret" not in output
     assert telert.send("hello", provider="xmpp") == {"XMPPProvider": True}
+
+
+def test_named_xmpp_api_routing_and_result_keys(fake_xmpp, monkeypatch):
+    _, instances = fake_xmpp
+    telert.configure_xmpp("sender@example.org", "secret-one", "alerts@example.org", name="alerts")
+    telert.configure_xmpp("sender@example.org", "secret-two", "audit@example.org", instance_name="audit", set_default=False)
+    stored = json.loads(messaging.MessagingConfig().config_file.read_text())
+    assert stored["instances"]["alerts"]["type"] == "xmpp"
+    assert stored["instances"]["audit"]["settings"]["recipient"] == "audit@example.org"
+    assert "xmpp" not in stored
+    monkeypatch.setenv("TELERT_XMPP_JID", "env@example.org")
+    monkeypatch.setenv("TELERT_XMPP_PASSWORD", "env-secret")
+    monkeypatch.setenv("TELERT_XMPP_RECIPIENT", "env-recipient@example.org")
+    assert telert.send("alert", provider="alerts") == {"xmpp:alerts": True}
+    assert instances[-1].password == "secret-one"
+    assert instances[-1].messages[0]["mto"] == "alerts@example.org"
+    assert telert.send("audit", provider="xmpp:audit") == {"xmpp:audit": True}
+    assert instances[-1].password == "secret-two"
+    assert telert.send("named", provider="xmpp", name="audit") == {"xmpp:audit": True}
+    telert.set_default_providers(["alerts", "xmpp:audit"])
+    assert telert.send("both") == {"xmpp:alerts": True, "xmpp:audit": True}
+    assert telert.send("unnamed", provider="xmpp") == {"XMPPProvider": True}
+    assert instances[-1].password == "env-secret"
+
+
+def test_named_xmpp_cli_config_path_and_routing(fake_xmpp, monkeypatch, tmp_path, capsys):
+    _, instances = fake_xmpp
+    path = tmp_path / "selected" / "config.json"
+
+    def run(*args):
+        monkeypatch.setattr(sys, "argv", ["telert", "--config", str(path), *args])
+        cli.main()
+
+    run("config", "xmpp", "--name", "alerts", "--jid", "sender@example.org",
+        "--password", "supersecret", "--recipient", "alerts@example.org", "--set-default")
+    run("config", "xmpp", "--instance-name", "audit", "--jid", "sender@example.org",
+        "--password", "supersecret", "--recipient", "audit@example.org")
+    stored = json.loads(path.read_text())
+    assert set(stored["instances"]) == {"alerts", "audit"}
+    assert not (tmp_path / "config.json").exists()
+    run("send", "typed", "--provider", "xmpp:audit")
+    assert instances[-1].messages[0]["mto"] == "audit@example.org"
+    run("send", "alias", "--provider", "alerts")
+    assert instances[-1].messages[0]["mto"] == "alerts@example.org"
+    run("status", "--provider", "alerts")
+    output = capsys.readouterr().out
+    assert "alerts (xmpp)" in output
+    assert "No providers configured" not in output
+    assert "supersecret" not in output

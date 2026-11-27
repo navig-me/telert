@@ -340,7 +340,7 @@ def do_config(a):
 
         elif provider == "xmpp":
             try:
-                configure_provider(
+                configure_target(
                     Provider.XMPP, jid=a.jid, password=a.password,
                     recipient=a.recipient, server=a.server, port=a.port,
                     direct_tls=a.direct_tls, ca_file=a.ca_file,

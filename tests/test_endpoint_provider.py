@@ -172,7 +172,7 @@ class EndpointProviderTests(unittest.TestCase):
             {"text": "\\" + message, "encoded": message},
         )
 
-    def test_invalid_json_templates_raise_without_sending(self):
+    def test_invalid_json_templates_remain_plain_text(self):
         for template in (
             '{"text": "{message}",}',
             '["{message}",]',
@@ -181,13 +181,25 @@ class EndpointProviderTests(unittest.TestCase):
             '{"status": {unknown}}',
         ):
             with self.subTest(template=template):
-                provider = EndpointProvider(
-                    url="https://example.invalid/notify", payload_template=template
+                message = 'quoted "message"\n literal {status_code}'
+                post, _ = self.send_with_mock(message, payload_template=template)
+                self.assertNotIn("json", post.call_args.kwargs)
+                self.assertEqual(
+                    post.call_args.kwargs["data"],
+                    template.replace("{message}", message),
                 )
-                with patch("telert.messaging.requests.post") as post:
-                    with self.assertRaises(ValueError):
-                        provider.send('quoted "message"\n')
-                post.assert_not_called()
+
+    def test_bracket_and_brace_prefixed_plain_text_templates(self):
+        message = 'quoted "message"\n literal {timestamp} and {status_code}'
+        for template, expected in (
+            ("[ALERT] {message}", "[ALERT] " + message),
+            ("{host} down: {message}", "{host} down: " + message),
+            ("[{status_code}] {message}", "[0] " + message),
+        ):
+            with self.subTest(template=template):
+                post, _ = self.send_with_mock(message, payload_template=template)
+                self.assertNotIn("json", post.call_args.kwargs)
+                self.assertEqual(post.call_args.kwargs["data"], expected)
 
     def test_headers_render_once_for_every_http_method(self):
         message = 'literal {timestamp} "quotes" \\ path'

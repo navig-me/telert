@@ -57,10 +57,11 @@ Quoted placeholders produce strings; unquoted numeric placeholders such as
 `{"status": {status_code}, "timestamp": {timestamp}}` produce JSON numbers.
 An unquoted `{message}` is still a string, never executable JSON.
 
-Templates beginning with `{` or `[` are treated as JSON and invalid syntax raises
-an error before sending, rather than silently sending a malformed raw body.
+Templates beginning with `{` or `[` are sent as JSON only if they parse successfully
+after safe substitution. Otherwise they remain raw text, so templates such as
+`[ALERT] {message}` and `{host} down: {message}` continue to work.
 Bare placeholder templates (such as `{message}`) and other plain-text templates
-are sent as raw text, even when the resulting message looks like JSON.
+are also sent as raw text, even when the resulting message looks like JSON.
 
 ## Examples
 

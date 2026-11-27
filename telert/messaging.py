@@ -1612,9 +1612,11 @@ class EndpointProvider:
             text = json.loads(match.group(0))
             return json.dumps(self._replace_placeholders(text, message, vals))
 
-        # JSON-shaped templates must be valid: never silently change transport
-        # to raw data when a template has a syntax error.
-        return json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
+        try:
+            return json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
+        except json.JSONDecodeError:
+            # Braces and brackets can also begin ordinary text templates.
+            return self._replace_placeholders(template, message, vals)
 
     def send(self, message: str) -> bool:
         """Send a message via the custom endpoint."""

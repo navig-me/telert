@@ -97,6 +97,10 @@ Precedence is `--config PATH`, then `TELERT_CONFIG`, then
 directory; saving creates the selected file's parent directory. Monitoring keeps
 its existing separate data/log directories.
 
+Generated shell hooks embed the selected configuration file's absolute path in
+both notification and filter commands, so they keep using it in the parent shell,
+even after changing directories.
+
 The Python API uses `TELERT_CONFIG` and accepts the same aliases:
 
 ```python
@@ -108,6 +112,10 @@ send("Build failed", provider="discord", name="alerts")
 configure_endpoint("https://example.com/hook", name="My API", instance_name="audit")
 set_default_providers(["alerts", "endpoint:audit"])
 ```
+
+Send results use qualified `type:alias` keys for named instances (for example,
+`{"discord:alerts": True}`). Unnamed instances retain their legacy class-name keys
+(for example, `{"DiscordProvider": True}`), keeping each destination's result distinct.
 
 All `configure_*` provider helpers and `send` accept `instance_name`; provider
 helpers other than `configure_endpoint` also accept the equivalent `name`.

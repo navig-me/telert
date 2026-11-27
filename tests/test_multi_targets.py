@@ -1,6 +1,10 @@
 import json
 import os
 import sys
+import re
+import shlex
+import shutil
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -45,18 +49,18 @@ def test_named_targets_route_without_environment_override(monkeypatch):
     api.configure_discord("https://example.com/audit", instance_name="audit", set_default=False)
     monkeypatch.setenv("TELERT_DISCORD_WEBHOOK", "https://example.com/default")
     post = mock_discord(monkeypatch)
-    assert api.send("alert", provider="alerts") == {"alerts": True}
+    assert api.send("alert", provider="alerts") == {"discord:alerts": True}
     assert post.call_args.args[0] == "https://example.com/alerts"
     api.send("audit", provider="discord:audit")
     assert post.call_args.args[0] == "https://example.com/audit"
     api.send("audit", provider="discord", name="audit")
     assert post.call_args.args[0] == "https://example.com/audit"
     api.set_default_providers(["alerts", "discord:audit"])
-    assert api.send("both") == {"alerts": True, "audit": True}
+    assert api.send("both") == {"discord:alerts": True, "discord:audit": True}
     assert api.is_configured("audit")
     assert api.get_config("audit")["webhook_url"] == "https://example.com/audit"
     assert {p["name"] for p in api.list_providers()} == {"discord", "alerts", "audit"}
-    assert set(api.send("all", all_providers=True)) == {"DiscordProvider", "alerts", "audit"}
+    assert set(api.send("all", all_providers=True)) == {"DiscordProvider", "discord:alerts", "discord:audit"}
     stored = json.loads(messaging.MessagingConfig().config_file.read_text())
     assert stored["instances"]["alerts"] == {"type": "discord", "settings": {"webhook_url": "https://example.com/alerts"}}
 
@@ -131,7 +135,7 @@ def test_environment_defaults_and_batch_configuration(monkeypatch):
     assert messaging.MessagingConfig().get_default_providers() == ["alerts", "audit"]
     monkeypatch.setenv("TELERT_DEFAULT_PROVIDER", "discord:audit,alerts")
     post = mock_discord(monkeypatch)
-    assert list(api.send("both")) == ["audit", "alerts"]
+    assert list(api.send("both")) == ["discord:audit", "discord:alerts"]
     assert [call.args[0] for call in post.call_args_list] == [
         "https://example.com/audit", "https://example.com/alerts"
     ]
@@ -156,3 +160,70 @@ def test_default_instance_spelling(monkeypatch):
     post = mock_discord(monkeypatch)
     assert api.send("default", provider="discord", name="default") == {"DiscordProvider": True}
     assert post.call_args.args[0] == "https://example.com/default"
+
+
+@pytest.mark.parametrize("all_providers", [False, True])
+def test_alias_matching_legacy_result_key_cannot_hide_success(monkeypatch, all_providers):
+    api.configure_discord("https://example.com/default")
+    api.configure_discord("https://example.com/alias", name="DiscordProvider", set_default=False)
+    monkeypatch.setattr(
+        messaging.requests, "post",
+        Mock(side_effect=[SimpleNamespace(status_code=204), SimpleNamespace(status_code=500, text="failed")]),
+    )
+    result = api.send(
+        "partial success", provider=["discord", "DiscordProvider"],
+        all_providers=all_providers,
+    )
+    assert result == {"DiscordProvider": True, "discord:DiscordProvider": False}
+
+
+@pytest.mark.parametrize("shell,expected_commands", [("bash", 2), ("zsh", 4)])
+@pytest.mark.parametrize("source", ["flag", "environment", "default"])
+def test_generated_hooks_quote_selected_config(tmp_path, monkeypatch, capsys, shell, expected_commands, source):
+    path = tmp_path / "work ' $(touch INJECTED); config.json"
+    if source == "flag":
+        args = ["--config", str(path)]
+    elif source == "environment":
+        monkeypatch.setenv("TELERT_CONFIG", str(path))
+        args = []
+    else:
+        monkeypatch.delenv("TELERT_CONFIG")
+        path = messaging.CONFIG_DIR / "config.json"
+        args = []
+    run_cli(monkeypatch, *args, "hook", "--shell", shell)
+    script = capsys.readouterr().out
+    prefixes = re.findall(r"telert (--config .*?) (?:hook-check-filter|send) ", script)
+    assert len(prefixes) == expected_commands
+    for prefix in prefixes:
+        assert shlex.split(prefix) == ["--config", str(path.resolve())]
+        completed = subprocess.run(
+            ["/bin/sh", "-c", 'telert() { printf "%s\\n" "$@"; }; telert ' + prefix + ' hook-check-filter "echo hi"'],
+            cwd=tmp_path, text=True, capture_output=True, check=True,
+        )
+        assert completed.stdout.splitlines() == ["--config", str(path.resolve()), "hook-check-filter", "echo hi"]
+    assert not (tmp_path / "INJECTED").exists()
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_zsh_hook_uses_selected_config_in_parent_shell(tmp_path, monkeypatch, capsys, fallback):
+    zsh = shutil.which("zsh")
+    if not zsh:
+        pytest.skip("zsh unavailable")
+    path = tmp_path / "work ' config.json"
+    run_cli(monkeypatch, "--config", str(path), "hook", "--shell", "zsh", "--longer-than", "0")
+    hook = tmp_path / "hook.zsh"
+    hook.write_text(capsys.readouterr().out)
+    capture = tmp_path / "calls.txt"
+    setup = "autoload() { return 1; }; " if fallback else ""
+    program = (
+        'telert() { printf "%s\\n" "$@" >> "$CAPTURE"; }; '
+        + setup
+        + 'source "$HOOK_SCRIPT"; _telert_preexec "echo hi"; '
+        + '__TELERT_START__=-2; _telert_precmd'
+    )
+    env = dict(os.environ, HOOK_SCRIPT=str(hook), CAPTURE=str(capture))
+    env.pop("TELERT_CONFIG", None)
+    subprocess.run([zsh, "-f", "-c", program], env=env, text=True, capture_output=True, check=True)
+    calls = capture.read_text().splitlines()
+    assert calls[:4] == ["--config", str(path), "hook-check-filter", "echo hi"]
+    assert calls[4:7] == ["--config", str(path), "send"]

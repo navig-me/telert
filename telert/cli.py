@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 import textwrap
+import shlex
 import time
 
 from telert import __version__
@@ -707,6 +708,8 @@ def do_hook(a):
     """Generate a shell hook for command notifications."""
     shell = a.shell or os.path.basename(os.environ.get("SHELL", "bash"))
     threshold = a.longer_than
+    config_path = MessagingConfig().config_file.resolve()
+    command = f"telert --config {shlex.quote(str(config_path))}"
 
     if "zsh" in shell:
         hook_script = textwrap.dedent(f"""
@@ -727,8 +730,8 @@ def do_hook(a):
                             local duration=$((end - __TELERT_START__))
                             if (( duration >= {threshold} )); then
                                 # Check if command matches any filter
-                                if telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
-                                    telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                                if {command} hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                                    {command} send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
                                 fi
                             fi
                             unset __TELERT_START__
@@ -766,8 +769,8 @@ def do_hook(a):
                     local duration=$((end - __TELERT_START__))
                     if (( duration >= {threshold} )); then
                         # Check if command matches any filter
-                        if telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
-                            telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
+                        if {command} hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then
+                            {command} send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((duration/60)) $((duration%60)))"
                         fi
                     fi
                     unset __TELERT_START__
@@ -781,7 +784,7 @@ def do_hook(a):
     else:  # Default to bash
         hook_script = textwrap.dedent(f"""
             telert_preexec() {{{{ export __TELERT_CMD__="$BASH_COMMAND"; export TELERT_START=$EPOCHSECONDS; }}}}
-            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )) && telert hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then telert send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
+            telert_precmd()  {{{{ local st=$?; if [[ -n "$TELERT_START" ]]; then local d=$((EPOCHSECONDS-TELERT_START)); if (( d >= {threshold} )) && {command} hook-check-filter "$__TELERT_CMD__" 2>/dev/null; then {command} send "$__TELERT_CMD__ exited with $st in $(printf '%dm%02ds' $((d/60)) $((d%60)))"; fi; unset TELERT_START; fi; }}}}
             trap 'telert_preexec' DEBUG
             PROMPT_COMMAND="telert_precmd${{{{PROMPT_COMMAND:+;}}}}$PROMPT_COMMAND"
         """).strip()
@@ -1841,9 +1844,11 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
-    for parser in (telegram_parser, teams_parser, slack_parser, discord_parser, audio_parser, desktop_parser, pushover_parser, email_parser):
-        parser.add_argument("--name", "--instance-name", dest="instance_name", help="named provider instance (default: unnamed)")
-    endpoint_parser.add_argument("--instance-name", help="named provider instance (separate from display --name)")
+    for provider_name, parser in config_sp.choices.items():
+        if provider_name not in {provider.value for provider in Provider}:
+            continue
+        options = ("--instance-name",) if provider_name == "endpoint" else ("--name", "--instance-name")
+        parser.add_argument(*options, dest="instance_name", help="named provider instance (default: unnamed)")
 
     c.set_defaults(func=do_config)
 

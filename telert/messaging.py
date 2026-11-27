@@ -1764,7 +1764,7 @@ def get_providers(
             else:
                 raise ValueError(f"Provider '{reference}' is not configured")
             if key != provider_enum.value:
-                provider.instance_name = key
+                provider.result_name = f"{provider_enum.value}:{key}"
 
     # If no providers have been specified or successfully configured,
     # check environment variables to create providers on-the-fly
@@ -1992,14 +1992,14 @@ def send_message(
             # Send the processed message
             result = provider_instance.send(processed_message)
             
-        return {getattr(provider_instance, "instance_name", provider_instance.__class__.__name__): result}
+        return {getattr(provider_instance, "result_name", provider_instance.__class__.__name__): result}
 
     # Send to all specified providers and collect results
     results = {}
     exceptions = []
 
     for provider_instance in providers_to_use:
-        provider_name = getattr(provider_instance, "instance_name", provider_instance.__class__.__name__)
+        provider_name = getattr(provider_instance, "result_name", provider_instance.__class__.__name__)
         try:
             # Check if the provider is Telegram
             if isinstance(provider_instance, TelegramProvider):

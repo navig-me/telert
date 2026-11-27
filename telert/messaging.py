@@ -1577,6 +1577,9 @@ class XMPPProvider:
             done = asyncio.get_running_loop().create_future()
             client.enable_direct_tls = self.direct_tls
             client.enable_starttls = not self.direct_tls
+            # Preserve SRV discovery while choosing the right fallback when the
+            # domain has no service record (ClientXMPP defaults to port 5222).
+            client.default_port = 5223 if self.direct_tls else 5222
             client.ssl_context = ssl.create_default_context(cafile=self.ca_file)
 
             def fail(_event):
@@ -1593,7 +1596,10 @@ class XMPPProvider:
                     fail(None)
 
             client.add_event_handler("session_start", session_start)
-            for event in ("failed_auth", "connection_failed", "disconnected"):
+            # connection_failed describes one address, not the entire discovery
+            # attempt. Slixmpp emits reconnect_delay only after exhausting all
+            # candidate addresses; stop there rather than retrying indefinitely.
+            for event in ("failed_auth", "reconnect_delay", "disconnected"):
                 client.add_event_handler(event, fail)
             try:
                 async def connect_and_send():

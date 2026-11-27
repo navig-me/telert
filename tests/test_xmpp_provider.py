@@ -29,6 +29,8 @@ def fake_xmpp(monkeypatch):
         event = "session_start"
         connect_error = False
         disconnect_error = False
+        initial_failures = 0
+        default_port = 5222
 
         def __init__(self, jid, password):
             self.jid, self.password = jid, password
@@ -48,6 +50,13 @@ def fake_xmpp(monkeypatch):
             self.address = kwargs
             if self.connect_error:
                 raise RuntimeError(self.password)
+            self.failed_addresses = 0
+            for _ in range(self.initial_failures):
+                self.failed_addresses += 1
+                handler = self.handlers.get("connection_failed")
+                if handler is not None:
+                    handler(OSError("one discovered address failed"))
+                await asyncio.sleep(0)
             handler = self.handlers[self.event]
             result = handler(None)
             if asyncio.iscoroutine(result):
@@ -147,6 +156,7 @@ def test_send_discovery_and_cleanup(fake_xmpp):
     assert client.messages == [{"mto": "receiver@example.org", "mbody": "hello", "mtype": "chat"}]
     assert client.presence and client.closed and client.cancelled and client.aborted
     assert client.enable_starttls and not client.enable_direct_tls
+    assert client.default_port == 5222
     assert client.ssl_context.verify_mode == ssl.CERT_REQUIRED
     assert client.ssl_context.check_hostname
 
@@ -156,6 +166,37 @@ def test_send_explicit_tls_server(fake_xmpp):
     assert provider(server="xmpp.example.org", direct_tls=True).send("hello")
     assert instances[0].address == {"host": "xmpp.example.org", "port": 5223}
     assert instances[0].enable_direct_tls and not instances[0].enable_starttls
+
+
+def test_direct_tls_discovery_uses_tls_fallback_port(fake_xmpp):
+    _, instances = fake_xmpp
+    assert provider(direct_tls=True).send("hello")
+    client = instances[0]
+    assert client.address == {}  # Keep SRV discovery enabled.
+    assert client.default_port == 5223
+    assert client.enable_direct_tls and not client.enable_starttls
+
+
+def test_address_failure_does_not_prevent_later_success(fake_xmpp):
+    Client, instances = fake_xmpp
+    Client.initial_failures = 1
+    assert provider().send("hello")
+    client = instances[0]
+    assert client.failed_addresses == 1
+    assert len(client.messages) == 1
+    assert client.closed and client.cancelled and client.aborted
+
+
+def test_exhausted_addresses_fail_before_reconnecting(fake_xmpp):
+    Client, instances = fake_xmpp
+    Client.initial_failures = 2
+    Client.event = "reconnect_delay"
+    with pytest.raises(RuntimeError, match="XMPP send failed"):
+        provider().send("hello")
+    client = instances[0]
+    assert client.failed_addresses == 2
+    assert not client.messages
+    assert client.cancelled and client.aborted
 
 
 def test_send_port_without_server(fake_xmpp):
@@ -182,7 +223,7 @@ def test_send_from_thread(fake_xmpp):
         assert executor.submit(provider().send, "thread caller").result()
 
 
-@pytest.mark.parametrize("event", ["failed_auth", "connection_failed", "disconnected"])
+@pytest.mark.parametrize("event", ["failed_auth", "reconnect_delay", "disconnected"])
 def test_failure_events(fake_xmpp, event):
     Client, instances = fake_xmpp
     Client.event = event

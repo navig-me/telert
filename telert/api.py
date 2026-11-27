@@ -333,6 +333,26 @@ def configure_email(
     configure_provider(Provider.EMAIL, **config, **_instance_options(name, instance_name))
 
 
+def configure_xmpp(
+    jid: str, password: str, recipient: str,
+    server: Optional[str] = None, port: Optional[int] = None,
+    direct_tls: bool = False, ca_file: Optional[str] = None,
+    set_default: bool = True, name: Optional[str] = None,
+    instance_name: Optional[str] = None,
+) -> None:
+    """Configure XMPP chat notifications (install ``telert[xmpp]`` to send).
+
+    By default Slixmpp discovers the server and negotiates STARTTLS with
+    certificate verification. Use direct_tls for TLS-on-connect, or ca_file
+    for a private certificate authority. Configuration does not connect.
+    """
+    configure_provider(
+        Provider.XMPP, jid=jid, password=password, recipient=recipient,
+        server=server, port=port, direct_tls=direct_tls, ca_file=ca_file,
+        set_default=set_default, **_instance_options(name, instance_name),
+    )
+
+
 # Legacy function for backward compatibility
 def configure(token: str, chat_id: str) -> None:
     """

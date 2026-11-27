@@ -64,7 +64,8 @@ telert = "telert.cli:main"
 dev = ["build", "twine", "pytest"]
 audio = ["playsound==1.2.2"]
 desktop = []
-all = ["playsound==1.2.2", "psutil", "ping3"]
+xmpp = ["slixmpp>=1.12"]
+all = ["playsound==1.2.2", "psutil", "ping3", "slixmpp>=1.12"]
 
 [tool.setuptools]
 packages = ["telert", "telert.data", "telert.monitoring"]

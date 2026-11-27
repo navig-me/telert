@@ -20,7 +20,7 @@
 
 Telert is a lightweight utility for multi-channel notifications for alerting when terminal commands or Python code completes. It also extends this notification capability to easily monitor processes, log files, and HTTP endpoints uptime. The tool supports multiple notification channels:
 
-- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord
+- **Messaging Apps**: Telegram, Microsoft Teams, Slack, Discord, XMPP
 - **Email**: SMTP email notifications
 - **Mobile Devices**: Pushover (Android & iOS)
 - **Local Notifications**: Desktop notifications, Audio alerts
@@ -134,6 +134,7 @@ For `configure_endpoint`, `name` retains its existing display-label meaning.
   - [Slack](#slack-setup)
   - [Discord](#discord-setup)
   - [Email](#email-setup)
+  - [XMPP](#xmpp-setup)
   - [Pushover](#pushover-setup)
   - [Custom HTTP Endpoints](#custom-http-endpoint-setup)
   - [Audio Alerts](#audio-alerts-setup)
@@ -329,6 +330,59 @@ telert config email \
 ```
 
 [**Detailed Email Setup Guide**](https://github.com/navig-me/telert/blob/main/docs/EMAIL.md)
+
+### XMPP Setup
+
+Install the optional XMPP dependency (Python 3.9 or newer):
+
+```bash
+pip install 'telert[xmpp]'
+telert config xmpp --jid 'sender@example.org' --password 'your-password' \
+  --recipient 'recipient@example.org' --set-default
+telert send --provider xmpp 'Job completed'
+```
+
+XMPP works with services such as Prosody, ejabberd, and Jabber. By default,
+Slixmpp discovers the server from your account domain and uses STARTTLS with
+certificate verification. Override discovery with `--server xmpp.example.org`
+and/or `--port 5222`. Use `--direct-tls` for TLS-on-connect (default port 5223),
+and `--ca-file /path/to/ca.pem` for a private certificate authority. Certificate
+verification is never disabled. `--recipient-jid` is also accepted by the CLI.
+
+```python
+from telert import configure_xmpp, send
+
+configure_xmpp("sender@example.org", "your-password", "recipient@example.org")
+send("Job completed", provider="xmpp")
+```
+
+Environment overrides: `TELERT_XMPP_JID`, `TELERT_XMPP_PASSWORD`,
+`TELERT_XMPP_RECIPIENT`, `TELERT_XMPP_SERVER`, `TELERT_XMPP_PORT`,
+`TELERT_XMPP_DIRECT_TLS` (`true`/`false`), and `TELERT_XMPP_CA_FILE`.
+Individual variables override saved fields; all three credentials/JIDs are
+required when using only the environment. `TELERT_DEFAULT_PROVIDER=xmpp`
+selects XMPP as the default. Configuration and status work without Slixmpp;
+only sending requires the extra. Passwords are saved in the existing local
+configuration file; avoid putting real passwords in shared shell history.
+
+Named XMPP instances use the same routing as other providers:
+
+```bash
+telert config xmpp --name alerts --jid 'sender@example.org' \
+  --password 'your-password' --recipient 'alerts@example.org'
+telert send --provider xmpp:alerts 'Job completed'
+telert send --provider alerts 'Job completed'
+```
+
+In Python, pass `name="alerts"` or `instance_name="alerts"` to
+`configure_xmpp`, then use `send("Job completed", provider="xmpp:alerts")`.
+Named instances return result keys such as `xmpp:alerts` and do not inherit
+the unnamed provider's environment overrides. Use global `--config PATH`
+or `TELERT_CONFIG` to select a different configuration file.
+
+The synchronous send API also works in threads and in running asyncio
+applications (it blocks until sending completes). A successful result means the
+message was queued and the stream closed, not that the recipient read it.
 
 ### Pushover Setup
 

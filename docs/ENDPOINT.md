@@ -40,12 +40,28 @@ telert config endpoint \
 
 ## Template Placeholders
 
-The endpoint provider supports these placeholders in both URL and payload templates:
+The endpoint provider supports these placeholders in URLs, header values, and payload templates:
 
 - `{message}` - The notification message
 - `{status_code}` - Exit status of the command (when using run mode)
 - `{duration_seconds}` - Time taken by the command in seconds (when using run mode)
 - `{timestamp}` - Current Unix timestamp
+
+Replacement happens once: placeholder-like text inside your message stays literal.
+URLs and header values use the original text without JSON escaping or URL encoding.
+Use header-safe values (no line breaks) for messages inserted into HTTP headers.
+
+Object and array payload templates are sent as JSON. Quotes, backslashes, Unicode,
+and control characters in messages are preserved, including in nested strings.
+Quoted placeholders produce strings; unquoted numeric placeholders such as
+`{"status": {status_code}, "timestamp": {timestamp}}` produce JSON numbers.
+An unquoted `{message}` is still a string, never executable JSON.
+
+Templates beginning with `{` or `[` are sent as JSON only if they parse successfully
+after safe substitution. Otherwise they remain raw text, so templates such as
+`[ALERT] {message}` and `{host} down: {message}` continue to work.
+Bare placeholder templates (such as `{message}`) and other plain-text templates
+are also sent as raw text, even when the resulting message looks like JSON.
 
 ## Examples
 

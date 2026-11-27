@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-11-27)
+- Add XMPP provider (`telert config xmpp`, `configure_xmpp`, `TELERT_XMPP_*`); requires optional `pip install "telert[xmpp]"` (slixmpp) (#12)
+- Add multiple named targets per provider (e.g. `telert config discord --name alerts`, `--provider alerts` / `discord:alerts`) and a global `--config PATH` flag / `TELERT_CONFIG` env var to select the config file; existing configs keep working (#9)
+- Fix custom endpoint provider sending invalid JSON for messages with quotes, backslashes or newlines; placeholder-like text inside a message is now left literal, unquoted placeholders keep their JSON type, and header placeholders are rendered (#35, thanks @KROFN)
+- Fix macOS desktop notifications failing with accents or emoji by passing text to `osascript` as arguments (#28, thanks @JeanExtreme002)
+- Add pytest test suite under `tests/`
+
 ## 0.2.9 (2026-09-28)
 - Fix Docker build: `python3-distutils` no longer exists in the `python:3.13-slim` (Debian trixie) base image; drop it and the redundant `python3-setuptools`/`python3-wheel` apt packages (already installed via pip)
 - Pin `playsound==1.2.2` to avoid the broken 1.3.0 sdist build (`OSError: could not get source code`) under pip build isolation

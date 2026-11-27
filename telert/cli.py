@@ -91,10 +91,18 @@ def _human(sec: float) -> str:
 
 
 # ────────────────────────────── sub‑commands ───────────────────────────────
+def _resolve_reference(value):
+    kind, key = MessagingConfig().resolve_provider(value)
+    return kind if key == kind.value else key
+
+
 
 
 def do_config(a):
     """Configure the messaging provider."""
+    def configure_target(provider, **kwargs):
+        return configure_provider(provider, instance_name=getattr(a, "instance_name", None), **kwargs)
+
     if hasattr(a, "provider") and a.provider:
         provider = a.provider
 
@@ -107,7 +115,7 @@ def do_config(a):
             provider_list = []
             for p in a.providers.split(","):
                 try:
-                    provider_list.append(Provider.from_string(p.strip()))
+                    provider_list.append(_resolve_reference(p.strip()))
                 except ValueError:
                     sys.exit(f"❌ Unknown provider: {p.strip()}")
 
@@ -116,7 +124,7 @@ def do_config(a):
             config.set_default_providers(provider_list)
 
             # Print confirmation
-            providers_str = ", ".join([p.value for p in provider_list])
+            providers_str = ", ".join(map(str, provider_list))
             print(f"✔ Default providers set: {providers_str}")
 
             # Exit the function since we're done
@@ -142,7 +150,7 @@ def do_config(a):
                         marker = " (default)"
                 else:
                     marker = ""
-                print(f"  {provider.value}{marker}")
+                print(f"  {provider}{marker}")
             return
 
         # Single provider configuration
@@ -162,14 +170,14 @@ def do_config(a):
             if hasattr(a, "avatar_url") and a.avatar_url:
                 config_params["avatar_url"] = a.avatar_url
 
-            configure_provider(Provider.DISCORD, **config_params)
+            configure_target(Provider.DISCORD, **config_params)
             print("✔ Discord configuration saved")
 
         elif provider == "telegram":
             if not (hasattr(a, "token") and hasattr(a, "chat_id")):
                 sys.exit("❌ Telegram configuration requires --token and --chat-id")
 
-            configure_provider(
+            configure_target(
                 Provider.TELEGRAM,
                 token=a.token,
                 chat_id=a.chat_id,
@@ -182,7 +190,7 @@ def do_config(a):
             if not hasattr(a, "webhook_url"):
                 sys.exit("❌ Teams configuration requires --webhook-url")
 
-            configure_provider(
+            configure_target(
                 Provider.TEAMS,
                 webhook_url=a.webhook_url,
                 set_default=a.set_default,
@@ -194,7 +202,7 @@ def do_config(a):
             if not hasattr(a, "webhook_url"):
                 sys.exit("❌ Slack configuration requires --webhook-url")
 
-            configure_provider(
+            configure_target(
                 Provider.SLACK,
                 webhook_url=a.webhook_url,
                 set_default=a.set_default,
@@ -213,7 +221,7 @@ def do_config(a):
                 config_params["sound_file"] = a.sound_file
 
             try:
-                configure_provider(Provider.AUDIO, **config_params)
+                configure_target(Provider.AUDIO, **config_params)
                 if hasattr(a, "sound_file") and a.sound_file:
                     print("✔ Audio configuration saved with custom sound file")
                 else:
@@ -232,7 +240,7 @@ def do_config(a):
                 config_params["icon_path"] = a.icon_path
 
             try:
-                configure_provider(Provider.DESKTOP, **config_params)
+                configure_target(Provider.DESKTOP, **config_params)
                 print("✔ Desktop notification configuration saved")
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
@@ -241,7 +249,7 @@ def do_config(a):
             if not (hasattr(a, "token") and hasattr(a, "user")):
                 sys.exit("❌ Pushover configuration requires --token and --user")
 
-            configure_provider(
+            configure_target(
                 Provider.PUSHOVER,
                 token=a.token,
                 user=a.user,
@@ -289,7 +297,7 @@ def do_config(a):
                 config_params["headers"] = headers
 
             try:
-                configure_provider(Provider.ENDPOINT, **config_params)
+                configure_target(Provider.ENDPOINT, **config_params)
                 print(f"✔ Endpoint configuration saved: {a.name or 'Custom Endpoint'}")
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
@@ -324,7 +332,7 @@ def do_config(a):
                 config_params["use_html"] = a.use_html
 
             try:
-                configure_provider(Provider.EMAIL, **config_params)
+                configure_target(Provider.EMAIL, **config_params)
                 print(f"✔ Email configuration saved for {a.server}")
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
@@ -351,7 +359,7 @@ def do_config(a):
                     marker = " (default)"
             else:
                 marker = ""
-            print(f"  {provider.value}{marker}")
+            print(f"  {provider}{marker}")
         return
 
 
@@ -361,7 +369,7 @@ def do_status(a):
     default_providers = config.get_default_providers()
 
     # Convert to list of strings for easier checks
-    default_provider_names = [p.value for p in default_providers]
+    default_provider_names = list(map(str, default_providers))
 
     # Show status for all configured providers
     print("Configured providers:")
@@ -543,6 +551,11 @@ def do_status(a):
         to_addrs = email_config.get("to_addrs", [])
         to_str = ", ".join(to_addrs) if to_addrs else "unknown"
         print(f"- Email{default_marker}: server={server}:{port} → {to_str}")
+    aliases = config._config.get("instances", {})
+    for alias, entry in aliases.items():
+        marker = " (default)" if alias in default_provider_names else ""
+        print(f"- {alias} ({entry['type']}){marker}")
+
 
     # If none configured, show warning
     if not (
@@ -555,6 +568,7 @@ def do_status(a):
         or endpoint_config
         or discord_config
         or email_config
+        or aliases
     ):
         print(
             "No providers configured. Use `telert config` or `telert init` to set up a provider."
@@ -586,7 +600,7 @@ def do_status(a):
                 providers_to_test = []
                 for p in a.provider.split(","):
                     try:
-                        providers_to_test.append(Provider.from_string(p.strip()))
+                        providers_to_test.append(_resolve_reference(p.strip()))
                     except ValueError:
                         traceback.print_exc()
                         sys.exit(f"❌ Unknown provider: {p.strip()}")
@@ -605,14 +619,14 @@ def do_status(a):
             else:
                 # Single provider
                 try:
-                    provider_to_test = Provider.from_string(a.provider)
+                    provider_to_test = _resolve_reference(a.provider)
                     if not config.is_provider_configured(provider_to_test):
                         sys.exit(
-                            f"❌ Provider {provider_to_test.value} is not configured"
+                            f"❌ Provider {provider_to_test} is not configured"
                         )
 
                     send_message("✅ telert status OK", provider_to_test)
-                    print(f"sent: test message via {provider_to_test.value}")
+                    print(f"sent: test message via {provider_to_test}")
                 except ValueError:
                     sys.exit(f"❌ Unknown provider: {a.provider}")
                 except Exception as e:
@@ -797,14 +811,14 @@ def do_send(a):
             providers_to_use = []
             for p in a.provider.split(","):
                 try:
-                    providers_to_use.append(Provider.from_string(p.strip()))
+                    providers_to_use.append(_resolve_reference(p.strip()))
                 except ValueError:
                     sys.exit(f"❌ Unknown provider: {p.strip()}")
             provider = providers_to_use
         # Single provider
         else:
             try:
-                provider = Provider.from_string(a.provider)
+                provider = _resolve_reference(a.provider)
             except ValueError:
                 sys.exit(f"❌ Unknown provider: {a.provider}")
 
@@ -914,14 +928,14 @@ def do_run(a):
             providers_to_use = []
             for p in a.provider.split(","):
                 try:
-                    providers_to_use.append(Provider.from_string(p.strip()))
+                    providers_to_use.append(_resolve_reference(p.strip()))
                 except ValueError:
                     sys.exit(f"❌ Unknown provider: {p.strip()}")
             provider = providers_to_use
         # Single provider
         else:
             try:
-                provider = Provider.from_string(a.provider)
+                provider = _resolve_reference(a.provider)
             except ValueError:
                 sys.exit(f"❌ Unknown provider: {a.provider}")
 
@@ -1015,14 +1029,14 @@ def piped_mode():
                 providers_list = []
                 for p in provider_name.split(","):
                     try:
-                        providers_list.append(Provider.from_string(p.strip()))
+                        providers_list.append(_resolve_reference(p.strip()))
                     except ValueError:
                         sys.exit(f"❌ Unknown provider: {p.strip()}")
                 provider = providers_list
             # Single provider
             else:
                 try:
-                    provider = Provider.from_string(provider_name)
+                    provider = _resolve_reference(provider_name)
                 except ValueError:
                     sys.exit(f"❌ Unknown provider: {provider_name}")
             break
@@ -1042,7 +1056,7 @@ def piped_mode():
                     providers_list = []
                     for p in provider_name.split(","):
                         try:
-                            providers_list.append(Provider.from_string(p.strip()))
+                            providers_list.append(_resolve_reference(p.strip()))
                         except ValueError:
                             sys.exit(f"❌ Unknown provider: {p.strip()}")
                     provider = providers_list
@@ -1050,7 +1064,7 @@ def piped_mode():
                 # Single provider
                 else:
                     try:
-                        provider = Provider.from_string(provider_name)
+                        provider = _resolve_reference(provider_name)
                         skip_next = True
                     except ValueError:
                         sys.exit(f"❌ Unknown provider: {provider_name}")
@@ -1493,7 +1507,7 @@ def do_init(a):
             # Show configured providers
             print("Configured providers:")
             for i, p in enumerate(selected_providers, 1):
-                print(f"{i}. {p.value}")
+                print(f"{i}. {p}")
 
             choice = (
                 input("\nUse the current order as defaults? (y/n, default: y): ")
@@ -1504,7 +1518,7 @@ def do_init(a):
             if choice != "n":
                 # Use as is
                 config.set_default_providers(selected_providers)
-                providers_str = ", ".join([p.value for p in selected_providers])
+                providers_str = ", ".join(map(str, selected_providers))
                 print(f"✅ Default providers set: {providers_str}")
             else:
                 # Ask for custom order
@@ -1526,22 +1540,22 @@ def do_init(a):
 
                     if ordered_providers:
                         config.set_default_providers(ordered_providers)
-                        providers_str = ", ".join([p.value for p in ordered_providers])
+                        providers_str = ", ".join(map(str, ordered_providers))
                         print(f"✅ Default providers set: {providers_str}")
                     else:
                         # Fallback to default order if parsing fails
                         config.set_default_providers(selected_providers)
-                        providers_str = ", ".join([p.value for p in selected_providers])
+                        providers_str = ", ".join(map(str, selected_providers))
                         print(f"✅ Default providers set: {providers_str}")
                 except ValueError:
                     # Fallback to default order if parsing fails
                     config.set_default_providers(selected_providers)
-                    providers_str = ", ".join([p.value for p in selected_providers])
+                    providers_str = ", ".join(map(str, selected_providers))
                     print(f"✅ Default providers set: {providers_str}")
         else:
             # Only one provider, set as default
             config.set_default_provider(selected_providers[0])
-            print(f"✅ Default provider set: {selected_providers[0].value}")
+            print(f"✅ Default provider set: {selected_providers[0]}")
 
         # Step 3: Offer to test configuration
         print("\nConfiguration complete! Would you like to test it now? (y/n)")
@@ -1577,6 +1591,14 @@ def do_init(a):
 
 def main():
     """Main entry point for the CLI."""
+    # Strip the leading global option before legacy pipeline dispatch.
+    global_parser = argparse.ArgumentParser(add_help=False)
+    global_parser.add_argument("--config")
+    prefix = sys.argv[1:3] if len(sys.argv) > 1 and sys.argv[1] == "--config" else sys.argv[1:2] if len(sys.argv) > 1 and sys.argv[1].startswith("--config=") else []
+    if prefix:
+        selected = global_parser.parse_args(prefix).config
+        os.environ["TELERT_CONFIG"] = selected
+        del sys.argv[1:1 + len(prefix)]
     # Early version flag handling (bypass pipeline mode)
     if len(sys.argv) >= 2 and sys.argv[1] == "--version":
         print(f"telert {__version__}")
@@ -1592,6 +1614,7 @@ def main():
         epilog="Example: telert run ls -la",
     )
     p.add_argument("--version", action="version", version=f"telert {__version__}")
+    p.add_argument("--config", metavar="PATH", help="configuration file (overrides TELERT_CONFIG)")
 
     sp = p.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -1818,6 +1841,9 @@ def main():
         action="store_true",
         help="add to existing default providers",
     )
+    for parser in (telegram_parser, teams_parser, slack_parser, discord_parser, audio_parser, desktop_parser, pushover_parser, email_parser):
+        parser.add_argument("--name", "--instance-name", dest="instance_name", help="named provider instance (default: unnamed)")
+    endpoint_parser.add_argument("--instance-name", help="named provider instance (separate from display --name)")
 
     c.set_defaults(func=do_config)
 

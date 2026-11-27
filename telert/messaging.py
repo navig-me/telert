@@ -1598,33 +1598,36 @@ class EndpointProvider:
     ) -> Any:
         """Render JSON objects/arrays safely; preserve plain-text templates."""
         vals = values if values is not None else self._placeholder_values(message)
+        stripped = template.lstrip()
+        if not stripped.startswith(("{", "[")) or self._PLACEHOLDER_RE.match(stripped):
+            return self._replace_placeholders(template, message, vals)
 
         def replace_token(match: re.Match) -> str:
             key = match.group(1)
             if key is not None:
                 # Raw message content must never be interpreted as JSON data.
                 return json.dumps(vals[key]) if key == "message" else vals[key]
-            return self._PLACEHOLDER_RE.sub(
-                lambda inner: json.dumps(vals[inner.group(1)])[1:-1],
-                match.group(0),
-            )
+            # Decode the template string before substitution, so JSON escapes
+            # adjacent to a placeholder cannot change the inserted value.
+            text = json.loads(match.group(0))
+            return json.dumps(self._replace_placeholders(text, message, vals))
 
-        try:
-            parsed = json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
-            if isinstance(parsed, (dict, list)):
-                return parsed
-        except json.JSONDecodeError:
-            pass
-        return self._replace_placeholders(template, message, vals)
+        # JSON-shaped templates must be valid: never silently change transport
+        # to raw data when a template has a syntax error.
+        return json.loads(self._JSON_TOKEN_RE.sub(replace_token, template))
 
     def send(self, message: str) -> bool:
         """Send a message via the custom endpoint."""
         if not self.url:
             raise ValueError("Endpoint provider not configured")
 
-        # Reuse one context so URL and payload timestamps agree.
+        # Reuse one context so URL, headers and payload timestamps agree.
         values = self._placeholder_values(message)
         url = self._replace_placeholders(self.url, message, values)
+        headers = {
+            key: self._replace_placeholders(value, message, values)
+            for key, value in self.headers.items()
+        }
 
         # Safely substitute template values, then parse the JSON result.
         if self.payload_template:
@@ -1637,7 +1640,7 @@ class EndpointProvider:
             if self.method.upper() == "GET":
                 response = requests.get(
                     url,
-                    headers=self.headers,
+                    headers=headers,
                     timeout=self.timeout,
                 )
             elif self.method.upper() == "POST":
@@ -1646,7 +1649,7 @@ class EndpointProvider:
                     response = requests.post(
                         url,
                         json=payload,
-                        headers=self.headers,
+                        headers=headers,
                         timeout=self.timeout,
                     )
                 else:
@@ -1654,7 +1657,7 @@ class EndpointProvider:
                     response = requests.post(
                         url,
                         data=payload,
-                        headers=self.headers,
+                        headers=headers,
                         timeout=self.timeout,
                     )
             else:
@@ -1664,7 +1667,7 @@ class EndpointProvider:
                     url,
                     json=payload if isinstance(payload, (dict, list)) else None,
                     data=None if isinstance(payload, (dict, list)) else payload,
-                    headers=self.headers,
+                    headers=headers,
                     timeout=self.timeout,
                 )
 

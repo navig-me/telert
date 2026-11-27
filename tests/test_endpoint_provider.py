@@ -157,6 +157,72 @@ class EndpointProviderTests(unittest.TestCase):
         self.assertEqual(call.kwargs["json"], {"text": message})
         self.assertIsNone(call.kwargs["data"])
 
+    def test_all_control_characters_and_placeholder_tokens_stay_literal(self):
+        message = "".join(chr(code) for code in range(32))
+        message += '{message} {status_code} {duration_seconds} {timestamp}'
+        post, _ = self.send_with_mock(message)
+        self.assertEqual(post.call_args.kwargs["json"], {"text": message})
+
+    def test_json_string_escapes_are_decoded_before_substitution(self):
+        template = r'{"text": "\\{message}", "encoded": "\u007bmessage}"}'
+        message = 'quote " newline\n {timestamp}'
+        post, _ = self.send_with_mock(message, payload_template=template)
+        self.assertEqual(
+            post.call_args.kwargs["json"],
+            {"text": "\\" + message, "encoded": message},
+        )
+
+    def test_invalid_json_templates_raise_without_sending(self):
+        for template in (
+            '{"text": "{message}",}',
+            '["{message}",]',
+            '{"text": "{message}"',
+            '{"text": "\\q{message}"}',
+            '{"status": {unknown}}',
+        ):
+            with self.subTest(template=template):
+                provider = EndpointProvider(
+                    url="https://example.invalid/notify", payload_template=template
+                )
+                with patch("telert.messaging.requests.post") as post:
+                    with self.assertRaises(ValueError):
+                        provider.send('quoted "message"\n')
+                post.assert_not_called()
+
+    def test_headers_render_once_for_every_http_method(self):
+        message = 'literal {timestamp} "quotes" \\ path'
+        for method, target in (
+            ("GET", "get"), ("POST", "post"), ("PATCH", "request")
+        ):
+            with self.subTest(method=method):
+                original_headers = {"X-Message": "{message}", "X-Time": "{timestamp}"}
+                provider = EndpointProvider(
+                    url="https://example.invalid/{timestamp}",
+                    method=method,
+                    headers=original_headers,
+                    payload_template='{"time": {timestamp}, "text": "{message}"}',
+                )
+                with patch("telert.messaging.time.time", return_value=123) as now:
+                    with patch(
+                        "telert.messaging.requests." + target,
+                        return_value=Mock(status_code=200),
+                    ) as request:
+                        self.assertTrue(provider.send(message))
+                call = request.call_args
+                self.assertEqual(call.args[-1], "https://example.invalid/123")
+                self.assertEqual(
+                    call.kwargs["headers"], {"X-Message": message, "X-Time": "123"}
+                )
+                self.assertEqual(
+                    original_headers,
+                    {"X-Message": "{message}", "X-Time": "{timestamp}"},
+                )
+                if method != "GET":
+                    self.assertEqual(
+                        call.kwargs["json"], {"time": 123, "text": message}
+                    )
+                now.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

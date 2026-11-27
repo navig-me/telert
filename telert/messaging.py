@@ -1044,21 +1044,21 @@ class DesktopProvider:
                 "terminal-notifier. Falling back to AppleScript."
             )
 
-        # Helper to build AppleScript command safely
-        def _osascript(expr: str) -> bool:
-            return _run(["osascript", "-e", expr])
+        # Helper to run AppleScript with the text passed as arguments: building the
+        # script from the text breaks on quotes, and json.dumps turns accents and
+        # emoji into \uXXXX escapes, which AppleScript rejects as a syntax error.
+        def _osascript(statement: str) -> bool:
+            script = ["-e", "on run argv", "-e", statement, "-e", "end run"]
+            return _run(["osascript", *script, "--", message, self.app_name])
 
         # 2️⃣ plain 'display notification'
-        if _osascript(
-            f"display notification {json.dumps(message)} "
-            f"with title {json.dumps(self.app_name)}"
-        ):
+        if _osascript("display notification (item 1 of argv) with title (item 2 of argv)"):
             return True
 
         # 3️⃣ older fallback via System Events
         if _osascript(
-            f'tell application "System Events" to display notification '
-            f"{json.dumps(message)} with title {json.dumps(self.app_name)}"
+            'tell application "System Events" to display notification (item 1 of argv) '
+            "with title (item 2 of argv)"
         ):
             return True
 

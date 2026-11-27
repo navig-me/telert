@@ -329,6 +329,19 @@ def do_config(a):
             except ValueError as e:
                 sys.exit(f"❌ {str(e)}")
 
+        elif provider == "xmpp":
+            try:
+                configure_provider(
+                    Provider.XMPP, jid=a.jid, password=a.password,
+                    recipient=a.recipient, server=a.server, port=a.port,
+                    direct_tls=a.direct_tls, ca_file=a.ca_file,
+                    set_default=a.set_default or a.add_to_defaults,
+                    add_to_defaults=a.add_to_defaults,
+                )
+                print("✔ XMPP configuration saved")
+            except ValueError as e:
+                sys.exit(f"❌ {str(e)}")
+
         else:
             sys.exit(f"❌ Unknown provider: {provider}")
     else:
@@ -544,6 +557,18 @@ def do_status(a):
         to_str = ", ".join(to_addrs) if to_addrs else "unknown"
         print(f"- Email{default_marker}: server={server}:{port} → {to_str}")
 
+    xmpp_config = config.get_provider_config(Provider.XMPP)
+    if xmpp_config:
+        default_marker = ""
+        if Provider.XMPP.value in default_provider_names:
+            priority = default_provider_names.index(Provider.XMPP.value) + 1
+            default_marker = f" (default #{priority})" if len(default_provider_names) > 1 else " (default)"
+        print(
+            f"- XMPP{default_marker}: {xmpp_config.get('jid', 'unknown')} → "
+            f"{xmpp_config.get('recipient', 'unknown')} "
+            f"(server={xmpp_config.get('server') or 'auto'}, port={xmpp_config.get('port') or 'auto'})"
+        )
+
     # If none configured, show warning
     if not (
         telegram_config
@@ -555,6 +580,7 @@ def do_status(a):
         or endpoint_config
         or discord_config
         or email_config
+        or xmpp_config
     ):
         print(
             "No providers configured. Use `telert config` or `telert init` to set up a provider."
@@ -1616,6 +1642,17 @@ def main():
     list_providers_parser = config_sp.add_parser(
         "list-providers", help="list all available providers"
     )
+
+    xmpp_parser = config_sp.add_parser("xmpp", help="configure XMPP messaging")
+    xmpp_parser.add_argument("--jid", required=True, help="account JID (user@domain)")
+    xmpp_parser.add_argument("--password", required=True, help="XMPP account password")
+    xmpp_parser.add_argument("--recipient", "--recipient-jid", required=True, help="recipient JID")
+    xmpp_parser.add_argument("--server", help="override server discovery")
+    xmpp_parser.add_argument("--port", type=int, help="override port (5222 STARTTLS / 5223 direct TLS)")
+    xmpp_parser.add_argument("--direct-tls", action="store_true", help="use TLS-on-connect instead of STARTTLS")
+    xmpp_parser.add_argument("--ca-file", help="PEM certificate authority file for TLS verification")
+    xmpp_parser.add_argument("--set-default", action="store_true", help="set as the only default provider")
+    xmpp_parser.add_argument("--add-to-defaults", action="store_true", help="add to existing default providers")
 
     # Telegram config
     telegram_parser = config_sp.add_parser(

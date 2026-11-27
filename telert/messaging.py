@@ -13,6 +13,8 @@ This module contains implementations for different messaging services:
 
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import enum
 import json
 import os
@@ -22,6 +24,7 @@ import re
 import shutil
 import smtplib
 import subprocess
+import ssl
 import tempfile
 import time
 from email.mime.text import MIMEText
@@ -56,6 +59,7 @@ class Provider(enum.Enum):
     ENDPOINT = "endpoint"
     DISCORD = "discord"
     EMAIL = "email"
+    XMPP = "xmpp"
 
     @classmethod
     def from_string(cls, value: str) -> "Provider":
@@ -209,6 +213,26 @@ class MessagingConfig:
                 if icon_path:
                     config["icon_path"] = icon_path
                 return config or self._config.get(provider.value, {})
+
+        if provider == Provider.XMPP:
+            # Overlay individual variables without discarding saved credentials.
+            config = dict(self._config.get(provider.value, {}))
+            for key in ("jid", "password", "recipient", "server", "ca_file"):
+                value = os.environ.get(f"TELERT_XMPP_{key.upper()}")
+                if value is not None:
+                    config[key] = value
+            port = os.environ.get("TELERT_XMPP_PORT")
+            if port is not None:
+                try:
+                    config["port"] = int(port)
+                except ValueError:
+                    raise ValueError("TELERT_XMPP_PORT must be an integer") from None
+            direct_tls = os.environ.get("TELERT_XMPP_DIRECT_TLS")
+            if direct_tls is not None:
+                if direct_tls.lower() not in ("1", "true", "yes", "0", "false", "no"):
+                    raise ValueError("TELERT_XMPP_DIRECT_TLS must be true or false")
+                config["direct_tls"] = direct_tls.lower() in ("1", "true", "yes")
+            return config
 
         # Fall back to config file
         return self._config.get(provider.value, {})
@@ -1483,6 +1507,131 @@ class EmailProvider:
             print(f"❌ Failed to send email: {str(e)}")
             return False
 
+class XMPPProvider:
+    """Send one chat message using the optional Slixmpp asyncio client."""
+
+    def __init__(
+        self, jid: Optional[str] = None, password: Optional[str] = None,
+        recipient: Optional[str] = None, server: Optional[str] = None,
+        port: Optional[int] = None, direct_tls: bool = False,
+        ca_file: Optional[str] = None,
+    ):
+        self.jid = jid
+        self.password = password
+        self.recipient = recipient
+        self.server = server
+        self.port = port
+        self.direct_tls = direct_tls
+        self.ca_file = ca_file
+
+    def _validate(self):
+        if not all((self.jid, self.password, self.recipient)):
+            raise ValueError("XMPP requires jid, password, and recipient")
+        for jid in (self.jid, self.recipient):
+            bare = jid.split("/", 1)[0]
+            if "@" not in bare or not all(bare.split("@", 1)):
+                raise ValueError("XMPP JIDs must use the form user@domain")
+        if self.port is not None:
+            try:
+                self.port = int(self.port)
+            except (ValueError, TypeError):
+                raise ValueError("XMPP port must be an integer from 1 to 65535") from None
+            if not 1 <= self.port <= 65535:
+                raise ValueError("XMPP port must be an integer from 1 to 65535")
+
+    def configure_from_env(self) -> bool:
+        if not any(key.startswith("TELERT_XMPP_") for key in os.environ):
+            return False
+        return self.configure_from_config(MessagingConfig())
+
+    def configure_from_config(self, config: MessagingConfig) -> bool:
+        values = config.get_provider_config(Provider.XMPP)
+        for key in ("jid", "password", "recipient", "server", "port", "direct_tls", "ca_file"):
+            if key in values:
+                setattr(self, key, values[key])
+        if not all((self.jid, self.password, self.recipient)):
+            return False
+        self._validate()
+        return True
+
+    def save_config(self, config: MessagingConfig):
+        self._validate()
+        config.set_provider_config(Provider.XMPP, {
+            key: getattr(self, key)
+            for key in ("jid", "password", "recipient", "server", "port", "direct_tls", "ca_file")
+            if getattr(self, key) is not None
+        })
+
+    def send(self, message: str) -> bool:
+        self._validate()
+        try:
+            from slixmpp import ClientXMPP
+        except ImportError:
+            raise ImportError(
+                "XMPP support requires slixmpp. Install with: pip install 'telert[xmpp]'"
+            ) from None
+
+        async def send_once():
+            # Construct every asyncio object in its owning loop, including the client.
+            client = ClientXMPP(self.jid, self.password)
+            done = asyncio.get_running_loop().create_future()
+            client.enable_direct_tls = self.direct_tls
+            client.enable_starttls = not self.direct_tls
+            client.ssl_context = ssl.create_default_context(cafile=self.ca_file)
+
+            def fail(_event):
+                if not done.done():
+                    done.set_result(False)
+
+            async def session_start(_event):
+                try:
+                    client.send_presence()
+                    client.send_message(mto=self.recipient, mbody=message, mtype="chat")
+                    if not done.done():
+                        done.set_result(True)
+                except Exception:
+                    fail(None)
+
+            client.add_event_handler("session_start", session_start)
+            for event in ("failed_auth", "connection_failed", "disconnected"):
+                client.add_event_handler(event, fail)
+            try:
+                async def connect_and_send():
+                    if self.server or self.port is not None:
+                        host = self.server or self.jid.split("@", 1)[1].split("/", 1)[0]
+                        await client.connect(host=host, port=self.port or (5223 if self.direct_tls else 5222))
+                    else:
+                        await client.connect()
+                    return await done
+
+                if not await asyncio.wait_for(connect_and_send(), timeout=30):
+                    raise RuntimeError("XMPP authentication, connection, or send failed")
+                # Await disconnect so the outgoing queue is drained before closing the loop.
+                await asyncio.wait_for(client.disconnect(), timeout=5)
+                return True
+            finally:
+                client.cancel_connection_attempt()
+                client.abort()
+
+        def run():
+            try:
+                return asyncio.run(send_once())
+            except Exception:
+                # Never echo transport exceptions: they may contain credentials.
+                raise RuntimeError(
+                    "XMPP send failed; check credentials, TLS settings, and server connectivity"
+                ) from None
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return run()
+        # Synchronous API may be called from an async app. Isolate its loop in a
+        # worker rather than nesting asyncio.run() or modifying the caller's loop.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(run).result()
+
+
 class EndpointProvider:
     """Provider for custom HTTP endpoint messaging."""
 
@@ -1675,6 +1824,7 @@ def get_provider(
     EndpointProvider,
     DiscordProvider,
     EmailProvider,
+    XMPPProvider,
 ]:
     """Get a configured messaging provider (single provider mode for backward compatibility)."""
     providers = get_providers(provider_name)
@@ -1696,6 +1846,7 @@ def get_providers(
         EndpointProvider,
         DiscordProvider,
         EmailProvider,
+        XMPPProvider,
     ]
 ]:
     """Get a list of configured messaging providers.
@@ -1756,6 +1907,8 @@ def get_providers(
                 provider = DiscordProvider()
             elif provider_enum == Provider.EMAIL:
                 provider = EmailProvider()
+            elif provider_enum == Provider.XMPP:
+                provider = XMPPProvider()
             else:
                 continue  # Skip unsupported providers
 
@@ -1825,6 +1978,11 @@ def get_providers(
             if provider.configure_from_env():
                 env_providers.append(provider)
 
+        if os.environ.get("TELERT_XMPP_JID"):
+            provider = XMPPProvider()
+            if provider.configure_from_env():
+                env_providers.append(provider)
+
         # If multiple providers are configured via env vars, check for preference order
         if env_providers:
             # If TELERT_DEFAULT_PROVIDER is set, reorder the providers accordingly
@@ -1856,6 +2014,7 @@ def get_providers(
                                     Provider.ENDPOINT: EndpointProvider,
                                     Provider.DISCORD: DiscordProvider,
                                     Provider.EMAIL: EmailProvider,
+                                    Provider.XMPP: XMPPProvider,
                                 }[p_type],
                             ):
                                 result_providers.append(provider)
@@ -2259,6 +2418,14 @@ def configure_provider(provider: Union[Provider, str], **kwargs):
             subject_template=subject_template,
             use_html=use_html,
         )
+
+    elif provider == Provider.XMPP:
+        provider_instance = XMPPProvider(**{
+            key: kwargs[key]
+            for key in ("jid", "password", "recipient", "server", "port", "direct_tls", "ca_file")
+            if key in kwargs
+        })
+        provider_instance._validate()
 
     else:
         raise ValueError(f"Unsupported provider: {provider}")
